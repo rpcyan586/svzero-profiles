@@ -1,0 +1,245 @@
+{
+  "_why": "OrcaSlicer descends from Bambu Studio; PrusaSlicer and SuperSlicer share a lineage. Measured against the real files, Orca and SuperSlicer share only 13 exact parameter names out of ~90, while SuperSlicer and PrusaSlicer share all 90. So generating PS from SS is close to a copy, and generating Orca needs this table. The tier anchors in source/tier-anchors.json are in ORCA names because they came from a forum table comparing two Orca profiles; this is what lets them drive PS/SS output too.",
+  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer — a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
+  "_scope_note": "Some Orca process keys correspond to PS/SS settings that are NOT process-level. retraction and z-hop are printer-level in PS/SS; pressure advance and volumetric caps are filament-level. Those are listed in `scope_differs` and must be emitted into the right section, not the print preset.",
+  "mapped": {
+    "layer_height": "layer_height",
+    "initial_layer_print_height": "first_layer_height",
+    "outer_wall_speed": "external_perimeter_speed",
+    "inner_wall_speed": "perimeter_speed",
+    "sparse_infill_speed": "infill_speed",
+    "internal_solid_infill_speed": "solid_infill_speed",
+    "top_surface_speed": "top_solid_infill_speed",
+    "initial_layer_speed": "first_layer_speed",
+    "gap_infill_speed": "gap_fill_speed",
+    "bridge_speed": "bridge_speed",
+    "support_speed": "support_material_speed",
+    "travel_speed": "travel_speed",
+    "line_width": "extrusion_width",
+    "outer_wall_line_width": "external_perimeter_extrusion_width",
+    "inner_wall_line_width": "perimeter_extrusion_width",
+    "sparse_infill_line_width": "infill_extrusion_width",
+    "internal_solid_infill_line_width": "solid_infill_extrusion_width",
+    "top_surface_line_width": "top_infill_extrusion_width",
+    "initial_layer_line_width": "first_layer_extrusion_width",
+    "support_line_width": "support_material_extrusion_width",
+    "default_acceleration": "default_acceleration",
+    "outer_wall_acceleration": "external_perimeter_acceleration",
+    "inner_wall_acceleration": "perimeter_acceleration",
+    "initial_layer_acceleration": "first_layer_acceleration",
+    "top_surface_acceleration": "top_solid_infill_acceleration",
+    "bridge_acceleration": "bridge_acceleration",
+    "travel_acceleration": "travel_acceleration",
+    "wall_loops": "perimeters",
+    "top_shell_layers": "top_solid_layers",
+    "bottom_shell_layers": "bottom_solid_layers",
+    "sparse_infill_density": "fill_density",
+    "sparse_infill_pattern": "fill_pattern",
+    "bridge_flow": "bridge_flow_ratio",
+    "thick_bridges": "thick_bridges",
+    "infill_wall_overlap": "infill_overlap",
+    "seam_position": "seam_position",
+    "brim_width": "brim_width",
+    "brim_type": "brim_type",
+    "elefant_foot_compensation": "elefant_foot_compensation",
+    "skirt_distance": "skirt_distance",
+    "reduce_crossing_wall": "avoid_crossing_perimeters",
+    "max_travel_detour_distance": "avoid_crossing_perimeters_max_detour",
+    "support_threshold_angle": "support_material_threshold",
+    "support_base_pattern_spacing": "support_material_spacing",
+    "support_interface_spacing": "support_material_interface_spacing",
+    "support_top_z_distance": "support_material_contact_distance",
+    "support_bottom_z_distance": "support_material_bottom_contact_distance",
+    "support_interface_top_layers": "support_material_interface_layers"
+  },
+  "scope_differs": {
+    "retraction_length": {
+      "ps_ss_key": "retract_length",
+      "section": "printer"
+    },
+    "retraction_speed": {
+      "ps_ss_key": "retract_speed",
+      "section": "printer"
+    },
+    "deretraction_speed": {
+      "ps_ss_key": "deretract_speed",
+      "section": "printer"
+    },
+    "z_hop": {
+      "ps_ss_key": "retract_lift",
+      "section": "printer"
+    },
+    "retraction_minimum_travel": {
+      "ps_ss_key": "retract_before_travel",
+      "section": "printer"
+    },
+    "filament_max_volumetric_speed": {
+      "ps_ss_key": "filament_max_volumetric_speed",
+      "section": "filament"
+    },
+    "nozzle_temperature": {
+      "ps_ss_key": "temperature",
+      "section": "filament"
+    },
+    "nozzle_temperature_initial_layer": {
+      "ps_ss_key": "first_layer_temperature",
+      "section": "filament"
+    },
+    "pressure_advance": {
+      "ps_ss_key": null,
+      "section": "filament",
+      "note": "PS/SS have no native PA field; it is passed to Klipper via filament custom g-code or left to printer.cfg."
+    },
+    "fan_min_speed": {
+      "ps_ss_key": "min_fan_speed",
+      "section": "filament"
+    },
+    "fan_cooling_layer_time": {
+      "ps_ss_key": "fan_below_layer_time",
+      "section": "filament"
+    },
+    "slow_down_layer_time": {
+      "ps_ss_key": "slowdown_below_layer_time",
+      "section": "filament"
+    }
+  },
+  "unmapped_orca": [
+    "accel_to_decel_factor",
+    "additional_cooling_fan_speed",
+    "enable_extra_bridge_layer",
+    "enable_pressure_advance",
+    "extrusion_rate_smoothing_external_perimeter_only",
+    "filter_out_gap_fill",
+    "fuzzy_skin_noise_type",
+    "fuzzy_skin_octaves",
+    "fuzzy_skin_persistence",
+    "fuzzy_skin_point_distance",
+    "fuzzy_skin_scale",
+    "fuzzy_skin_thickness",
+    "gap_fill_target",
+    "infill_direction",
+    "initial_layer_infill_speed",
+    "initial_layer_jerk",
+    "initial_layer_travel_speed",
+    "inner_wall_jerk",
+    "internal_bridge_angle",
+    "internal_bridge_density",
+    "internal_bridge_fan_speed",
+    "internal_bridge_flow",
+    "ironing_inset",
+    "lattice_angle_1",
+    "machine_max_jerk_e",
+    "machine_max_jerk_x",
+    "machine_max_jerk_y",
+    "machine_max_speed_e",
+    "minimum_sparse_infill_area",
+    "only_one_wall_first_layer",
+    "only_one_wall_top",
+    "outer_wall_jerk",
+    "overhang_2_4_speed",
+    "overhang_3_4_speed",
+    "overhang_4_4_speed",
+    "precise_outer_wall",
+    "precise_z_height",
+    "retract_lift_below",
+    "single_loop_draft_shield",
+    "solid_infill_direction",
+    "spiral_finishing_flow_ratio",
+    "spiral_starting_flow_ratio",
+    "supertack_plate_temp",
+    "supertack_plate_temp_initial_layer",
+    "support_bottom_interface_spacing",
+    "support_interface_pattern",
+    "support_object_first_layer_gap",
+    "support_style",
+    "support_threshold_overlap",
+    "support_type",
+    "top_solid_infill_flow_ratio",
+    "top_surface_jerk",
+    "travel_jerk",
+    "wall_direction",
+    "wall_sequence",
+    "first_layer_temperature"
+  ],
+  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting — see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
+  "_value_vocabularies_differ_too": "Mapping key NAMES is not enough: the same key can carry different enum values per slicer. PrusaSlicer 2.9.6 rejected brim_type=auto_brim from the Orca-derived Stock tier and substituted outer_only, with a warning dialog on every launch. Checked the rest of the Stock tier's non-numeric values: seam_position=aligned and fill_pattern=grid are valid in both.",
+  "value_map": {
+    "brim_type": {
+      "auto_brim": "outer_only"
+    }
+  },
+  "filament_scope": {
+    "_what": "PS/SS filament key -> Orca filament key. Separate from `mapped`, which is process scope.",
+    "_evidence": "Names verified against Sovol's shipped Orca filament profiles in Sovol3d/Sovol-OrcaSlicer on GitHub. Where a name was absent there it was checked across the whole OrcaSlicer profile tree by file count: filament_colour 0 files (Orca has no such key -> default_filament_colour, 103), filament_notes 75, filament_shrink 72, compatible_printers_condition 682.",
+    "simple": {
+      "temperature": "nozzle_temperature",
+      "first_layer_temperature": "nozzle_temperature_initial_layer",
+      "extrusion_multiplier": "filament_flow_ratio",
+      "filament_colour": "default_filament_colour",
+      "filament_cost": "filament_cost",
+      "filament_density": "filament_density",
+      "filament_diameter": "filament_diameter",
+      "filament_type": "filament_type",
+      "filament_vendor": "filament_vendor",
+      "filament_notes": "filament_notes",
+      "filament_shrink": "filament_shrink",
+      "filament_max_volumetric_speed": "filament_max_volumetric_speed",
+      "filament_retract_length": "filament_retraction_length",
+      "filament_retract_lift": "filament_z_hop",
+      "fan_min_speed": "fan_min_speed",
+      "max_fan_speed": "fan_max_speed",
+      "overhangs_fan_speed": "overhang_fan_speed",
+      "full_fan_speed_layer": "full_fan_speed_layer",
+      "fan_below_layer_time": "fan_cooling_layer_time",
+      "slowdown_below_layer_time": "slow_down_layer_time",
+      "min_print_speed": "slow_down_min_speed",
+      "chamber_temperature": "chamber_temperatures",
+      "compatible_printers_condition": "compatible_printers_condition",
+      "compatible_prints": "compatible_prints",
+      "compatible_prints_condition": "compatible_prints_condition"
+    },
+    "_fan_out": {
+      "_why": "Orca has no single bed temperature. It carries one per plate type, and the preset also names which plate it assumes via bed_type. Our presets have a single value, so it is written to all four -- whichever plate the user selects then gets the intended temperature.",
+      "bed_temperature": [
+        "cool_plate_temp",
+        "eng_plate_temp",
+        "hot_plate_temp",
+        "textured_plate_temp"
+      ],
+      "first_layer_bed_temperature": [
+        "cool_plate_temp_initial_layer",
+        "eng_plate_temp_initial_layer",
+        "hot_plate_temp_initial_layer",
+        "textured_plate_temp_initial_layer"
+      ]
+    },
+    "_paired": {
+      "_why": "Orca ignores pressure_advance unless enable_pressure_advance is also set.",
+      "filament_pressure_advance": {
+        "key": "pressure_advance",
+        "also": {
+          "enable_pressure_advance": "1"
+        }
+      }
+    },
+    "_forced": {
+      "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control is forced off for the same class of reason: it makes Orca emit M191, which BLOCKS until the chamber reaches a minimum and calls its own G28 -- wrong for PLA, where the chamber figure is a ceiling. The start G-code emits a nonblocking M141 instead. See notes/incidents/2026-08-17-zero2-startup-crash.",
+      "activate_air_filtration": "0",
+      "activate_chamber_temp_control": "0"
+    },
+    "_unmapped": {
+      "bridge_fan_speed": "No filament-scope equivalent in Orca. Its nearest relative, internal_bridge_fan_speed, is process scope, so mapping it here would write into the wrong preset type. Dropped deliberately.",
+      "compatible_printers": "Handled structurally, not by name: Orca wants a JSON list of machine preset names, which the emitter builds."
+    },
+    "_roots": {
+      "_why": "Orca filament presets inherit a per-material root, and each root itself inherits fdm_filament_common. The whole closure must be shipped AND listed in the vendor index -- an unlisted root is an absent root, which fails the entire vendor. Note PETG inherits fdm_filament_pet, not _petg.",
+      "PLA": "fdm_filament_pla",
+      "PLA Silk": "fdm_filament_pla",
+      "PETG": "fdm_filament_pet",
+      "ABS": "fdm_filament_abs",
+      "TPU": "fdm_filament_tpu",
+      "PC": "fdm_filament_pc",
+      "_base": "fdm_filament_common"
+    }
+  }
+}

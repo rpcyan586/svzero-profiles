@@ -1,0 +1,188 @@
+{
+  "_what": "Single source of truth for the SV Zero profile pack. tools/generate.py emits SuperSlicer and PrusaSlicer bundles and OrcaSlicer profiles from this, so the three cannot drift the way the hand-maintained SS and PS bundles already did.",
+  "machine": {
+    "name": "SV Zero",
+    "bed": [
+      152.4,
+      152.4
+    ],
+    "height": 152.4,
+    "nozzles": [
+      "0.2",
+      "0.4",
+      "0.6",
+      "0.8",
+      "1.0"
+    ],
+    "max_volumetric_speed": 50,
+    "_max_volumetric_note": "Sovol's published rating, 85W/24V ceramic hotend. Emitted into *SV Zero General* as `max_volumetric_speed`, which in PrusaSlicer/SuperSlicer is the HOTEND capability limit (Print settings -> Speed). The material limit is filament_max_volumetric_speed. Per Prusa's docs the effective cap is the LOWER of the two, so machine and material stay separable and no tier needs hand-capping. Orca has no process-level equivalent -- only the filament one -- so for Orca the machine ceiling has to be folded into each filament profile.",
+    "limits": {
+      "_what": "Stock Sovol Zero motion limits, from printer.cfg [printer].",
+      "_why": "Klipper's SET_VELOCITY_LIMIT does not clamp. toolhead.py assigns self.max_accel = max_accel outright, so a sliced file asking ACCEL=40000 RAISES a machine whose config says 5000. A max_accel in printer.cfg is therefore NOT a safety net against a slicer, and a profile that emits more than the machine should run is a safety defect rather than an optimistic setting.",
+      "_note": "Zero2 currently runs a reduced 5000 after the 2026-08-17 crash. Use install-presets.py --accel-cap 5000 for it rather than lowering these, which are the stock values the published pack targets.",
+      "max_accel": 40000,
+      "max_velocity": 1200,
+      "square_corner_velocity": 5.0
+    }
+  },
+  "tiers": {
+    "_order": [
+      "Quality",
+      "Normal",
+      "Draft",
+      "Speed"
+    ],
+    "_semantics": "Draft IS the stock Sovol profile — the baseline the machine ships with, renamed once it became clear how coarse it is. Speed IS Sovol's own speedBenchy. Normal sits between Draft and Quality. Quality runs the other way entirely, taking the community's quality recommendations. Naming follows Voron/Prusa convention rather than the ExtraDraft of v1.0.2. Stock is a separate reference tier, faithful to Sovol's published profile and deliberately exempt from the ramp; it may end up hidden or personal rather than published.",
+    "Quality": {
+      "anchor": "derived",
+      "derivation": "extrapolate away from ExtraDraft past Draft — slower, more shells, artefact removal. Community quality recommendations, not interpolation.",
+      "sqv": 3,
+      "layer_fraction": 0.25
+    },
+    "Normal": {
+      "anchor": "derived",
+      "derivation": "midpoint of Quality and Draft",
+      "sqv": 5,
+      "layer_fraction": 0.375
+    },
+    "Draft": {
+      "anchor": "stock",
+      "derivation": "verbatim Sovol stock Orca profile (0.20mm Standard @ 0.4 nozzle)",
+      "sqv": 7,
+      "layer_fraction": 0.5
+    },
+    "Speed": {
+      "anchor": "speedbenchy",
+      "derivation": "verbatim Sovol speedBenchy (8m22s). Expected to look bad; must not fail.",
+      "sqv": 9,
+      "layer_fraction": 0.625,
+      "_anchor_caveat": "speedBenchy was gcode + 3MF, not a released profile. Its parameters were reverse-read from the 3MF and were never meant to compose with the stock filament profiles."
+    },
+    "Stock": {
+      "anchor": "tier-anchors:normal",
+      "derivation": "Verbatim Sovol published values, mapped through source/keymap.json. Reference/provenance tier, NOT part of the ramp.",
+      "sqv": null,
+      "exempt_from_ramp": true,
+      "hidden": true,
+      "_note": "Kept faithful rather than made consistent. It is the thing everything else is measured against, so 'fixing' it would destroy its only value. Expect it to violate the proportional model: stock asks outer 350 / inner 400 / infill 500 with no coherent ratio between them."
+    },
+    "_reference_tiers": [
+      "Stock"
+    ]
+  },
+  "_sqv_note": "Square corner velocity is a Klipper property, not a slicer setting. Orca exposes per-feature jerk and PS/SS a single machine jerk; neither maps cleanly, and writing SQV as a slicer field is what caused the PrusaSlicer errors that v1.0.2 removed. So each tier declares an sqv and the generator passes it to START_PRINT as a parameter. The progression 3/5/7/9 comes from the continuity book and is PROPOSED, not measured — faster tiers tolerate higher SQV.",
+  "layer_heights": {
+    "_note": "Explicit rather than computed from layer_fraction, because the ladder is a design choice per nozzle and 0.2n deliberately breaks proportional scaling. Values are the existing SuperSlicer ladder, which is correct under Draft = stock: 0.4n Draft = 0.20 = stock's only process.",
+    "0.2": {
+      "Quality": 0.05,
+      "Normal": 0.1,
+      "Draft": 0.15
+    },
+    "0.4": {
+      "Quality": 0.1,
+      "Normal": 0.15,
+      "Draft": 0.2,
+      "Speed": 0.25
+    },
+    "0.6": {
+      "Quality": 0.2,
+      "Normal": 0.25,
+      "Draft": 0.3,
+      "Speed": 0.4
+    },
+    "0.8": {
+      "Quality": 0.25,
+      "Normal": 0.3,
+      "Draft": 0.4,
+      "Speed": 0.6
+    },
+    "1.0": {
+      "Quality": 0.4,
+      "Normal": 0.5,
+      "Draft": 0.6,
+      "Speed": 0.8
+    }
+  },
+  "tier_gaps": {
+    "_why": "Deliberate omissions, asserted by tools/validate-bundle.py so they cannot be mistaken for oversights.",
+    "0.2": [
+      "Speed"
+    ]
+  },
+  "_deferred": [
+    "Filament volumetric caps, per-tier speed ceilings and the (process, filament-assumption) pairing are deliberately NOT modelled yet. Recorded in docs/STATUS.md: both published anchors already ask for speeds their own filament forbids (stock 350/400/500 against a 262 mm/s ceiling; speedBenchy 500 against 400). Revisit before publishing any tier that advertises a speed."
+  ],
+  "speed_model": {
+    "_why": "Every tier speed is a ratio of one number per tier, so the ramp is driven by `base_speed` alone and cannot go backwards or drift out of proportion. The ratios were derived from the existing Quality/Normal/Speed bases, which already agreed to within rounding: perimeter 45/66, 52/76, 69/100 = 68%; gap 59%; bridge 50%; first layer 10.5%. Draft disagreed on every row and is corrected.",
+    "_reference_chain": "SuperSlicer resolves these against each other, not all against base_speed: external is a % of perimeter, solid a % of infill, top a % of solid. See PCT_REFERENCE in tools/generate.py.",
+    "base_speed": {
+      "Quality": 66,
+      "Normal": 76,
+      "Draft": 88,
+      "Speed": 100
+    },
+    "_base_speed_note": "Draft was 60 — below Normal's 76 — which is what made infill run backwards. 88 places it evenly between Normal and Speed. This is an interim value: Draft is defined as stock Sovol, whose real speeds are outer 350 / inner 400 / infill 500, and should be derived from the anchor once filament caps are settled.",
+    "ratios_of_base": {
+      "perimeter_speed": "68%",
+      "infill_speed": "100%",
+      "solid_infill_speed": "68%",
+      "gap_fill_speed": "59%",
+      "bridge_speed": "50%",
+      "first_layer_speed": "10.5%"
+    },
+    "ratios_of_other": {
+      "external_perimeter_speed": "83%",
+      "top_solid_infill_speed": "65%"
+    }
+  },
+  "_flow_design": {
+    "_answer": "We are not the first: PrusaSlicer models exactly this split and has since long before us. Print settings -> Speed -> Max volumetric speed is documented as the hotend's capability; Filament settings -> Advanced -> Max volumetric speed is the material's; the lower of the two wins, and 0 disables that one. So the tidy separation exists.",
+    "_the_real_untidiness": "The machine limit lives in the PROCESS profile, not the printer profile. That is genuinely misplaced -- it must be repeated in every process, and setting it to 0 to 'not bother' silently disables the machine ceiling. Tom's Print Garden's bundle has max_volumetric_speed = 0 in its only process, which is also what produced the F0 start-gcode bug sebastianha traced. Orca is worse: no process-level field at all.",
+    "_consequence_for_draft": "Draft does NOT need hand-capping. The clamp is applied per feature by the slicer: features already under the ceiling are untouched, and only those exceeding it are slowed. So authoring Draft at stock's speeds with an honest volumetric pair produces exactly the requested behaviour -- the fastest extrusion type lands on the ceiling, everything else keeps its proportion. tomb16_ (Discord, 2024-10-21): 'Orca is smart enough to not exceed the flow rate so it will cap the speed... No problems are caused by hitting this limit.'"
+  },
+  "flow_model": {
+    "_why": "A tier's speeds cannot be a single set of numbers, because volumetric demand is speed x line width x layer height and both width and layer scale with nozzle. At one infill speed the demand runs 7.9 mm3/s on a 0.2 nozzle and 157 on a 1.0. So the TIER carries ratios and each PRESET carries a default_speed derived from its own geometry.",
+    "_why_not_clamping": "Letting the slicer clamp does not preserve feature ratios -- it inverts them. At stock's speeds against a 21 mm3/s ceiling, outer wall clamps to 262.5 and infill to 233.3, so the outer wall ends up FASTER than infill because infill's wider line hits the ceiling first. Scaling preserves the ordering; clamping destroys it. This corrects an earlier claim that Draft needed no hand-capping.",
+    "_formula": "default_speed = (reference_flow * flow_utilisation) / (infill_width_ratio * nozzle * layer_height), capped by speed_cap.",
+    "infill_width_ratio": 1.125,
+    "speed_cap": 500,
+    "_speed_cap_note": "Stock's own sparse_infill_speed. Using Sovol's highest authored speed as the motion ceiling rather than inventing one. It binds on small nozzles, where flow is not the constraint: holding 21 mm3/s on a 0.2 nozzle would need 622 mm/s. Small nozzles are motion- and quality-limited, big ones flow-limited.",
+    "reference_flow": {
+      "_what": "Filament capability each tier is authored against. A tier is a (process, reference_flow) pair; the speeds are meaningless without it.",
+      "Quality": 21,
+      "Normal": 21,
+      "Draft": 21,
+      "Speed": 50
+    },
+    "_reference_flow_note": "21 is Sovol's own stock PLA filament profile -- what ships and what most people will run. 50 is the machine rating and what speedBenchy's filament profile declares, which is why Speed is authored against it. Re-author against a measured value once a flow test on a documented spool exists; known and trusted beats maximal.",
+    "_why_utilisation": "Holding volumetric constant across tiers inverts the ramp: at a fixed flow, a thin layer needs MORE speed, so Quality came out fastest. Tiers must differ in how much of the available flow they use, not in the flow itself. Draft = 100% because Draft is stock capped at the ceiling, which is the stated definition; Quality and Normal deliberately leave headroom, which is what buys surface finish.",
+    "flow_utilisation": {
+      "Quality": 0.5,
+      "Normal": 0.7,
+      "Draft": 1.0,
+      "Speed": 1.0
+    },
+    "_reference_flow_provenance": {
+      "21": "Sovol's stock PLA filament profile. NOT a Zero measurement: the same 21 appears on the classic SV08 and the SV08 MAX, whose toolheads differ from each other and from the Zero's. It is a house default carried along the product line, and it contradicts Sovol's own published rating for the Zero of <=50 mm3/s by 2.4x. See notes/kb/toolhead-lineage.md.",
+      "50": "Sovol's published machine rating, and the value the speedBenchy 3MF declares. WEAKER THAN IT LOOKS: the 8m22s speedBenchy was released as gcode and a 3MF, never as a profile, so it was never intended to pair with a stock filament profile. It is a demo artefact, tuned as a whole for one model on one filament. Treat it as evidence that 50 is reachable, not as a profile to interpolate against.",
+      "_action": "Both anchors are weak for different reasons. A flow test on a documented spool replaces both and rescales the entire ladder from one number.",
+      "_sv08_community_floor": "The SV08 community has measured flow; the Zero's has not. On a STOCK 0.4 hotend: rappetor 24 mm3/s (PLA+), zappes.bpd 30 (Sunlu PETG), skaltura 36. Exclude upgraded hotends (Dragon, CHT, OXC) which range 19-70 and measure a different part. The SV08's heater is 64-72W against the Zero's 85W, so these are a FLOOR for the Zero, not a match. Range narrows from [21,50] to roughly [24,50]. Note promptengineered raised 18->25 mm3/s by increasing extruder motor current to 0.9A, so a flow test measures the whole path, not the hotend."
+    }
+  },
+  "targets": {
+    "_why": "Which slicer schema each emitter is known-good against. Real PrusaSlicer bundles stamp '# generated by PrusaSlicer <ver>' on line 1; ours declared nothing, so a schema change would be discovered by a confusing import failure rather than by a version mismatch. Stamped into the generated headers.",
+    "superslicer": {
+      "version": "2.7.62.0-beta2",
+      "status": "master format; last release 2025-11-19, no stable since"
+    },
+    "prusaslicer": {
+      "version": "2.9.6",
+      "status": "verified installed; 90/90 print keys shared with the master"
+    },
+    "orcaslicer": {
+      "version": "2.4.2",
+      "status": "verified installed; 13/90 keys shared, translated via keymap"
+    },
+    "_prusaslicer_3_risk": "As of 2026-08-16 PrusaSlicer 3 has NO public alpha, tag or prerelease -- newest tag is version_2.9.6 (2026-06-25) and the 2.9.x line is still shipping. It was called 'weeks away' in the 2.9.5 notes around April and two more 2.9.x stables have landed since. It is described as a backend/engine overhaul plus a UI rework, which is exactly where a config-schema change would occur, though nothing has been announced either way. If the schema does change, the 90/90 SuperSlicer->PrusaSlicer edge breaks and PrusaSlicer becomes the outlier against its own forks: SuperSlicer is stagnant and will never follow, and Orca descends via Bambu Studio rather than tracking PrusaSlicer closely. Mitigation is additive -- a second PrusaSlicer emitter -- because model.json is slicer-neutral and keymap.json is data."
+  }
+}
