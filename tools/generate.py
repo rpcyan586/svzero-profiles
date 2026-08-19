@@ -1055,6 +1055,42 @@ def emit_orca(model, ss, keymap, out_dir):
 # Zero2 on 2026-08-17: it homes, calls START_PRINT which homes again, homes a
 # third time, and only THEN heats the bed -- so calibration and meshing run cold
 # -- before driving straight to an XY position with no Z clearance.
+
+def clean_temp_lines(data):
+    """Material-aware cleaning temperature, as start-G-code lines.
+
+    CLEAN_NOZZLE is invoked by Sovol's START_PRINT, not by the slicer, so TEMP=
+    cannot be passed as a parameter. The slicer sets the _BRUSH variable instead
+    and START_PRINT's call picks it up. Both PrusaSlicer/SuperSlicer and Orca use
+    the same placeholder parser and the same filament_type vocabulary here
+    (PLA/PETG/ABS/TPU/PC verified across all three emitted bundles), so one block
+    serves every target.
+
+    The M104 beside each SET_GCODE_VARIABLE is the head start: it must match, or
+    the nozzle arrives at the brush at the wrong temperature. Emitting them as a
+    pair from one table is what keeps them matched -- they were two hand-edited
+    constants before, in two files.
+    """
+    by = data["by_type"]
+    dflt = data["default"]
+    out = [
+        ";>>>CLEAN_TEMP generated from source/filament-clean-temp.json -- do not hand-edit",
+        ";  PROPOSED curve, not a measurement. Keyed on filament_type only: the",
+        ";  curve's Brass/Steel split is not visible from any placeholder here and",
+        ";  both local nozzles are material-unverified, so PLA takes one value.",
+        ";  Fallback is Sovol's stock 200 -- vendor behaviour when we know nothing.",
+    ]
+    for i, (t, v) in enumerate(sorted(by.items(), key=lambda kv: kv[1])):
+        kw = "if" if i == 0 else "elsif"
+        out.append('{%s filament_type[0]=="%s"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=%d' % (kw, t, v))
+        out.append("M104 S%d ; head start to the cleaning temperature" % v)
+    out.append("{else}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=%d" % dflt)
+    out.append("M104 S%d ; unknown material -- Sovol's stock cleaning temperature" % dflt)
+    out.append("{endif}")
+    out.append(";<<<CLEAN_TEMP")
+    return out
+
+
 ORCA_START_PREAMBLE = "\n".join([
     ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.",
     ";  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.",
@@ -1063,8 +1099,7 @@ ORCA_START_PREAMBLE = "\n".join([
     ";  calls its own G28, which is wrong for PLA where 32C is a cap.",
     "{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}",
     "M140 S[bed_temperature_initial_layer_single]",
-    "M104 S155 ; head start straight to CLEAN_NOZZLE's retract_temp, no 150-then-155 step",
-    "; MUST match _BRUSH retract_temp in nozzle_brush.cfg",
+    "@@CLEAN_TEMP@@",
     "M190 S[bed_temperature_initial_layer_single] ; bed hot BEFORE calibration and mesh",
     "START_PRINT",
     "G90",
@@ -1287,7 +1322,9 @@ def emit_orca_vendor(model, out_dir):
             if ORCA_PURGE_START in tail and ORCA_PURGE_END in tail:
                 after = tail.split(ORCA_PURGE_START, 1)[1]
                 tail = "\n" + after.split(ORCA_PURGE_END, 1)[1].lstrip("\n")
-            m["machine_start_gcode"] = ORCA_START_PREAMBLE + tail
+            preamble = ORCA_START_PREAMBLE.replace(
+                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json"))))
+            m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         m["print_host"] = default_host["host"]
         lh = model["layer_heights"].get(noz, {}).get("Draft")
@@ -1340,6 +1377,23 @@ def main():
     PS_TARGET = model.get("targets", {}).get("prusaslicer", {}).get("version", PS_TARGET)
     master = os.path.join(ROOT, "bundles", "SVZero_SuperSlicer.ini")
     ss = parse_ini(master)
+    # The master carries ONE hand-written head-start line. Replace it with the
+    # generated material-aware block so the temperature lives in exactly one
+    # place -- source/filament-clean-temp.json -- rather than being a constant
+    # hand-copied into the master, the Orca preamble and the macro.
+    ct = "\\n".join(clean_temp_lines(load("filament-clean-temp.json")))
+    n_ct = 0
+    for sec in ss:
+        g = ss[sec].get("start_gcode")
+        if g and "@@CLEAN_TEMP@@" not in g:
+            if ";>>>CLEAN_TEMP" in g:
+                new = re.sub(r";>>>CLEAN_TEMP.*?;<<<CLEAN_TEMP", lambda m: ct, g)
+            else:
+                new = re.sub(r"M104 S\d+ ; head start[^\\]*", lambda m: ct, g)
+            if new != g:
+                ss[sec]["start_gcode"] = new
+                n_ct += 1
+    print("clean-temp block injected into %d start_gcode blocks" % n_ct)
 
     problems = check(model, ss)
     print("model: %d nozzles, %d tiers, %d presets expected"

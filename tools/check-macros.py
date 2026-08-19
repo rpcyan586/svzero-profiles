@@ -50,6 +50,10 @@ def traditional_gcode(name):
 def check(path):
     env = jinja2.Environment('{%', '%}', '{', '}', undefined=jinja2.StrictUndefined)
     env.globals["action_raise_error"] = lambda m: (_ for _ in ()).throw(RuntimeError(m))
+    # Klipper's other action_* callables. They return a string that is emitted
+    # into the rendered G-code, so model them as producing nothing.
+    for _fn in ("action_respond_info", "action_emergency_stop", "action_call_remote_method"):
+        env.globals[_fn] = lambda *a, **k: ""
     cp = configparser.RawConfigParser(strict=False, inline_comment_prefixes=('#', ';'))
     cp.read_string('\n'.join(l.split('#')[0] for l in open(path, encoding="utf-8")))
 
@@ -60,6 +64,12 @@ def check(path):
     # validated separately. Supply the same public interface here so the common
     # controller can still be rendered as a standalone source file.
     settings.setdefault("gcode_macro _CH_HW", Mock(fan="exhaust_fan"))
+    # Sovol's own objects, always present at runtime but defined in Macro.cfg
+    # rather than in any file we ship. Overriding macros legitimately read them,
+    # so supply the same public interface here instead of failing the render.
+    settings.setdefault("gcode_macro _global_var",
+                        Mock(z_maximum_lifting_distance=155,
+                             filament_sensor_print=False))
     printer = Mock(settings)
     printer.update({
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),
@@ -68,7 +78,11 @@ def check(path):
             axis_minimum=Mock(x=0.0, y=0.0, z=0.0),
             axis_maximum=Mock(x=200.0, y=200.0, z=250.0),
         ),
-        "save_variables": Mock(variables=Mock(nb_lane=0, ch_target=32.0, ch_kp=0.15)),
+        "save_variables": Mock(variables=Mock(nb_lane=0, ch_target=32.0, ch_kp=0.15,
+                                              end_retract=0.0)),
+        "filament_switch_sensor filament_sensor": Mock(enabled=True,
+                                                       filament_detected=True),
+        "configfile": Mock(settings=Mock(extruder=Mock(min_extrude_temp=150))),
         "gcode_move": Mock(absolute_extrude=False, absolute_coordinates=True,
                            gcode_position=Mock(x=0.0, y=0.0, z=0.42),
                            position=Mock(x=0.0, y=0.0, z=0.42)),
