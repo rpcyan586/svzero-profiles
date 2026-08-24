@@ -6,7 +6,7 @@ Neither needs a GUI import once the files are in the right place — that was th
 whole point of confirming the on-disk layouts.
 
     ./install-presets.py prusa <datadir> [--no-shrink]
-    ./install-presets.py orca  <datadir> [--no-shrink]
+    ./install-presets.py orca  <datadir> [--no-shrink] [--chamber-shadow-test]
 
 --no-shrink zeroes the filament shrinkage compensation in the INSTALLED presets
 only, leaving the pack itself untouched.
@@ -359,6 +359,47 @@ def install_orca(datadir):
     return n
 
 
+ORCA_NORMAL_CHAMBER_START = "\n".join([
+    ";  M141 is a NONBLOCKING chamber ceiling. M191 blocks on a MINIMUM and",
+    ";  calls its own G28, which is wrong for PLA where 32C is a cap.",
+    "{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}",
+    "M140 S[bed_temperature_initial_layer_single]",
+])
+
+ORCA_SHADOW_CHAMBER_START = "\n".join([
+    ";>>>CHAMBER_SHADOW_TEST sandbox-only, not publication policy",
+    ";  Start bed heat first, anchor at X145 Y145 Z32, then permit nozzle heat.",
+    "M140 S[bed_temperature_initial_layer_single]",
+    "{if filament_type[0]==\"PLA\"}M191 S32 X145 Y145 Z32 STIR=1",
+    "{elsif chamber_temperature[0] > 0}M191 S{chamber_temperature[0]} TOL=10 X145 Y145 Z32 STIR=1",
+    "{else}M191 S32 X145 Y145 Z32 STIR=1{endif}",
+    ";<<<CHAMBER_SHADOW_TEST",
+])
+
+
+def enable_orca_chamber_shadow_test(datadir):
+    """Patch installed sandbox machines, never the generated publication bundle."""
+    machine_dir = os.path.join(datadir, "system", "SVZero", "machine")
+    changed = 0
+    for filename in sorted(os.listdir(machine_dir)):
+        if not filename.endswith(".json"):
+            continue
+        path = os.path.join(machine_dir, filename)
+        with open(path, encoding="utf-8") as handle:
+            doc = json.load(handle)
+        start = doc.get("machine_start_gcode", "")
+        if ORCA_NORMAL_CHAMBER_START not in start:
+            continue
+        doc["machine_start_gcode"] = start.replace(
+            ORCA_NORMAL_CHAMBER_START, ORCA_SHADOW_CHAMBER_START, 1)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(doc, handle, indent=2)
+        changed += 1
+    if changed == 0:
+        raise RuntimeError("normal Orca chamber start block not found")
+    return changed
+
+
 if __name__ == "__main__":
     argv = sys.argv[1:]
     args = [a for i, a in enumerate(argv)
@@ -370,6 +411,9 @@ if __name__ == "__main__":
     os.makedirs(datadir, exist_ok=True)
     n = {"prusa": install_prusa, "orca": install_orca}[which](datadir)
     print("installed %d presets into %s" % (n, datadir))
+    if which == "orca" and "--chamber-shadow-test" in flags:
+        c = enable_orca_chamber_shadow_test(datadir)
+        print("enabled chamber shadow test in %d Orca machine presets" % c)
     caps = [f for f in flags if f.startswith("--accel-cap")]
     if caps:
         try:

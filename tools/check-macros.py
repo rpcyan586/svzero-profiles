@@ -86,7 +86,7 @@ def check(path):
         "gcode_move": Mock(absolute_extrude=False, absolute_coordinates=True,
                            gcode_position=Mock(x=0.0, y=0.0, z=0.42),
                            position=Mock(x=0.0, y=0.0, z=0.42)),
-        "extruder": Mock(temperature=25.0, target=0.0),
+        "extruder": Mock(temperature=25.0, target=0.0, power=0.0),
         "heater_bed": Mock(temperature=25.0, target=0.0),
         "temperature_sensor chamber_temp": Mock(temperature=30.0),
         "temperature_sensor Toolhead_Temp": Mock(temperature=30.0),
@@ -112,22 +112,68 @@ def check(path):
                 continue
         if not cp.has_option(s, 'gcode') or not cp.get(s, 'gcode').strip():
             continue
-        try:
-            out = env.from_string(cp.get(s, 'gcode')).render(
-                printer=printer, params=params, rawparams="S40"
-            )
-            bad_chars = [(ln.strip()[:70], c)
-                         for ln in out.splitlines() if "MSG=" in ln
-                         for c in ";#*" if c in ln.split("MSG=", 1)[1]]
-            if bad_chars:
+        scenarios = [("", params, "S40", {}, {})]
+        if s == "gcode_macro _CH_PROXY_ANCHOR":
+            scenarios = [("valid", params, "", {"proxy_valid": 1}, {})]
+        elif s == "gcode_macro _CH_PROXY_INVALIDATE":
+            scenarios = [
+                ("anchored", Mock(REASON="1"), "REASON=1",
+                 {"proxy_valid": 1, "proxy_anchor": 41.2,
+                  "stock_anchor": 45.4}, {}),
+                ("missing-anchor", Mock(REASON="2"), "REASON=2",
+                 {"proxy_valid": 1, "proxy_anchor": None,
+                  "stock_anchor": None}, {}),
+            ]
+        elif s == "gcode_macro _CHAMBER_LOOP":
+            scenarios = [
+                ("stock", params, "", {}, {}),
+                ("anchored", params, "",
+                 {"observer_source": 2, "proxy_valid": 0,
+                  "proxy_anchor": 41.2, "stock_anchor": 45.4,
+                  "preheat_phase": 5}, {}),
+                ("power-handoff", params, "",
+                 {"observer_source": 1, "proxy_valid": 1,
+                  "proxy_anchor": 41.2, "stock_anchor": 45.4},
+                 {"power": 0.5}),
+            ]
+        if s == "gcode_macro M141":
+            scenarios = [("missing-anchor", Mock(S="32"), "S32", {}, {})]
+        elif s == "gcode_macro M191":
+            scenarios = [
+                ("legacy-s32", Mock(S="32"), "S32", {}, {}),
+                ("explicit-tol", Mock(S="45", TOL="2"), "S45 TOL=2", {}, {}),
+                ("r-band", Mock(R="45", TOL="2"), "R45 TOL=2", {}, {}),
+                ("abort", Mock(S="0"), "S0", {}, {}),
+            ]
+        for label, scenario_params, scenario_rawparams, state_patch, extruder_patch in scenarios:
+            suffix = " [%s]" % label if label else ""
+            state = printer["gcode_macro _CH_STATE"]
+            old_state = {key: state.get(key) for key in state_patch}
+            old_extruder = {key: printer.extruder.get(key) for key in extruder_patch}
+            try:
+                state.update(state_patch)
+                printer.extruder.update(extruder_patch)
+                out = env.from_string(cp.get(s, 'gcode')).render(
+                    printer=printer, params=scenario_params,
+                    rawparams=scenario_rawparams
+                )
+                bad_chars = [(ln.strip()[:70], c)
+                             for ln in out.splitlines() if "MSG=" in ln
+                             for c in ";#*" if c in ln.split("MSG=", 1)[1]]
+                if bad_chars:
+                    bad += 1
+                    for ln, c in bad_chars[:2]:
+                        print("   FAIL    %s%s -> %r in a RESPOND arg: %s"
+                              % (s, suffix, c, ln))
+                    continue
+                print("   ok      %s%s" % (s, suffix))
+            except Exception as e:
                 bad += 1
-                for ln, c in bad_chars[:2]:
-                    print("   FAIL    %s -> %r in a RESPOND arg: %s" % (s, c, ln))
-                continue
-            print("   ok      %s" % s)
-        except Exception as e:
-            bad += 1
-            print("   FAIL    %s -> %s: %s" % (s, type(e).__name__, str(e)[:90]))
+                print("   FAIL    %s%s -> %s: %s"
+                      % (s, suffix, type(e).__name__, str(e)[:90]))
+            finally:
+                state.update(old_state)
+                printer.extruder.update(old_extruder)
     return bad
 
 
