@@ -193,7 +193,7 @@
       "fan_below_layer_time": "fan_cooling_layer_time",
       "slowdown_below_layer_time": "slow_down_layer_time",
       "min_print_speed": "slow_down_min_speed",
-      "chamber_temperature": "chamber_temperatures",
+      "chamber_temperature": "chamber_temperature",
       "compatible_printers_condition": "compatible_printers_condition",
       "compatible_prints": "compatible_prints",
       "compatible_prints_condition": "compatible_prints_condition"
@@ -223,7 +223,7 @@
       }
     },
     "_forced": {
-      "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control is forced off for the same class of reason: it makes Orca emit M191, which BLOCKS until the chamber reaches a minimum and calls its own G28 -- wrong for PLA, where the chamber figure is a ceiling. The start G-code emits a nonblocking M141 instead. See notes/incidents/2026-08-17-zero2-startup-crash.",
+      "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control remains off as the general material fallback; emit_orca_filament overrides the generated PLA profiles to active control with an exact minimum equal to their 30 C target. An unchecked profile emits bare M191 (firmware target 32 C, compatibility floor 22 C), while an enabled profile emits M191 at Orca's exact Minimal temperature followed by M141 at its Target. The generated start contains the ordered M191 itself, which makes Orca suppress its automatic pre-start duplicate. See notes/incidents/2026-08-17-zero2-startup-crash.",
       "activate_air_filtration": "0",
       "activate_chamber_temp_control": "0"
     },

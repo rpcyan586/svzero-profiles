@@ -27,7 +27,7 @@ Missing printer state resolves to Undefined rather than raising, matching how
 Klipper behaves with `|default(...)`. Anything else is StrictUndefined, so a
 genuine typo fails loudly.
 """
-import ast, configparser, sys, jinja2
+import ast, configparser, re, shlex, sys, jinja2
 
 
 class Mock(dict):
@@ -45,6 +45,30 @@ def box(a, b, c, d):
 def traditional_gcode(name):
     """Match Klipper's GCodeDispatch.is_traditional_gcode classification."""
     return len(name) >= 2 and name[0].isupper() and name[1].isdigit()
+
+
+# gcode.py's own splitter, used for TRADITIONAL commands only.
+ARGS_R = re.compile('([A-Z_]+|[A-Z*/])')
+
+
+def klipper_params(name, rawparams):
+    """Build `params` exactly as Klipper's dispatcher would for this command.
+
+    This matters, and modelling it by hand did not work. A traditional name --
+    a letter then a digit, so M191 but not CHAMBER_ON -- never receives
+    extended KEY=VALUE parsing. _process_commands splits the line on ARGS_R and
+    keeps whatever text follows each key, so `STIR=1` becomes the string "=1"
+    and "=1"|float is 0.0. Fixtures that supplied a clean "1" tested an input
+    Klipper cannot produce, and a whole class of silently-zero arguments passed
+    validation for weeks. Derive the params instead of asserting them.
+    """
+    if not traditional_gcode(name):
+        pairs = [arg.split('=', 1) for arg in shlex.split(rawparams)]
+        return Mock({p[0].upper(): p[1] for p in pairs if len(p) == 2})
+    parts = ARGS_R.split(("%s %s" % (name, rawparams)).upper())
+    got = {parts[i]: parts[i + 1].strip() for i in range(1, len(parts) - 1, 2)}
+    got.pop(name[0], None)          # the command's own letter, e.g. M -> "191"
+    return Mock(got)
 
 
 def check(path):
@@ -75,6 +99,7 @@ def check(path):
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),
         "toolhead": Mock(
             max_accel=5000.0, homed_axes="xyz", position=[0, 0, 0, 0],
+            estimated_print_time=123.456,
             axis_minimum=Mock(x=0.0, y=0.0, z=0.0),
             axis_maximum=Mock(x=200.0, y=200.0, z=250.0),
         ),
@@ -87,7 +112,7 @@ def check(path):
                            gcode_position=Mock(x=0.0, y=0.0, z=0.42),
                            position=Mock(x=0.0, y=0.0, z=0.42)),
         "extruder": Mock(temperature=25.0, target=0.0, power=0.0),
-        "heater_bed": Mock(temperature=25.0, target=0.0),
+        "heater_bed": Mock(temperature=25.0, target=65.0),
         "temperature_sensor chamber_temp": Mock(temperature=30.0),
         "temperature_sensor Toolhead_Temp": Mock(temperature=30.0),
         "fan_generic exhaust_fan": Mock(speed=0.0, rpm=1500.0),
@@ -136,14 +161,25 @@ def check(path):
                   "proxy_anchor": 41.2, "stock_anchor": 45.4},
                  {"power": 0.5}),
             ]
+        # These pass None for params: klipper_params derives them from the raw
+        # command line below, the way the dispatcher actually would.
         if s == "gcode_macro M141":
-            scenarios = [("missing-anchor", Mock(S="32"), "S32", {}, {})]
+            scenarios = [
+                ("standalone", None, "S32", {}, {}),
+                ("post-minimum", None, "S33",
+                 {"preheat_target_pending": 1}, {}),
+            ]
         elif s == "gcode_macro M191":
             scenarios = [
-                ("legacy-s32", Mock(S="32"), "S32", {}, {}),
-                ("explicit-tol", Mock(S="45", TOL="2"), "S45 TOL=2", {}, {}),
-                ("r-band", Mock(R="45", TOL="2"), "R45 TOL=2", {}, {}),
-                ("abort", Mock(S="0"), "S0", {}, {}),
+                ("default-compatibility", None, "", {}, {}),
+                ("exact-minimum", None, "S30", {}, {}),
+                # The real published line. Every KEY=VALUE here reaches the
+                # macro with a literal "=" still attached.
+                ("shadow-test-line", None,
+                 "S33 Z15 STIR=1 BOOST=1 MAX_BOOST=10 COAST_RATE=1"
+                 " INITIAL_BOOST=5 FILTER_ALPHA=0.25",
+                 {}, {}),
+                ("abort", None, "S0", {}, {}),
             ]
         for label, scenario_params, scenario_rawparams, state_patch, extruder_patch in scenarios:
             suffix = " [%s]" % label if label else ""
@@ -153,8 +189,13 @@ def check(path):
             try:
                 state.update(state_patch)
                 printer.extruder.update(extruder_patch)
+                effective = scenario_params
+                if effective is None:
+                    effective = klipper_params(
+                        s.split()[1].upper(), scenario_rawparams
+                    )
                 out = env.from_string(cp.get(s, 'gcode')).render(
-                    printer=printer, params=scenario_params,
+                    printer=printer, params=effective,
                     rawparams=scenario_rawparams
                 )
                 bad_chars = [(ln.strip()[:70], c)

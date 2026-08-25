@@ -34,8 +34,20 @@ import collections
 import shutil
 import json
 import os
+
 import re
 import sys
+
+# The Orca start G-code lives in start_gcode.py so generate.py and
+# install-presets.py cannot drift apart again. Tests load these scripts by path
+# with importlib, which does not put this directory on sys.path, so add it.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from start_gcode import (  # noqa: E402
+    ORCA_START_PREAMBLE,
+    ORCA_START_CUT,
+    ORCA_PURGE_START,
+    ORCA_PURGE_END,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -1091,36 +1103,12 @@ def clean_temp_lines(data):
     return out
 
 
-ORCA_START_PREAMBLE = "\n".join([
-    ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.",
-    ";  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.",
-    ";  DO NOT add G28 here. Sovol's original had three homes per job.",
-    ";  M141 is a NONBLOCKING chamber ceiling. M191 blocks on a MINIMUM and",
-    ";  calls its own G28, which is wrong for PLA where 32C is a cap.",
-    "{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}",
-    "M140 S[bed_temperature_initial_layer_single]",
-    "@@CLEAN_TEMP@@",
-    "M190 S[bed_temperature_initial_layer_single] ; bed hot BEFORE calibration and mesh",
-    "START_PRINT",
-    "G90",
-    "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
-    "M104 S[nozzle_temperature_initial_layer]",
-    "M109 S[nozzle_temperature_initial_layer]",
-    "BRUSH_PRIME ; give back exactly what CLEAN_NOZZLE retracted; it could not be",
-    "; primed earlier because the clean and probe sequence runs below",
-    "; min_extrude_temp, where Klipper refuses any E move",
-    "PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]"
-    " NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirt_loops * initial_layer_line_width + 2}",
-])
-ORCA_START_CUT = "M109 S[nozzle_temperature_initial_layer];wait for extruder temp"
 # Sovol's start G-code does not end at the temperature wait: it continues into
 # its OWN two-segment purge, wrapped in a first_layer_print_min test, and only
 # then reaches SET_PRINT_STATS_INFO. Replacing just the preamble left that purge
 # in place, so Orca emitted Sovol's literal purge lines AND called PURGE_LINE --
 # a double purge, and the one visible in the slicer preview was Sovol's, because
 # a macro cannot be previewed. Everything from the conditional to the endif goes.
-ORCA_PURGE_START = "{if first_layer_print_min[1] - 6 > print_bed_min[1]}"
-ORCA_PURGE_END = "{endif}"
 
 ORCA_FILAMENT_ID = "GFL99"
 ORCA_FILAMENT_STRUCTURAL = ("type", "filament_id", "setting_id", "name", "from",
@@ -1193,6 +1181,13 @@ def emit_orca_filament(model, ss, keymap, out_dir):
                 unmapped[k] += 1
         doc.update(forced)
         doc.pop("_why", None)
+        # PLA is the compatibility/default material and must still be regulated.
+        # Keep the derivation visible: its exact minimum is its configured target,
+        # currently 33 C in *SV Zero PLA Base*. Other materials retain the
+        # conservative bare-M191 fallback until their minimums are characterized.
+        if ftype == "PLA":
+            doc["activate_chamber_temp_control"] = "1"
+            doc["chamber_minimal_temperature"] = doc["chamber_temperature"]
         doc["compatible_printers"] = machines
 
         # NEVER emit an empty compatibility value. compatible_prints = [""] does
@@ -1289,7 +1284,21 @@ def emit_orca_vendor(model, out_dir):
     for root, sub, lst in roots:
         src = os.path.join(SOVOL_VENDOR, "Sovol", sub, root + ".json")
         if os.path.exists(src):
-            shutil.copy2(src, os.path.join(vend, sub, root + ".json"))
+            dst = os.path.join(vend, sub, root + ".json")
+            shutil.copy2(src, dst)
+            if root == "fdm_machine_common":
+                # The Zero has one extruder and no filament-changing hardware.
+                # Sovol's inherited "1" exposes multiple filament slots and can
+                # make an unrelated slot's chamber settings control the print.
+                with open(dst, encoding="utf-8") as handle:
+                    common = handle.read()
+                common, changed = re.subn(
+                    r'("single_extruder_multi_material"\s*:\s*)"[^"]*"',
+                    r'\g<1>"0"', common, count=1)
+                if changed != 1:
+                    raise SystemExit("single-material setting absent from Orca machine root")
+                with open(dst, "w", encoding="utf-8") as handle:
+                    handle.write(common)
             lst.append({"name": root, "sub_path": "%s/%s.json" % (sub, root)})
 
     fsrc = os.path.join(ROOT, "bundles", "orca-filament")
@@ -1315,6 +1324,10 @@ def emit_orca_vendor(model, out_dir):
         m["printer_model"] = "SV Zero"
         m["printer_variant"] = noz
         m["nozzle_diameter"] = [noz]
+        # Repeat this on each concrete preset as well as the inherited root.
+        # Explicit --load-settings slicing does not resolve the vendor root,
+        # and the one-filament constraint must survive that supported path.
+        m["single_extruder_multi_material"] = "0"
         g = m.get("machine_start_gcode", "")
         g = g[0] if isinstance(g, list) else g
         if ORCA_START_CUT in g:

@@ -44,6 +44,15 @@ error; it simply never appears. Orca also needs the printer model listed in
 """
 import json, os, shutil, sys
 
+# The Orca start G-code lives in start_gcode.py so generate.py and
+# install-presets.py cannot drift apart again. Tests load these scripts by path
+# with importlib, which does not put this directory on sys.path, so add it.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from start_gcode import (  # noqa: E402
+    ORCA_CHAMBER_BLOCK as ORCA_NORMAL_CHAMBER_START,
+    ORCA_SHADOW_CHAMBER_BLOCK as ORCA_SHADOW_CHAMBER_START,
+)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 REPO = os.path.dirname(os.path.dirname(ROOT))
@@ -359,22 +368,7 @@ def install_orca(datadir):
     return n
 
 
-ORCA_NORMAL_CHAMBER_START = "\n".join([
-    ";  M141 is a NONBLOCKING chamber ceiling. M191 blocks on a MINIMUM and",
-    ";  calls its own G28, which is wrong for PLA where 32C is a cap.",
-    "{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}",
-    "M140 S[bed_temperature_initial_layer_single]",
-])
 
-ORCA_SHADOW_CHAMBER_START = "\n".join([
-    ";>>>CHAMBER_SHADOW_TEST sandbox-only, not publication policy",
-    ";  Start bed heat first, anchor at X145 Y145 Z32, then permit nozzle heat.",
-    "M140 S[bed_temperature_initial_layer_single]",
-    "{if filament_type[0]==\"PLA\"}M191 S32 X145 Y145 Z32 STIR=1",
-    "{elsif chamber_temperature[0] > 0}M191 S{chamber_temperature[0]} TOL=10 X145 Y145 Z32 STIR=1",
-    "{else}M191 S32 X145 Y145 Z32 STIR=1{endif}",
-    ";<<<CHAMBER_SHADOW_TEST",
-])
 
 
 def enable_orca_chamber_shadow_test(datadir):
@@ -414,6 +408,7 @@ if __name__ == "__main__":
     if which == "orca" and "--chamber-shadow-test" in flags:
         c = enable_orca_chamber_shadow_test(datadir)
         print("enabled chamber shadow test in %d Orca machine presets" % c)
+        print("selected base PLA chamber profile at exact 33/33")
     caps = [f for f in flags if f.startswith("--accel-cap")]
     if caps:
         try:
