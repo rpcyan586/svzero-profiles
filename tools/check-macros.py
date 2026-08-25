@@ -11,6 +11,14 @@ Two lessons are baked in, both learned the expensive way:
   config HALTED THE PRINTER. A validator that is more permissive than the target
   converts a syntax error into confidence.
 
+* **Run it with the printer's own interpreter, not a convenient one.** The same
+  lesson, one layer out. Zero2's klippy-env has jinja2 **2.11.3**; the comparison host has
+  **3.1.2**, and the workstation has none. Rendering on the comparison host is a fine fast
+  pre-check while the printer is mid-print, but it is NOT the gate: 3.x accepts
+  syntax and semantics 2.11 does not. Validate with
+  `/home/sovol/klippy-env/bin/python check-macros.py` on the target before
+  deploying, every time.
+
 * **No ";", "#" or "*" inside a RESPOND argument.** Klipper's extended-command
   regex ends the argument list at any of them (gcode.py extended_r, args group
   "[^#*;]*?"), so the closing quote is never seen and the whole command dies with
@@ -93,7 +101,8 @@ def check(path):
     # so supply the same public interface here instead of failing the render.
     settings.setdefault("gcode_macro _global_var",
                         Mock(z_maximum_lifting_distance=155,
-                             filament_sensor_print=False))
+                             filament_sensor_print=False,
+                             cancel_park=Mock(x=10.0, y=10.0, z=10.0, e=2.0)))
     printer = Mock(settings)
     printer.update({
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),
@@ -183,7 +192,9 @@ def check(path):
             ]
         for label, scenario_params, scenario_rawparams, state_patch, extruder_patch in scenarios:
             suffix = " [%s]" % label if label else ""
-            state = printer["gcode_macro _CH_STATE"]
+            # Not every checked file is a chamber file; only the chamber
+            # scenarios patch this object.
+            state = printer.get("gcode_macro _CH_STATE", Mock())
             old_state = {key: state.get(key) for key in state_patch}
             old_extruder = {key: printer.extruder.get(key) for key in extruder_patch}
             try:

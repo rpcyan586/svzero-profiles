@@ -9,11 +9,7 @@
 # positively verify aborts. A Spoolman outage therefore stops printing. Set
 # `enabled: False`, or pass BYPASS=1 for one job, when that is not wanted.
 
-import json
-import threading
-import urllib.error
-import urllib.parse
-import urllib.request
+from . import moonraker
 
 
 class GuardResult:
@@ -73,6 +69,12 @@ def evaluate(job_weight, job_material, spool_weight, spool_material,
 
 
 class SpoolGuard:
+    # Klipper reports a raised gcode error once for the failing command and
+    # again for the macro that invoked it, so anything inside the exception is
+    # printed twice. Explanations go out as ordinary responses, which are not
+    # repeated, and the error itself stays to one short line.
+    REFUSED = "SPOOL_GUARD refused this job"
+
     cmd_SPOOL_GUARD_help = (
         "Abort before heating unless the active spool can finish this job"
     )
@@ -88,71 +90,85 @@ class SpoolGuard:
         self.timeout = config.getfloat("timeout", 8.0, above=0.0)
         self.margin = config.getfloat("margin", 0.0, minval=0.0)
         self.check_material = config.getboolean("check_material", True)
+        # A refusal arms a one-shot override for that exact job. Starting the
+        # same file again inside this window is the deliberate second act that
+        # says "I know, print it anyway". Mainsail's own warning cannot serve
+        # that purpose: it is advisory, and both it and an Orca upload-and-print
+        # reach Klipper as the same SDCARD_PRINT_FILE, so the printer cannot
+        # tell which one asked.
+        self.override_window = config.getfloat(
+            "override_window", 300.0, minval=0.0
+        )
+        self._armed_file = None
+        self._armed_until = 0.0
+        self._armed_reason = ""
         self.gcode.register_command(
             "SPOOL_GUARD",
             self.cmd_SPOOL_GUARD,
             desc=self.cmd_SPOOL_GUARD_help,
         )
 
-    def _get(self, path, body=None):
-        url = self.moonraker_url + path
-        data = None
-        headers = {}
-        if body is not None:
-            data = json.dumps(body).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        request = urllib.request.Request(url, data=data, headers=headers)
-        with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            return json.load(response).get("result")
-
-    def _fetch(self, filename):
-        # Moonraker is on loopback and answers in milliseconds, but a stalled
-        # socket would freeze the whole Klipper reactor and with it the MCU
-        # link. Do the blocking work on a thread and let the reactor breathe.
-        box = {}
-
-        def worker():
-            # Name the stage before attempting it, so a failure reports which
-            # of the three lookups broke rather than blaming the last one.
+    def _fetch(self, filename, live=None):
+        client = moonraker.MoonrakerClient(
+            self.reactor, self.moonraker_url, self.timeout
+        )
+        quoted = client.quote(filename)
+        try:
+            got = client.run([
+                ("read this job's metadata from Moonraker",
+                 "/server/files/metadata?filename=%s" % quoted, None),
+                ("ask Moonraker which spool is active",
+                 "/server/spoolman/spool_id", None),
+            ])
+        except moonraker.MoonrakerError as error:
+            raise self._refuse(
+                "could not %s" % error, "fix it, or SPOOL_GUARD BYPASS=1", live
+            )
+        job = got["read this job's metadata from Moonraker"]
+        active = got["ask Moonraker which spool is active"] or {}
+        spool_id = active.get("spool_id")
+        spool = None
+        if spool_id is not None:
             try:
-                box["stage"] = "read this job's metadata from Moonraker"
-                quoted = urllib.parse.quote(filename)
-                box["job"] = self._get(
-                    "/server/files/metadata?filename=%s" % quoted
+                spool = client.run([(
+                    "reach Spoolman through Moonraker",
+                    "/server/spoolman/proxy",
+                    {"request_method": "GET",
+                     "path": "/v1/spool/%d" % int(spool_id)},
+                )])["reach Spoolman through Moonraker"]
+            except moonraker.MoonrakerError as error:
+                raise self._refuse(
+                    "could not %s" % error,
+                    "fix it, or SPOOL_GUARD BYPASS=1", live,
                 )
-                box["stage"] = "ask Moonraker which spool is active"
-                active = self._get("/server/spoolman/spool_id") or {}
-                spool_id = active.get("spool_id")
-                box["spool_id"] = spool_id
-                if spool_id is not None:
-                    box["stage"] = "reach Spoolman through Moonraker"
-                    box["spool"] = self._get(
-                        "/server/spoolman/proxy",
-                        {"request_method": "GET",
-                         "path": "/v1/spool/%d" % int(spool_id)},
-                    )
-            except Exception as error:
-                box["error"] = error
+        return {"job": job, "spool_id": spool_id, "spool": spool}
 
-        thread = threading.Thread(target=worker)
-        thread.daemon = True
-        thread.start()
-        deadline = self.reactor.monotonic() + self.timeout * 3 + 1.0
-        eventtime = self.reactor.monotonic()
-        while thread.is_alive() and eventtime < deadline:
-            eventtime = self.reactor.pause(eventtime + 0.1)
-        if thread.is_alive():
-            raise self.gcode.error(
-                "SPOOL_GUARD: Moonraker did not answer within %.0fs"
-                % (self.timeout * 3 + 1.0)
+    def _refuse(self, reason, remedy, filename=None):
+        """Explain on one line, then fail with a line cheap to see twice.
+
+        `filename` arms the retry override. A FILE= dry run passes None, so
+        rehearsing a refusal can never authorize a later real print.
+        """
+        if filename is not None and self.override_window > 0.0:
+            self._armed_file = filename
+            self._armed_until = self.reactor.monotonic() + self.override_window
+            self._armed_reason = reason
+            remedy = "start it again within %.0f min to print anyway" % (
+                self.override_window / 60.0
             )
-        if "error" in box:
-            raise self.gcode.error(
-                "SPOOL_GUARD: could not %s (%s). Fix it, or run "
-                "SPOOL_GUARD BYPASS=1 to print unchecked."
-                % (box.get("stage", "query Moonraker"), box["error"])
-            )
-        return box
+        self.gcode.respond_info("SPOOL_GUARD: %s -- %s" % (reason, remedy))
+        return self.gcode.error(self.REFUSED)
+
+    def _take_override(self, filename):
+        """Consume a previously armed override for this exact job."""
+        if filename is None or self._armed_file != filename:
+            return None
+        if self.reactor.monotonic() > self._armed_until:
+            return None
+        reason = self._armed_reason
+        self._armed_file = None
+        self._armed_reason = ""
+        return reason
 
     def cmd_SPOOL_GUARD(self, gcmd):
         if gcmd.get_int("BYPASS", 0):
@@ -165,24 +181,34 @@ class SpoolGuard:
         # FILE= dry-runs the whole check against any uploaded job without
         # starting it. This is the only way to exercise the gate end to end,
         # because print_stats.filename is set only by an actual print.
-        filename = gcmd.get("FILE", None)
+        rehearsal = gcmd.get("FILE", None)
+        filename = rehearsal
         if not filename:
             print_stats = self.printer.lookup_object("print_stats", None)
             if print_stats is not None:
                 status = print_stats.get_status(self.reactor.monotonic())
                 filename = status.get("filename") or None
+        # Only a real print may arm or consume an override.
+        live = None if rehearsal else filename
+        if live:
+            overridden = self._take_override(live)
+            if overridden is not None:
+                gcmd.respond_info(
+                    "SPOOL_GUARD: overriding -- %s" % overridden
+                )
+                return
         if not filename:
             # Console tests and macro dry-runs have no job. There is nothing to
             # measure against, so this is not a spool failure.
             gcmd.respond_info("SPOOL_GUARD: no job loaded, nothing to check")
             return
 
-        fetched = self._fetch(filename)
+        fetched = self._fetch(filename, live)
         if fetched.get("spool_id") is None:
-            raise gcmd.error(
-                "SPOOL_GUARD: no active spool selected, so this print cannot "
-                "be tracked. Select one in Mainsail, or run "
-                "SPOOL_GUARD BYPASS=1 to print unchecked."
+            raise self._refuse(
+                "no active spool selected, so this print cannot be tracked",
+                "select one in Mainsail, or SPOOL_GUARD BYPASS=1",
+                live,
             )
 
         job = fetched.get("job") or {}
@@ -196,9 +222,10 @@ class SpoolGuard:
             self.check_material,
         )
         if not result.ok:
-            raise gcmd.error(
-                "SPOOL_GUARD: %s. Print from Mainsail's file list to confirm "
-                "and proceed, or run SPOOL_GUARD BYPASS=1." % result.message
+            raise self._refuse(
+                result.message,
+                "or SPOOL_GUARD BYPASS=1",
+                live,
             )
         gcmd.respond_info("SPOOL_GUARD: %s" % result.message)
 
@@ -209,6 +236,10 @@ class SpoolGuard:
             "enabled": self.enabled,
             "margin": self.margin,
             "check_material": self.check_material,
+            "armed_file": self._armed_file,
+            "armed_seconds": max(
+                0.0, self._armed_until - self.reactor.monotonic()
+            ) if self._armed_file else 0.0,
         }
 
 

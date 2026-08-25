@@ -13,6 +13,9 @@
 # threshold proves nothing: on 2026-08-25 one started at 31.7 C, was still
 # falling, was trusted immediately, and drove a full boost off noise.
 
+from . import moonraker
+
+
 def linear_rate(start_temp, end_temp, elapsed_seconds):
     """Return the two-point temperature rate in degrees C per minute."""
     if elapsed_seconds <= 0.0:
@@ -67,6 +70,12 @@ class SlopeWindow:
         self.samples = []
 
     def push(self, eventtime, temperature):
+        # Seeding walks forward through history and the live loop continues
+        # from there, so samples are monotonic. Drop anything that is not:
+        # an out-of-order push silently collapses span_seconds and the window
+        # then reports no slope at all.
+        if self.samples and eventtime <= self.samples[-1][0]:
+            return
         self.samples.append((eventtime, temperature))
         horizon = eventtime - self.span
         self.samples = [s for s in self.samples if s[0] >= horizon]
@@ -120,6 +129,106 @@ def eta_gated_coast(current_boost, desired_boost, elapsed_minutes, coast_rate):
     return min(current_boost, max(desired_boost, slew_floor))
 
 
+def cooling_asymptote(samples, min_decay, tau_min, tau_max, drop_max,
+                      min_span=60.0, min_samples=12):
+    """Where a cooling nozzle is heading, from Newton's law of cooling.
+
+    dT/dt = -(T - T_inf)/tau, so regressing each sub-block's rate against its
+    mean temperature gives a line whose intercept and gradient yield
+    T_inf = -b/m. The nozzle asymptotes to chamber air, so T_inf is a chamber
+    estimate available long before the nozzle actually gets there.
+
+    This is admitted only for a nozzle that is *clearly* shedding heat. On the
+    four recorded cold starts, where the nozzle rises with the chamber, noise
+    supplies a spurious negative curvature and -b/m explodes: replayed without
+    this guard the estimate overshot the true settling point by +62 to +125 C.
+    Replayed with it, all four are refused and the one genuine warm start is
+    accepted with the estimate never once reading high.
+
+    Returns (temperature, reason). A None temperature means "do not use".
+    """
+    if len(samples) < min_samples:
+        return None, "too few samples"
+    if samples[-1][0] - samples[0][0] < min_span:
+        return None, "span too short"
+    slope, stderr = least_squares_slope(samples)
+    if slope is None:
+        return None, "no fit"
+    # Require the decay to be real, not a noise excursion.
+    if slope + 2.0 * (stderr or 0.0) >= -min_decay:
+        return None, "not clearly cooling"
+    blocks = []
+    size = max(3, len(samples) // 4)
+    for start in range(0, len(samples) - size + 1, size):
+        chunk = samples[start:start + size]
+        rate, unused = least_squares_slope(chunk)
+        if rate is None:
+            continue
+        mean_temp = sum(v for unused_t, v in chunk) / len(chunk)
+        blocks.append((mean_temp, rate))
+    if len(blocks) < 3:
+        return None, "too few blocks"
+    gradient, intercept = _line(blocks)
+    if gradient is None or gradient >= 0.0:
+        return None, "no decay curvature"
+    tau = -60.0 / gradient
+    if not tau_min <= tau <= tau_max:
+        return None, "time constant %.0fs implausible" % tau
+    estimate = -intercept / gradient
+    now = samples[-1][1]
+    if estimate >= now or estimate < now - drop_max:
+        return None, "asymptote not below the nozzle"
+    return estimate, "ok"
+
+
+def _line(points):
+    """Ordinary least squares through (x, y) pairs."""
+    n = len(points)
+    if n < 3:
+        return None, None
+    mean_x = sum(x for x, unused in points) / n
+    mean_y = sum(y for unused, y in points) / n
+    sxx = sum((x - mean_x) ** 2 for x, unused in points)
+    if sxx <= 0.0:
+        return None, None
+    sxy = sum((x - mean_x) * (y - mean_y) for x, y in points)
+    gradient = sxy / sxx
+    return gradient, mean_y - gradient * mean_x
+
+
+def usable_history(temperatures, targets, interval, now, span_seconds):
+    """Trailing (eventtime, temperature) pairs the nozzle can be judged on.
+
+    Moonraker keeps 1200 one-second samples of every sensor, which is the same
+    scrollback Mainsail draws. On a machine that has been idle overnight the
+    last two minutes of it already prove the nozzle is settled, so there is no
+    reason to spend two more minutes re-deriving that from scratch.
+
+    Samples are taken newest-first and stop at the first commanded nozzle
+    target, because anything at or before that point describes a heater, not a
+    chamber. A nozzle still plunging after an M104 S0 keeps its steep negative
+    slope and correctly fails to qualify.
+    """
+    if not temperatures or interval <= 0.0:
+        return []
+    targets = targets or []
+    wanted = int(span_seconds / interval)
+    picked = []
+    for offset in range(1, min(len(temperatures), wanted) + 1):
+        temperature = temperatures[-offset]
+        target = targets[-offset] if offset <= len(targets) else 0.0
+        if temperature is None:
+            break
+        if target is None or target > 0.0:
+            break
+        picked.append(temperature)
+    picked.reverse()
+    if len(picked) < 3:
+        return []
+    oldest = now - (len(picked) - 1) * interval
+    return [(oldest + i * interval, t) for i, t in enumerate(picked)]
+
+
 def quantize_target(value, step=0.1):
     """Command the bed at sensible resolution; 0.01 C was meaningless."""
     return round(round(value / step) * step, 3)
@@ -146,8 +255,11 @@ class ProxyGate:
         self.valid = False
         self.state = self.COOLING
         self.forced = False
+        self.by_settling = False
+        self.by_asymptote = None
 
-    def update(self, slope, elapsed_seconds):
+    def update(self, slope, elapsed_seconds, stderr=None, temperature=None,
+               minimum=None, confidence=2.0):
         """Advance on a regressed slope; None means the window is not full."""
         if self.valid or slope is None:
             return self.valid
@@ -157,13 +269,34 @@ class ProxyGate:
             self.dwell = 0.0
             self.state = self.COOLING
             return False
-        # At or above zero within the ready band: the settling clock runs.
+        # A nozzle that was clearly cooling from above, has flattened to within
+        # the regression's own uncertainty of zero, and sits above the
+        # threshold has already reached chamber air. The settling dwell exists
+        # to reject a momentary flat spot in noise; the standard error answers
+        # that question directly and without spending another minute on it.
+        settled = slope + confidence * (stderr or 0.0) >= 0.0
+        above = (
+            minimum is not None and temperature is not None
+            and temperature >= minimum
+        )
+        if self.cooling_seen and settled and above:
+            self.valid = True
+            self.state = self.VALID
+            self.by_settling = True
+            return True
         self.dwell += elapsed_seconds
         self.state = self.SETTLING
         if self.dwell >= self.dwell_seconds:
             self.valid = True
             self.state = self.VALID
         return self.valid
+
+    def qualify_by_asymptote(self, estimate):
+        """Accept a still-cooling nozzle whose destination is already hot."""
+        self.valid = True
+        self.state = self.VALID
+        self.by_asymptote = estimate
+        return True
 
     def force(self):
         """Give up waiting and proceed unqualified, recording that we did."""
@@ -234,6 +367,51 @@ class ChamberPreheat:
         self.boost_fraction = config.getfloat(
             "boost_fraction", 0.5, above=0.0, maxval=1.0
         )
+        # Seed the slope window from Moonraker's temperature store so a machine
+        # that has been idle does not re-derive what the scrollback already
+        # shows. Purely an optimization: any failure just costs the wait.
+        self.history_seconds = config.getfloat(
+            "history_seconds", 300.0, minval=0.0
+        )
+        self.history_interval = config.getfloat(
+            "history_interval", 1.0, above=0.0
+        )
+        self.moonraker_url = config.get(
+            "moonraker_url", "http://127.0.0.1:7125"
+        )
+        self.moonraker_timeout = config.getfloat(
+            "moonraker_timeout", 5.0, above=0.0
+        )
+        # The store's newest sample and the live reading are the same sensor a
+        # second apart. If they disagree the store is stale or belongs to a
+        # different session, and splicing it on would fabricate a step change
+        # that reads as a huge slope.
+        self.history_match = config.getfloat(
+            "history_match_tolerance", 2.0, above=0.0
+        )
+        # Newton-cooling extrapolation: accept a still-cooling nozzle when its
+        # projected destination already clears the threshold by this margin.
+        # Zero disables it and restores plain settling.
+        self.asymptote_margin = config.getfloat(
+            "asymptote_margin", 2.0, minval=0.0
+        )
+        self.asymptote_min_decay = config.getfloat(
+            "asymptote_min_decay", 0.10, above=0.0
+        )
+        self.asymptote_tau_min = config.getfloat(
+            "asymptote_tau_min", 30.0, above=0.0
+        )
+        self.asymptote_tau_max = config.getfloat(
+            "asymptote_tau_max", 1800.0, above=0.0
+        )
+        self.asymptote_drop_max = config.getfloat(
+            "asymptote_drop_max", 60.0, above=0.0
+        )
+        # Do not project from a sliver of data. Replayed fresh, the warm run
+        # would otherwise fire at 48 s off ten samples.
+        self.asymptote_min_span = config.getfloat(
+            "asymptote_min_span", 60.0, above=0.0
+        )
         self.max_temp_margin = config.getfloat(
             "max_temp_margin", 1.0, minval=0.0
         )
@@ -303,13 +481,59 @@ class ChamberPreheat:
         # SET_FAN_SPEED does not flush during a blocking temperature wait.
         fan.set_speed(speed)
 
+    def _seed_from_history(self, gcmd, window, gate, now, current_temp):
+        """Pre-fill the slope window from Moonraker's stored nozzle history.
+
+        Never fatal. If the history is missing, short, or interrupted by a
+        commanded nozzle target, qualification simply runs the long way.
+        """
+        if self.history_seconds <= 0.0:
+            return 0.0
+        client = moonraker.MoonrakerClient(
+            self.reactor, self.moonraker_url, self.moonraker_timeout
+        )
+        try:
+            result = client.run(
+                [("history", "/server/temperature_store", None)]
+            )["history"]
+        except Exception as error:
+            gcmd.respond_info("M191 history unavailable (%s)" % error)
+            return 0.0
+        extruder = (result or {}).get("extruder") or {}
+        samples = usable_history(
+            extruder.get("temperatures"),
+            extruder.get("targets"),
+            self.history_interval,
+            now,
+            self.history_seconds,
+        )
+        if not samples:
+            return 0.0
+        drift = abs(samples[-1][1] - current_temp)
+        if drift > self.history_match:
+            gcmd.respond_info(
+                "M191 history rejected, %.1fC from live reading" % drift
+            )
+            return 0.0
+        previous = samples[0][0]
+        for eventtime, temperature in samples:
+            window.push(eventtime, temperature)
+            slope, unused_stderr = window.value()
+            gate.update(slope, eventtime - previous)
+            previous = eventtime
+        return samples[-1][0] - samples[0][0]
+
     def _new_proxy_gate(self):
         return ProxyGate(self.ready_slope, self.settle_dwell)
 
-    def _update_proxy(self, gate, slope, stderr, elapsed_seconds):
+    def _update_proxy(self, gate, slope, stderr, elapsed_seconds,
+                      temperature=None, minimum=None):
         self.slope = slope
         self.slope_stderr = stderr
-        gate.update(slope, elapsed_seconds)
+        gate.update(
+            slope, elapsed_seconds, stderr, temperature, minimum,
+            self.slope_confidence,
+        )
         self._set_state(
             proxy_valid=1 if gate.valid else 0,
             proxy_slope=slope,
@@ -380,7 +604,6 @@ class ChamberPreheat:
         )
         gate = self.proxy_gate = self._new_proxy_gate()
         window = SlopeWindow(self.slope_window)
-        window.push(start_time, start_temp)
         try:
             self._set_stir(fan, stir)
             if policy == 1 and start_temp >= minimum and not boost_requested:
@@ -422,6 +645,30 @@ class ChamberPreheat:
                 bed_time_remaining=None,
             )
 
+            # History first, then the live sample, so the window stays ordered.
+            seeded = self._seed_from_history(
+                gcmd, window, gate, start_time, start_temp
+            )
+            window.push(start_time, start_temp)
+            if seeded:
+                slope, stderr = window.value()
+                self.slope, self.slope_stderr = slope, stderr
+                self._set_state(
+                    proxy_slope=slope,
+                    proxy_validity=gate.state,
+                    proxy_valid_dwell=gate.dwell,
+                    proxy_valid=1 if gate.valid else 0,
+                    proxy_cooling_seen=1 if gate.cooling_seen else 0,
+                )
+                gcmd.respond_info(
+                    "M191 history %.0fs slope=%s %s"
+                    % (
+                        seeded,
+                        self._num(slope, "%+.2f"),
+                        "qualified" if gate.valid else "settling",
+                    )
+                )
+
             eventtime = previous_time = start_time
             nozzle_temp = start_temp
             deadline = start_time + self.qualify_timeout
@@ -434,10 +681,36 @@ class ChamberPreheat:
                 window.push(eventtime, nozzle_temp)
                 slope, stderr = window.value()
                 self._update_proxy(
-                    gate, slope, stderr, eventtime - previous_time
+                    gate, slope, stderr, eventtime - previous_time,
+                    nozzle_temp, minimum,
                 )
                 previous_time = eventtime
                 self._set_stir(fan, stir)
+                if not gate.valid and self.asymptote_margin > 0.0:
+                    estimate, reason = cooling_asymptote(
+                        window.samples,
+                        self.asymptote_min_decay,
+                        self.asymptote_tau_min,
+                        self.asymptote_tau_max,
+                        self.asymptote_drop_max,
+                        self.asymptote_min_span,
+                    )
+                    if estimate is not None and (
+                        estimate >= minimum + self.asymptote_margin
+                    ):
+                        # Still cooling, but it is heading somewhere already
+                        # warm enough. Take the destination as the chamber and
+                        # stop charging the operator for the descent.
+                        gate.qualify_by_asymptote(estimate)
+                        self._set_state(
+                            proxy_valid=1,
+                            proxy_validity=gate.state,
+                            proxy_anchor=estimate,
+                        )
+                        gcmd.respond_info(
+                            "M191 projected %.1fC >= %.1f, qualified early"
+                            % (estimate, minimum + self.asymptote_margin)
+                        )
                 if not gate.valid and eventtime >= deadline:
                     gate.force()
                     self._set_state(
@@ -500,6 +773,15 @@ class ChamberPreheat:
                 chamber_time_remaining=self.chamber_eta,
                 bed_time_remaining=self.bed_eta,
             )
+            # A chamber already at target, or a bed that was never boosted, is
+            # ready here and the live loop's transition tests will never fire.
+            # Without this the fast path recorded only print_ready_eventtime,
+            # leaving the chamber and bed timestamps null and the run
+            # unusable for "how long did each take".
+            if chamber_ready:
+                self._set_state(chamber_ready_eventtime=eventtime)
+            if planned_boost <= 0.0:
+                self._set_state(bed_ready_eventtime=eventtime)
             gcmd.respond_info(
                 "M191 ready noz=%.1f slope=%s+-%s eta=%s boost=%.1f"
                 % (

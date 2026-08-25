@@ -6,13 +6,35 @@ import pathlib
 import unittest
 
 
-PATH = (
-    pathlib.Path(__file__).parents[1]
-    / "slicer profiles/v103/klipper/chamber_preheat.py"
-)
-SPEC = importlib.util.spec_from_file_location("chamber_preheat", PATH)
-MODULE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(MODULE)
+import sys
+import types
+
+
+KLIPPER = pathlib.Path(__file__).parents[1] / "klipper"
+
+
+def _load(name):
+    """Load a Klipper extra with a package context, so `from . import` works.
+
+    Klipper imports these as `extras.<name>`; loading them by bare path leaves
+    no parent package and the relative import fails.
+    """
+    parent = "svzero_extras"
+    if parent not in sys.modules:
+        pkg = types.ModuleType(parent)
+        pkg.__path__ = [str(KLIPPER)]
+        sys.modules[parent] = pkg
+    full = "%s.%s" % (parent, name)
+    if full in sys.modules:
+        return sys.modules[full]
+    spec = importlib.util.spec_from_file_location(full, KLIPPER / (name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[full] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+MODULE = _load("chamber_preheat")
 
 
 class FakeReactor:
@@ -137,6 +159,9 @@ class FakeConfig:
             raise ValueError(name)
         return value
 
+    def get(self, name, default=None):
+        return self.values.get(name, default)
+
     def error(self, message):
         return ValueError(message)
 
@@ -172,6 +197,11 @@ class FakeGcmd:
 
 
 def controller(nozzle_curve, bed_max=120.0, config_values=None):
+    # History seeding is off unless a test asks for it, so the rest of the
+    # suite never reaches for Moonraker.
+    values = {"history_seconds": 0.0}
+    values.update(config_values or {})
+    config_values = values
     reactor = FakeReactor()
     nozzle = FakeHeater(reactor, curve=nozzle_curve)
     bed = FakeHeater(reactor, max_temp=bed_max, initial_target=65.0)
@@ -417,7 +447,13 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             state.state["proxy_validity"], MODULE.ProxyGate.VALID
         )
         self.assertEqual(state.state["proxy_valid"], 1.0)
-        self.assertGreaterEqual(state.state["proxy_valid_dwell"], 60.0)
+        # It qualified without serving the old fixed 60 s dwell: either the
+        # projection reached a warm-enough destination, or it flattened to
+        # within the regression's own uncertainty of zero while above the
+        # threshold. Both are conclusive; the dwell was a cruder proxy.
+        gate = ctl.proxy_gate
+        self.assertTrue(gate.by_settling or gate.by_asymptote is not None)
+        self.assertFalse(gate.forced)
         self.assertEqual(bed.target, 65.0)
         self.assertEqual(fan.commands[0], (0.0, 1.0))
         self.assertEqual(fan.commands[-1][1], 0.0)
@@ -453,6 +489,217 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertTrue(ctl.proxy_gate.forced)
         self.assertGreaterEqual(reactor.now, 300.0)
         self.assertEqual(bed.target, 65.0)
+
+    def test_history_stops_at_the_last_commanded_nozzle_target(self):
+        # 60 s of heating, then 120 s cooling after M104 S0. Only the tail
+        # describes the chamber; the heated part must not be regressed.
+        temps = [200.0] * 60 + [180.0 - i for i in range(120)]
+        targets = [210.0] * 60 + [0.0] * 120
+        got = MODULE.usable_history(temps, targets, 1.0, 1000.0, 300.0)
+        self.assertEqual(len(got), 120)
+        self.assertEqual(got[0][1], 180.0)
+        self.assertEqual(got[-1][1], 61.0)
+        self.assertAlmostEqual(got[-1][0], 1000.0)
+        self.assertAlmostEqual(got[0][0], 1000.0 - 119.0)
+
+    def test_history_is_capped_by_the_requested_span(self):
+        temps = [25.0 + i * 0.001 for i in range(1200)]
+        got = MODULE.usable_history(temps, [0.0] * 1200, 1.0, 500.0, 180.0)
+        self.assertEqual(len(got), 180)
+
+    def test_history_is_refused_when_too_short_or_absent(self):
+        self.assertEqual(MODULE.usable_history([], [], 1.0, 0.0, 300.0), [])
+        self.assertEqual(
+            MODULE.usable_history([25.0, 25.0], [0.0, 0.0], 1.0, 0.0, 300.0), []
+        )
+        # A run of Nones is not data.
+        self.assertEqual(
+            MODULE.usable_history([None] * 10, [0.0] * 10, 1.0, 0.0, 300.0), []
+        )
+
+    def test_overnight_history_qualifies_without_waiting(self):
+        # A machine idle overnight: five minutes of flat scrollback should
+        # settle the nozzle immediately rather than spending 148 s proving it.
+        history = {"extruder": {
+            "temperatures": [25.3] * 400,
+            "targets": [0.0] * 400,
+        }}
+
+        class Client:
+            def __init__(self, *a, **k):
+                pass
+
+            def run(self, calls):
+                return {calls[0][0]: history}
+
+            @staticmethod
+            def quote(v):
+                return v
+
+        original = MODULE.moonraker.MoonrakerClient
+        MODULE.moonraker.MoonrakerClient = Client
+        try:
+            ctl, reactor, bed, state, unused_fan = controller(
+                lambda seconds: 25.3 + 0.5 * seconds / 60.0,
+                config_values={"history_seconds": 300.0},
+            )
+            gcmd = FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0, BOOST=0)
+            ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        finally:
+            MODULE.moonraker.MoonrakerClient = original
+        self.assertEqual(state.state["proxy_validity"], MODULE.ProxyGate.VALID)
+        # Qualified from the scrollback, before the live loop ran at all. The
+        # command still waits for the nozzle to actually reach the minimum.
+        self.assertTrue(
+            any("history" in m and "qualified" in m for m in gcmd.responses),
+            gcmd.responses,
+        )
+        self.assertNotIn(
+            "settling", " ".join(m for m in gcmd.responses if "history" in m)
+        )
+
+    def _decay(self, start, final, tau):
+        import math
+        return lambda seconds: final + (start - final) * math.exp(-seconds / tau)
+
+    def test_asymptote_refuses_a_rising_nozzle(self):
+        # The four recorded cold starts: noise supplies spurious curvature and
+        # an ungated fit overshot the true settling point by +62 to +125 C.
+        rise = [(i * 5.0, 25.0 + 0.3 * (i * 5.0) / 60.0 + (0.05, -0.04, 0.03,
+                 -0.06, 0.02)[i % 5]) for i in range(40)]
+        estimate, reason = MODULE.cooling_asymptote(rise, 0.10, 30.0, 1800.0, 60.0)
+        self.assertIsNone(estimate)
+        self.assertEqual(reason, "not clearly cooling")
+
+    def test_asymptote_recovers_the_destination_of_a_real_decay(self):
+        import math
+        decay = [(i * 5.0, 40.0 + 20.0 * math.exp(-(i * 5.0) / 200.0))
+                 for i in range(40)]
+        estimate, reason = MODULE.cooling_asymptote(
+            decay, 0.10, 30.0, 1800.0, 60.0
+        )
+        self.assertEqual(reason, "ok")
+        self.assertAlmostEqual(estimate, 40.0, delta=1.0)
+
+    def test_asymptote_refuses_an_implausible_time_constant(self):
+        # Near-linear cooling has almost no curvature, so tau runs away.
+        linear = [(i * 5.0, 60.0 - 0.02 * (i * 5.0)) for i in range(40)]
+        estimate, reason = MODULE.cooling_asymptote(
+            linear, 0.10, 30.0, 600.0, 60.0
+        )
+        self.assertIsNone(estimate)
+        self.assertIn(reason, ("time constant", "no decay curvature",
+                               "asymptote not below the nozzle"),)
+        if reason.startswith("time constant"):
+            pass
+
+    def test_a_warm_printer_is_not_charged_for_the_descent(self):
+        # 60 C nozzle heading for 40 C air with a 33 C minimum: the chamber is
+        # already hot enough, so the wait should end well before the nozzle
+        # finishes settling.
+        ctl, reactor, bed, state, unused_fan = controller(
+            self._decay(60.0, 40.0, 200.0)
+        )
+        gcmd = FakeGcmd(MINIMUM=33.0, BED_TARGET=65.0, BOOST=0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        self.assertIsNotNone(ctl.proxy_gate.by_asymptote)
+        self.assertGreaterEqual(ctl.proxy_gate.by_asymptote, 35.0)
+        # Settling alone would have taken many minutes at tau=200 s.
+        self.assertLess(reactor.now, 240.0)
+        self.assertTrue(
+            any("qualified early" in m for m in gcmd.responses), gcmd.responses
+        )
+
+    def test_a_nozzle_heading_below_the_minimum_is_not_qualified_early(self):
+        # Same descent, but the air it is heading for is too cold. The
+        # projection must not authorize an early finish.
+        import math
+        samples = [(i * 5.0, 25.0 + 35.0 * math.exp(-(i * 5.0) / 200.0))
+                   for i in range(40)]
+        estimate, reason = MODULE.cooling_asymptote(
+            samples, 0.10, 30.0, 1800.0, 60.0
+        )
+        self.assertEqual(reason, "ok")
+        self.assertAlmostEqual(estimate, 25.0, delta=1.5)
+        self.assertLess(estimate, 33.0 + 2.0)
+
+    def test_history_that_disagrees_with_the_live_reading_is_rejected(self):
+        history = {"extruder": {
+            "temperatures": [80.0] * 400,     # nowhere near the live 25.3
+            "targets": [0.0] * 400,
+        }}
+
+        class Client:
+            def __init__(self, *a, **k):
+                pass
+
+            def run(self, calls):
+                return {calls[0][0]: history}
+
+            @staticmethod
+            def quote(v):
+                return v
+
+        original = MODULE.moonraker.MoonrakerClient
+        MODULE.moonraker.MoonrakerClient = Client
+        try:
+            ctl, unused_reactor, bed, state, unused_fan = controller(
+                lambda seconds: 25.3 + 0.5 * seconds / 60.0,
+                config_values={"history_seconds": 300.0},
+            )
+            gcmd = FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0, BOOST=0)
+            ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        finally:
+            MODULE.moonraker.MoonrakerClient = original
+        self.assertTrue(
+            any("history rejected" in m for m in gcmd.responses),
+            gcmd.responses,
+        )
+        self.assertEqual(bed.target, 65.0)
+
+    def test_unreachable_moonraker_costs_the_wait_but_never_the_print(self):
+        class Client:
+            def __init__(self, *a, **k):
+                pass
+
+            def run(self, calls):
+                raise MODULE.moonraker.MoonrakerError("connection refused")
+
+            @staticmethod
+            def quote(v):
+                return v
+
+        original = MODULE.moonraker.MoonrakerClient
+        MODULE.moonraker.MoonrakerClient = Client
+        try:
+            ctl, unused_reactor, bed, state, unused_fan = controller(
+                lambda seconds: 25.0 + 0.5 * seconds / 60.0,
+                config_values={"history_seconds": 300.0},
+            )
+            ctl.cmd_CHAMBER_PREHEAT_WAIT(
+                FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0)
+            )
+        finally:
+            MODULE.moonraker.MoonrakerClient = original
+        self.assertEqual(bed.target, 65.0)
+        self.assertEqual(state.state["proxy_validity"], MODULE.ProxyGate.VALID)
+
+    def test_a_chamber_already_at_target_still_records_its_timestamps(self):
+        # 2026-08-25: the nozzle qualified already above the minimum with no
+        # boost, so neither transition test in the live loop ever fired and
+        # only print_ready_eventtime was recorded. The run could not be
+        # measured afterwards.
+        ctl, unused_reactor, bed, state, unused_fan = controller(
+            lambda seconds: 31.5, config_values={"history_seconds": 0.0}
+        )
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(
+            FakeGcmd(MINIMUM=31.0, BED_TARGET=65.0, BOOST=0)
+        )
+        for field in ("chamber_ready_eventtime", "bed_ready_eventtime",
+                      "print_ready_eventtime"):
+            with self.subTest(field=field):
+                self.assertIn(field, state.state)
+                self.assertIsNotNone(state.state[field])
 
     def test_handoff_uses_reactor_clock_domain(self):
         ctl, reactor, unused_bed, state, unused_fan = controller(

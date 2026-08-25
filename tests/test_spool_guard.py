@@ -6,13 +6,35 @@ import pathlib
 import unittest
 
 
-PATH = (
-    pathlib.Path(__file__).parents[1]
-    / "slicer profiles/v103/klipper/spool_guard.py"
-)
-SPEC = importlib.util.spec_from_file_location("spool_guard", PATH)
-MODULE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(MODULE)
+import sys
+import types
+
+
+KLIPPER = pathlib.Path(__file__).parents[1] / "klipper"
+
+
+def _load(name):
+    """Load a Klipper extra with a package context, so `from . import` works.
+
+    Klipper imports these as `extras.<name>`; loading them by bare path leaves
+    no parent package and the relative import fails.
+    """
+    parent = "svzero_extras"
+    if parent not in sys.modules:
+        pkg = types.ModuleType(parent)
+        pkg.__path__ = [str(KLIPPER)]
+        sys.modules[parent] = pkg
+    full = "%s.%s" % (parent, name)
+    if full in sys.modules:
+        return sys.modules[full]
+    spec = importlib.util.spec_from_file_location(full, KLIPPER / (name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[full] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+MODULE = _load("spool_guard")
 
 evaluate = MODULE.evaluate
 normalize_material = MODULE.normalize_material
@@ -135,6 +157,103 @@ class TestMaterial(unittest.TestCase):
             job_material=None, spool_material=None, check_material=False
         )
         self.assertTrue(result.ok)
+
+
+class TestRefusalIsCheapToRepeat(unittest.TestCase):
+    """Klipper prints a raised error once per macro nesting level."""
+
+    class Gcode:
+        def __init__(self):
+            self.responses = []
+
+        def respond_info(self, message):
+            self.responses.append(message)
+
+        def error(self, message):
+            return RuntimeError(message)
+
+    def test_detail_goes_to_responses_and_the_error_stays_short(self):
+        guard = MODULE.SpoolGuard.__new__(MODULE.SpoolGuard)
+        guard.gcode = self.Gcode()
+        error = guard._refuse(
+            "spool has 0.1g, job needs 4.4g",
+            "print from Mainsail's file list to confirm",
+        )
+        self.assertEqual(str(error), MODULE.SpoolGuard.REFUSED)
+        # Short enough that seeing it twice costs one line, not four.
+        self.assertLess(len(str(error)), 40)
+        # One line, not two: the whole refusal fits on it.
+        self.assertEqual(len(guard.gcode.responses), 1)
+        self.assertIn("0.1g", guard.gcode.responses[0])
+        self.assertIn("4.4g", guard.gcode.responses[0])
+        self.assertIn("Mainsail", guard.gcode.responses[0])
+        self.assertLess(len(guard.gcode.responses[0]), 100)
+        # The numbers must not be inside the doubled part.
+        self.assertNotIn("0.1g", str(error))
+
+
+class TestRetryOverride(unittest.TestCase):
+    """A refusal arms a one-shot override for that exact job."""
+
+    class Reactor:
+        def __init__(self):
+            self.now = 0.0
+
+        def monotonic(self):
+            return self.now
+
+    def guard(self, window=300.0):
+        g = MODULE.SpoolGuard.__new__(MODULE.SpoolGuard)
+        g.gcode = TestRefusalIsCheapToRepeat.Gcode()
+        g.reactor = self.Reactor()
+        g.override_window = window
+        g._armed_file = None
+        g._armed_until = 0.0
+        g._armed_reason = ""
+        return g
+
+    def test_a_real_refusal_arms_the_same_file_only(self):
+        g = self.guard()
+        g._refuse("spool has 0.1g, job needs 4.4g", "unused", "bin.gcode")
+        self.assertIn("start it again", g.gcode.responses[0])
+        self.assertIsNone(g._take_override("other.gcode"))
+        self.assertEqual(
+            g._take_override("bin.gcode"), "spool has 0.1g, job needs 4.4g"
+        )
+
+    def test_the_override_is_one_shot(self):
+        g = self.guard()
+        g._refuse("short", "unused", "bin.gcode")
+        self.assertIsNotNone(g._take_override("bin.gcode"))
+        self.assertIsNone(g._take_override("bin.gcode"))
+
+    def test_the_override_expires(self):
+        g = self.guard(window=300.0)
+        g._refuse("short", "unused", "bin.gcode")
+        g.reactor.now = 301.0
+        self.assertIsNone(g._take_override("bin.gcode"))
+
+    def test_a_dry_run_never_arms_a_real_print(self):
+        # SPOOL_GUARD FILE=... passes None, so rehearsing a refusal cannot
+        # authorize the next actual print of that file.
+        g = self.guard()
+        g._refuse("short", "or SPOOL_GUARD BYPASS=1", None)
+        self.assertIsNone(g._armed_file)
+        self.assertIsNone(g._take_override("bin.gcode"))
+        self.assertIn("BYPASS", g.gcode.responses[0])
+
+    def test_a_zero_window_disables_the_override(self):
+        g = self.guard(window=0.0)
+        g._refuse("short", "or SPOOL_GUARD BYPASS=1", "bin.gcode")
+        self.assertIsNone(g._armed_file)
+        self.assertIsNone(g._take_override("bin.gcode"))
+
+    def test_a_second_refusal_replaces_the_armed_job(self):
+        g = self.guard()
+        g._refuse("short", "unused", "first.gcode")
+        g._refuse("short", "unused", "second.gcode")
+        self.assertIsNone(g._take_override("first.gcode"))
+        self.assertIsNotNone(g._take_override("second.gcode"))
 
 
 if __name__ == "__main__":
