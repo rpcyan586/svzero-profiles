@@ -13,6 +13,8 @@
 # threshold proves nothing: on 2026-08-25 one started at 31.7 C, was still
 # falling, was trusted immediately, and drove a full boost off noise.
 
+import math
+
 from . import moonraker
 
 
@@ -118,9 +120,76 @@ def early_arrival_eta(temperature, target, slope, stderr, confidence,
     )
 
 
-def boost_for_eta(eta, max_boost, coast_rate):
-    """Map filtered chamber minutes remaining directly to bed boost."""
-    return min(max_boost, max(0.0, eta) * coast_rate)
+def confidently_warming(slope, stderr, confidence, minimum_rate):
+    """Is the chamber demonstrably rising, not just not-falling?
+
+    Sizing a boost needs a trustworthy ETA, and `early_arrival_eta` will happily
+    produce one from a slope indistinguishable from zero. On the 2026-08-25 cold
+    start the first usable ETA was 291 minutes, off a slope of about
+    0.02 C/min -- which maps to the entire boost cap. Requiring the *lower*
+    confidence bound to clear the minimum rate refuses that, while the upper
+    bound still does the sizing.
+    """
+    if slope is None:
+        return False
+    return slope - confidence * (stderr or 0.0) >= minimum_rate
+
+
+def approach_eta(samples, target, min_span=60.0, min_samples=12):
+    """Minutes to `target` for a chamber approaching an asymptote.
+
+    A linear extrapolation cannot see deceleration, and the chamber decelerates
+    the whole way: measured against ground truth on the 2026-08-26 cold soak,
+    the linear estimate under-predicted by a median of **8.6 minutes** and no
+    window length or smoothing moved it, because the error is the model's, not
+    noise. Under-predicting is what made the bed turn around far too early.
+
+    Newton's law again, warming instead of cooling: dT/dt = (T_inf - T)/tau, so
+    regressing each sub-block's rate against its mean temperature gives both the
+    asymptote and the time constant, and the target falls out analytically. Same
+    machinery as `cooling_asymptote`, opposite sign of travel.
+
+    Returns None whenever the fit does not support an answer -- too little data,
+    no curvature, or an asymptote at or below the target, which means the
+    chamber is not going to get there at all on the present trajectory.
+    """
+    if len(samples) < min_samples:
+        return None
+    if samples[-1][0] - samples[0][0] < min_span:
+        return None
+    blocks = []
+    size = max(3, len(samples) // 4)
+    for start in range(0, len(samples) - size + 1, size):
+        chunk = samples[start:start + size]
+        rate, unused = least_squares_slope(chunk)
+        if rate is None:
+            continue
+        blocks.append((sum(v for unused_t, v in chunk) / len(chunk), rate))
+    if len(blocks) < 3:
+        return None
+    gradient, intercept = _line(blocks)
+    if gradient is None or gradient >= 0.0:
+        return None
+    tau = -1.0 / gradient
+    asymptote = -intercept / gradient
+    now = samples[-1][1]
+    if asymptote <= target or now >= asymptote:
+        return None
+    return -tau * math.log((asymptote - target) / (asymptote - now))
+
+
+def boost_for_eta(eta, max_boost, coast_rate, lead_minutes=0.0):
+    """Map chamber minutes remaining to bed boost, landing early by `lead`.
+
+    Waiting on the bed is always wasted time, so the schedule aims for the
+    plate to be back at its printing setpoint before the chamber arrives rather
+    than at the same moment. Subtracting the lead from the ETA does that
+    naturally: as the ETA falls a minute per minute, the desired boost falls at
+    exactly `coast_rate` per minute, so the slew limit never binds and the bed
+    reaches target with `lead` to spare.
+    """
+    usable = max(0.0, eta - lead_minutes)
+    return min(max_boost, usable * coast_rate)
 
 
 def eta_gated_coast(current_boost, desired_boost, elapsed_minutes, coast_rate):
@@ -329,7 +398,7 @@ class ChamberPreheat:
             "minimum_rate", 0.02, above=0.0
         )
         self.default_max_boost = config.getfloat(
-            "max_bed_boost", 10.0, minval=0.0
+            "max_bed_boost", 1000.0, minval=0.0
         )
         self.default_coast_rate = config.getfloat(
             "coast_rate", 1.0, above=0.0
@@ -365,7 +434,106 @@ class ChamberPreheat:
         # the full headroom left the bed holding the print open 1.8 minutes;
         # half left none. That is one qualifying run, not a tuned constant.
         self.boost_fraction = config.getfloat(
-            "boost_fraction", 0.5, above=0.0, maxval=1.0
+            "boost_fraction", 1.0, above=0.0, maxval=1.0
+        )
+        # Do not bother committing a boost smaller than this; near the end of a
+        # soak it is churn on the bed for no useful heat.
+        self.min_boost_step = config.getfloat(
+            "min_boost_step", 0.5, minval=0.0
+        )
+        # Defaults here MUST match chamber_preheat.cfg. A code default that
+        # silently disagrees with the shipped config gives anyone who installs
+        # the extra without the full file different behaviour from the one
+        # documented; scripts/test-exhaust-adaptive.py pins the pair.
+        #
+        # A slope worth scheduling against, distinct from minimum_rate, which
+        # only asks whether an ETA can be displayed at all. This is not the
+        # safety mechanism -- sizing from the earliest plausible arrival is,
+        # and boost_fraction is the margin on top. It exists because a trailing
+        # regression LAGS a chamber whose slope is still climbing, and that bias
+        # is systematic, so the standard error cannot see it. Committing while
+        # the window is still full of pre-ramp data reads the ETA far too long:
+        # on the 2026-08-25 cold start, 0.02 C/min authorized a boost against a
+        # 188-minute estimate. Every threshold from 0.02 to 0.40 produced the
+        # same 5 C on that run, capped by initial_boost, so this is a judgment
+        # call rather than a tuned constant.
+        self.boost_min_rate = config.getfloat(
+            "boost_min_rate", 0.02, above=0.0
+        )
+        # Land the bed back on its setpoint this far ahead of the chamber.
+        # Measured 2026-08-26: with no lead the bed held the print open 15 s.
+        self.bed_lead_seconds = config.getfloat(
+            "bed_lead_seconds", 60.0, minval=0.0
+        )
+        # The ceiling is an absolute plate temperature, not a boost magnitude.
+        # A magnitude cap does not survive changing the printing bed target,
+        # and this machine will eventually run a 124 C bed with 60 C chamber
+        # targets. What limits the boost today is the filament, not the plate.
+        self.max_bed_temp = config.getfloat("max_bed_temp", 100.0, above=0.0)
+        # The rise after the opening guess is rate limited rather than a jump
+        # to the ETA-permitted level, so the plate climbs monotonically until
+        # the ETA says it must turn around and come back down.
+        self.climb_rate = config.getfloat("climb_rate", 3.0, above=0.0)
+        # Before any ETA exists the plate ramps blind at climb_rate, commanded
+        # in whole degrees so the moves are legible on the graph. Holding the
+        # opening guess flat was a soft plateau that bought nothing.
+        self.blind_step = config.getfloat("blind_step", 1.0, above=0.0)
+        self.blind_step_seconds = config.getfloat(
+            "blind_step_seconds", 20.0, above=0.0
+        )
+        # How far the blind ramp may run before it needs an ETA to justify
+        # going further. In practice a trend appears inside a couple of
+        # minutes, so this only bounds the pathological case -- a nozzle that
+        # never yields one would otherwise ramp to the absolute ceiling with
+        # no idea whether it can be unwound in time.
+        self.blind_max = config.getfloat("blind_max", 15.0, minval=0.0)
+        # Ease into the plateau instead of arriving at full rate: within this
+        # many minutes of the target the climb rate steps down one stage per
+        # minute, 3 -> 2 -> 1.
+        self.climb_ease_minutes = config.getfloat(
+            "climb_ease_minutes", 2.0, minval=0.0
+        )
+        # The turn is a threshold crossing on a noisy signal, so it fires on the
+        # ETA's DOWNWARD excursions and turns the plate around early and low.
+        # A high hold fraction afterwards is the evidence: the schedule keeps
+        # saying the boost was still supported, which means the peak should
+        # have been higher or later. Deciding the turn on the highest ETA seen
+        # in this window resists a single dip. The descent still floors on the
+        # live value, so it never holds on a stale one.
+        self.turn_eta_window = config.getfloat(
+            "turn_eta_window", 180.0, minval=0.0
+        )
+        # The plate settles here rather than exactly on the printing target.
+        # Nozzle and motion after the soak add their own heat, and a small bump
+        # nudges what becomes a glacially slow chamber rise at the end without
+        # measurably hurting bed stability.
+        # Klipper's ControlPID.check_busy tests the ABSOLUTE error, so a plate
+        # ABOVE its printing target is as busy as one below, and the following
+        # M190 blocks while it cools. PID_SETTLE_DELTA is 1.0, so a carry of
+        # exactly 1.0 sits on the boundary: 2026-08-26 finished at 65.99 and
+        # cleared it by a hundredth of a degree. Anything over, and the carry
+        # buys chamber heat by making the operator wait for the bed, which is
+        # the opposite of the intent. Kept strictly inside the window.
+        self.bed_carry = config.getfloat(
+            "bed_carry", 0.5, minval=0.0, maxval=0.9
+        )
+        # Hold at the peak before turning around, so the maximum is a plateau
+        # rather than an instant.
+        self.peak_plateau = config.getfloat("peak_plateau", 60.0, minval=0.0)
+        # The approach ETA is unbiased but jumpy; smooth it before acting.
+        self.eta_alpha = config.getfloat(
+            "eta_alpha", 0.25, above=0.0, maxval=1.0
+        )
+        # How fast the plate may be dumped once it is at or past its deadline.
+        self.descent_max_rate = config.getfloat(
+            "descent_max_rate", 6.0, above=0.0
+        )
+        # Hold the descent only when the chamber has demonstrably SLOWED: the
+        # smoothed ETA growing by at least this much since the last sample.
+        # Holding merely because the ETA read higher than the current boost was
+        # not new information, and it stood still for half the descent.
+        self.eta_grow_hold = config.getfloat(
+            "eta_grow_hold", 0.75, minval=0.0
         )
         # Seed the slope window from Moonraker's temperature store so a machine
         # that has been idle does not re-derive what the scrollback already
@@ -433,6 +601,10 @@ class ChamberPreheat:
         self.filter_alpha = self.default_filter_alpha
         self.proxy_gate = None
         self.slope_stderr = None
+        self.eta_filtered = None
+        self.eta_history = []
+        self.hold_minutes = 0.0
+        self.fall_minutes = 0.0
         self.stir = 0.0
         self.gcode.register_command(
             "CHAMBER_PREHEAT_WAIT",
@@ -464,6 +636,8 @@ class ChamberPreheat:
     def _set_bed(self, heater, target):
         # 0.01 C of bed command was false precision on a 65 C plate.
         target = quantize_target(target)
+        if self.commanded_bed_target == target:
+            return
         heater.set_temp(target)
         self.commanded_bed_target = target
 
@@ -497,7 +671,7 @@ class ChamberPreheat:
                 [("history", "/server/temperature_store", None)]
             )["history"]
         except Exception as error:
-            gcmd.respond_info("M191 history unavailable (%s)" % error)
+            gcmd.respond_info("%s history unavailable (%s)" % (self._stamp(now), error))
             return 0.0
         extruder = (result or {}).get("extruder") or {}
         samples = usable_history(
@@ -512,7 +686,8 @@ class ChamberPreheat:
         drift = abs(samples[-1][1] - current_temp)
         if drift > self.history_match:
             gcmd.respond_info(
-                "M191 history rejected, %.1fC from live reading" % drift
+                "%s history rejected, %.1fC from live reading"
+                % (self._stamp(now), drift)
             )
             return 0.0
         previous = samples[0][0]
@@ -525,6 +700,54 @@ class ChamberPreheat:
 
     def _new_proxy_gate(self):
         return ProxyGate(self.ready_slope, self.settle_dwell)
+
+    def _climb_rate_near(self, remaining):
+        """Full rate far out, stepping down by 1 C/min per minute near the top.
+
+        Arriving at the plateau at full speed overshoots the schedule and then
+        has to give it straight back. `remaining` is degrees still to climb, so
+        at 1 C/min it is also the minutes left of climbing.
+        """
+        if self.climb_ease_minutes <= 0.0:
+            return self.climb_rate
+        rate = self.climb_rate
+        while rate > 1.0 and remaining < rate * 1.0:
+            rate -= 1.0
+        return max(1.0, min(self.climb_rate, rate))
+
+    def _turn_eta(self, eventtime, eta):
+        """Highest recent ETA, so the turn does not fire on a downward blip."""
+        if eta is None:
+            return None
+        self.eta_history.append((eventtime, eta))
+        horizon = eventtime - self.turn_eta_window
+        self.eta_history = [x for x in self.eta_history if x[0] >= horizon]
+        return max(e for unused_t, e in self.eta_history)
+
+    def _chamber_eta(self, window, temperature, minimum):
+        """Smoothed minutes to the chamber minimum, exponential where it fits."""
+        if temperature >= minimum:
+            self.eta_filtered = 0.0
+            return 0.0
+        raw = approach_eta(window.samples, minimum)
+        if raw is None:
+            # No usable curvature yet. Fall back to the linear estimate, which
+            # under-predicts a decelerating chamber but is better than nothing.
+            # The weak path keeps the boost_min_rate gate; approach_eta needs no
+            # such guard, because it already refuses without real curvature and
+            # an asymptote above the target.
+            raw = eta_minutes(
+                temperature, minimum, self.slope, self.minimum_rate
+            ) if confidently_warming(
+                self.slope, self.slope_stderr, self.slope_confidence,
+                self.boost_min_rate,
+            ) else None
+        if raw is None:
+            return self.eta_filtered
+        self.eta_filtered = exponential_filter(
+            self.eta_filtered, raw, self.eta_alpha
+        )
+        return self.eta_filtered
 
     def _update_proxy(self, gate, slope, stderr, elapsed_seconds,
                       temperature=None, minimum=None):
@@ -545,6 +768,15 @@ class ChamberPreheat:
 
     def cmd_CHAMBER_RECORD_HANDOFF(self, gcmd):
         self._set_state(handoff_eventtime=self.reactor.monotonic())
+
+    @staticmethod
+    def _stamp(eventtime):
+        """Seconds-within-minute, so Mainsail's minute stamp can be read.
+
+        Several lines can land inside one console minute and the count varies,
+        which makes the order and spacing unreadable at minute resolution.
+        """
+        return ":%02d M191" % (int(eventtime) % 60)
 
     @staticmethod
     def _num(value, spec="%.1f"):
@@ -578,7 +810,8 @@ class ChamberPreheat:
         nozzle = self.heaters.lookup_heater("extruder")
         bed = self.heaters.lookup_heater("heater_bed")
         fan = self.printer.lookup_object("fan_generic fan0").fan
-        maximum_target = bed.max_temp - self.max_temp_margin
+        maximum_target = min(bed.max_temp - self.max_temp_margin,
+                             self.max_bed_temp)
         if bed_target > maximum_target:
             raise gcmd.error(
                 "BED_TARGET %.2f exceeds the safe bed maximum %.2f"
@@ -602,6 +835,7 @@ class ChamberPreheat:
         start_temp, unused_bed_temp = self._temperatures(
             nozzle, bed, start_time
         )
+        completed = False
         gate = self.proxy_gate = self._new_proxy_gate()
         window = SlopeWindow(self.slope_window)
         try:
@@ -621,7 +855,8 @@ class ChamberPreheat:
                     print_ready_eventtime=start_time,
                 )
                 gcmd.respond_info(
-                    "M191 compat noz=%.1f floor=%.1f" % (start_temp, minimum)
+                    "%s compat noz=%.1f floor=%.1f"
+                    % (self._stamp(start_time), start_temp, minimum)
                 )
                 return
             self._set_state(
@@ -632,10 +867,23 @@ class ChamberPreheat:
                 proxy_cooling_seen=0,
                 proxy_valid_dwell=0.0,
             )
-            # The bed sits at its printing target throughout qualification.
-            # Nothing is boosted until the nozzle has earned the right to
-            # schedule it.
-            self._set_bed(bed, bed_target)
+            # The opening guess is blind by definition, so gating it on
+            # qualification only wasted heating time -- on 2026-08-26 the plate
+            # sat at its printing target for four minutes while the nozzle
+            # settled. Whether a boost is possible is decided immediately;
+            # only the ETA-driven parts need a qualified nozzle. Skip it when
+            # the nozzle already clears the minimum, where the soak is likely
+            # over before any boost could be unwound.
+            opening = 0.0
+            if (boost_requested and boost_cap > 0.0
+                    and start_temp < minimum):
+                opening = min(initial_boost, boost_cap)
+            self._set_bed(bed, quantize_target(bed_target + opening))
+            if opening > 0.0:
+                gcmd.respond_info(
+                    "%s guess bed %.1f while the nozzle settles"
+                    % (self._stamp(start_time), bed_target + opening)
+                )
             self._set_state(
                 preheat_phase=1,
                 boost_bed_target=None,
@@ -661,8 +909,9 @@ class ChamberPreheat:
                     proxy_cooling_seen=1 if gate.cooling_seen else 0,
                 )
                 gcmd.respond_info(
-                    "M191 history %.0fs slope=%s %s"
+                    "%s history %.0fs slope=%s %s"
                     % (
+                        self._stamp(start_time),
                         seeded,
                         self._num(slope, "%+.2f"),
                         "qualified" if gate.valid else "settling",
@@ -708,8 +957,9 @@ class ChamberPreheat:
                             proxy_anchor=estimate,
                         )
                         gcmd.respond_info(
-                            "M191 projected %.1fC >= %.1f, qualified early"
-                            % (estimate, minimum + self.asymptote_margin)
+                            "%s projected %.1fC >= %.1f, qualified early"
+                            % (self._stamp(eventtime), estimate,
+                               minimum + self.asymptote_margin)
                         )
                 if not gate.valid and eventtime >= deadline:
                     gate.force()
@@ -717,14 +967,15 @@ class ChamberPreheat:
                         proxy_valid=1, proxy_validity=gate.state
                     )
                     gcmd.respond_info(
-                        "M191 unqualified after %.0fs, proceeding"
-                        % self.qualify_timeout
+                        "%s unqualified after %.0fs, proceeding"
+                        % (self._stamp(eventtime), self.qualify_timeout)
                     )
                     break
                 if eventtime >= next_report:
                     gcmd.respond_info(
-                        "M191 settle noz=%.1f slope=%s dwell=%.0f/%.0f"
+                        "%s settle noz=%.1f slope=%s dwell=%.0f/%.0f"
                         % (
+                            self._stamp(eventtime),
                             nozzle_temp,
                             self._num(self.slope, "%+.2f"),
                             gate.dwell,
@@ -744,21 +995,17 @@ class ChamberPreheat:
                 nozzle_temp, minimum, self.slope, self.minimum_rate
             )
             coast_reason = 0
-            planned_boost = 0.0
+            planned_boost = opening
             if boost_requested and boost_cap > 0.0 and not chamber_ready:
-                safe_eta = early_arrival_eta(
-                    nozzle_temp, minimum, self.slope, self.slope_stderr,
-                    self.slope_confidence, self.minimum_rate,
-                )
-                if safe_eta is None:
-                    coast_reason = 2
-                else:
-                    planned_boost = min(
-                        initial_boost,
-                        boost_for_eta(safe_eta, boost_cap, coast_rate)
-                        * self.boost_fraction,
-                    )
-                    coast_reason = 1 if planned_boost > 0.0 else 3
+                # INITIAL_BOOST is the opening guess, applied before any slope
+                # exists -- that is its entire purpose. A 65 C bed goes to 70
+                # the moment the nozzle qualifies, and climbs toward the cap
+                # later if the ETA turns out to permit it. Qualification, not
+                # slope quality, is the gate: a nozzle that is not yet a
+                # chamber thermometer must not schedule anything, but one that
+                # is need not wait for a measurable trend to start heating.
+                planned_boost = min(initial_boost, boost_cap)
+                coast_reason = 1 if planned_boost > 0.0 else 3
             elif boost_requested and available_boost <= 0.0:
                 coast_reason = 3
 
@@ -783,8 +1030,9 @@ class ChamberPreheat:
             if planned_boost <= 0.0:
                 self._set_state(bed_ready_eventtime=eventtime)
             gcmd.respond_info(
-                "M191 ready noz=%.1f slope=%s+-%s eta=%s boost=%.1f"
+                "%s ready noz=%.1f slope=%s+-%s eta=%s boost=%.1f"
                 % (
+                    self._stamp(eventtime),
                     nozzle_temp,
                     self._num(self.slope, "%+.2f"),
                     self._num(self.slope_stderr, "%.2f"),
@@ -794,6 +1042,14 @@ class ChamberPreheat:
             )
 
             current_boost = planned_boost
+            decaying = False
+            eta_seen = False
+            announced = planned_boost
+            at_peak = None
+            previous_eta = None
+            blind_stepped = eventtime
+            self.hold_minutes = 0.0
+            self.fall_minutes = 0.0
             bed_gated = planned_boost > 0.0
             bed_ready = not bed_gated
             last_command = command
@@ -821,21 +1077,160 @@ class ChamberPreheat:
                 )
                 self.chamber_eta = live_eta
 
-                # The boost only ever decays from here. Re-boosting mid-soak
-                # would need fresh unwind headroom that a falling ETA does not
-                # have.
-                if current_boost > 0.0:
-                    safe_eta = 0.0 if chamber_ready else early_arrival_eta(
-                        nozzle_temp, minimum, self.slope, self.slope_stderr,
-                        self.slope_confidence, self.minimum_rate,
+                # The boost climbs while the ETA still permits it, then only
+                # falls. "Do not step up again" applies once it has STARTED
+                # DECAYING -- before that, a longer-than-guessed ETA is exactly
+                # the case INITIAL_BOOST was guessing at, and the bed should
+                # take the extra headroom. On a 65 C target that is 70 C at
+                # qualification and up to 75 C once the trend is known.
+                safe_eta = 0.0 if chamber_ready else early_arrival_eta(
+                    nozzle_temp, minimum, self.slope, self.slope_stderr,
+                    self.slope_confidence, self.minimum_rate,
+                ) if confidently_warming(
+                    self.slope, self.slope_stderr, self.slope_confidence,
+                    self.boost_min_rate,
+                ) else None
+                desired = (
+                    0.0 if safe_eta is None
+                    else boost_for_eta(
+                        safe_eta, boost_cap, coast_rate,
+                        self.bed_lead_seconds / 60.0,
+                    ) * self.boost_fraction
+                )
+
+                # `turn` is the boost whose unwind exactly fills the time
+                # remaining, less the bed lead. Below it the plate climbs; at it
+                # it plateaus, then only falls.
+                self.chamber_eta = self._chamber_eta(
+                    window, nozzle_temp, minimum
+                )
+                live_eta = self.chamber_eta
+                lead_minutes = self.bed_lead_seconds / 60.0
+                supported = (
+                    None if live_eta is None
+                    else boost_for_eta(
+                        live_eta, boost_cap, coast_rate, lead_minutes,
+                    ) * self.boost_fraction
+                )
+                robust_eta = self._turn_eta(eventtime, live_eta)
+                turn = (
+                    None if robust_eta is None
+                    else boost_for_eta(
+                        robust_eta, boost_cap, coast_rate, lead_minutes,
+                    ) * self.boost_fraction
+                )
+
+                if turn is None and not eta_seen:
+                    # No ETA yet, so ramp blind rather than sitting on the
+                    # opening guess. A flat hold there was a soft plateau that
+                    # bought nothing; whole-degree steps keep it legible.
+                    if eventtime - blind_stepped >= self.blind_step_seconds:
+                        blind_stepped = eventtime
+                        stepped = min(
+                            current_boost + self.blind_step,
+                            boost_cap, self.blind_max,
+                        )
+                        if stepped > current_boost + 1e-9:
+                            current_boost = stepped
+                            self.peak_boost = max(
+                                self.peak_boost, current_boost
+                            )
+                            bed_gated = True
+                            bed_ready = False
+                            coast_reason = 1
+                            self._set_state(
+                                preheat_phase=2,
+                                boost_bed_target=quantize_target(
+                                    bed_target + current_boost
+                                ),
+                                boost_coast_reason=1,
+                            )
+                elif turn is None:
+                    decaying = True
+                elif not decaying and current_boost >= turn - 1e-9:
+                    if at_peak is None:
+                        at_peak = eventtime
+                    elif eventtime - at_peak >= self.peak_plateau:
+                        decaying = True
+                elif not decaying:
+                    rate = self._climb_rate_near(turn - current_boost)
+                    climbed = min(
+                        current_boost + rate * interval_minutes,
+                        turn, boost_cap,
                     )
-                    desired = (
-                        0.0 if safe_eta is None
-                        else boost_for_eta(safe_eta, boost_cap, coast_rate)
+                    if climbed > current_boost + 1e-9:
+                        at_peak = None
+                        if climbed >= announced + self.min_boost_step:
+                            announced = climbed
+                            gcmd.respond_info(
+                                "%s bed %.1f climbing to %.1f at %.0fC/min eta=%s"
+                                % (
+                                    self._stamp(eventtime),
+                                    bed_target + current_boost,
+                                    bed_target + turn, rate,
+                                    self._num(live_eta, "%.1f"),
+                                )
+                            )
+                        current_boost = climbed
+                        self.peak_boost = max(self.peak_boost, current_boost)
+                        bed_gated = True
+                        bed_ready = False
+                        coast_reason = 1
+                        self._set_state(
+                            preheat_phase=2,
+                            boost_bed_target=quantize_target(
+                                bed_target + current_boost
+                            ),
+                            boost_coast_reason=1,
+                        )
+                if turn is not None:
+                    eta_seen = True
+
+                if decaying and current_boost > self.bed_carry:
+                    # coast_rate is a FLOOR, not a target. Descending slower
+                    # than it would leave the plate still ramping when the
+                    # print starts, and a plate with a live gradient in it
+                    # cups. Arriving early is not waste: it is soak time, and a
+                    # settled plate is a flat one.
+                    slack = (
+                        None if live_eta is None
+                        else live_eta - self.bed_lead_seconds / 60.0
                     )
-                    current_boost = eta_gated_coast(
-                        current_boost, desired, interval_minutes, coast_rate
+                    if slack is None or slack <= 0.0:
+                        # At or past the deadline. The bed is never allowed to
+                        # be later than the chamber, so it comes down hard.
+                        rate = self.descent_max_rate
+                    else:
+                        rate = min(
+                            self.descent_max_rate,
+                            max(coast_rate,
+                                (current_boost - self.bed_carry) / slack),
+                        )
+                    # Pause only when the chamber has actually slowed.
+                    grew = (
+                        live_eta is not None and previous_eta is not None
+                        and live_eta - previous_eta >= self.eta_grow_hold
                     )
+                    # Never descend below what the current ETA still supports.
+                    # Without this floor the plate ran all the way to the carry
+                    # regardless: on 2026-08-26 it reached it with the nozzle at
+                    # 37.8 of 41 and seventeen minutes of soak left, throttling
+                    # the chamber for no reason.
+                    floor_at = max(
+                        self.bed_carry, supported or self.bed_carry
+                    )
+                    stepped = max(
+                        floor_at,
+                        current_boost - rate * interval_minutes,
+                    )
+                    stepped = max(self.bed_carry, min(current_boost, stepped))
+                    if grew or stepped >= current_boost - 1e-9:
+                        self.hold_minutes += interval_minutes
+                    else:
+                        current_boost = stepped
+                        self.fall_minutes += interval_minutes
+                if live_eta is not None:
+                    previous_eta = live_eta
                 command = quantize_target(bed_target + current_boost)
                 if command != last_command:
                     self._set_bed(bed, command)
@@ -843,10 +1238,11 @@ class ChamberPreheat:
                 self.bed_eta = (
                     0.0 if bed_ready else max(current_boost / coast_rate, 0.0)
                 )
+                carried = bed_target + self.bed_carry
                 if (
                     not bed_ready
-                    and current_boost <= 0.0
-                    and abs(bed_temp - bed_target) <= self.bed_tolerance
+                    and current_boost <= self.bed_carry + 1e-9
+                    and abs(bed_temp - carried) <= self.bed_tolerance
                 ):
                     bed_ready = True
                     self.bed_eta = 0.0
@@ -858,17 +1254,27 @@ class ChamberPreheat:
                     bed_time_remaining=self.bed_eta,
                 )
                 if chamber_ready and bed_ready:
-                    self._set_bed(bed, bed_target)
+                    completed = True
+                    self._set_bed(bed, quantize_target(carried))
                     self._set_state(print_ready_eventtime=eventtime)
+                    moving = self.hold_minutes + self.fall_minutes
                     gcmd.respond_info(
-                        "M191 done noz=%.1f bed=%.1f target=%.1f"
-                        % (nozzle_temp, bed_temp, bed_target)
+                        "%s done noz=%.1f bed=%.1f peak=%.1f held=%s"
+                        % (
+                            self._stamp(eventtime),
+                            nozzle_temp, bed_temp,
+                            bed_target + self.peak_boost,
+                            "--" if moving <= 0 else "%.0f%%" % (
+                                100.0 * self.hold_minutes / moving
+                            ),
+                        )
                     )
                     return
                 if eventtime >= next_report:
                     gcmd.respond_info(
-                        "M191 noz=%.1f eta=%s bed=%.1f>%.1f coast=%s"
+                        "%s noz=%.1f eta=%s bed=%.1f>%.1f coast=%s"
                         % (
+                            self._stamp(eventtime),
                             nozzle_temp,
                             self._num(self.chamber_eta, "%.1f"),
                             bed_temp,
@@ -889,10 +1295,16 @@ class ChamberPreheat:
             raise
         finally:
             # Any ordinary return, command error or Klipper shutdown stops the
-            # stir and restores the real printing target. MCU shutdown
-            # independently disables both outputs.
+            # stir. A completed soak keeps bed_carry, which is the whole point
+            # of it -- the nudge is wanted through the handoff. Anything that
+            # did NOT complete gives the plate straight back to its printing
+            # target. MCU shutdown independently disables both outputs.
             self._set_stir(fan, 0.0)
-            self._set_bed(bed, bed_target)
+            self._set_bed(
+                bed,
+                quantize_target(bed_target + self.bed_carry) if completed
+                else bed_target,
+            )
             self.active = False
 
     def get_status(self, eventtime):
@@ -909,6 +1321,8 @@ class ChamberPreheat:
             "filter_alpha": self.filter_alpha,
             "stir": self.stir,
             "slope_stderr": self.slope_stderr,
+            "hold_minutes": self.hold_minutes,
+            "fall_minutes": self.fall_minutes,
             "proxy_validity": (
                 None if self.proxy_gate is None else self.proxy_gate.state
             ),

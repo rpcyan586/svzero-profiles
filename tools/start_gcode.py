@@ -80,8 +80,10 @@ ORCA_PURGE_START = "{if first_layer_print_min[1] - 6 > print_bed_min[1]}"
 ORCA_PURGE_END = "{endif}"
 
 # Sandbox only. Never written into the generated publication bundle.
+# MAX_BOOST is deliberately absent: the ceiling is the extra's absolute
+# max_bed_temp, and a magnitude passed here would only nerf it.
 ORCA_SHADOW_BOOST = (
-    "BOOST=1 MAX_BOOST=10 COAST_RATE=1 INITIAL_BOOST=5 FILTER_ALPHA=0.25"
+    "BOOST=1 COAST_RATE=1 INITIAL_BOOST=5 FILTER_ALPHA=0.25"
 )
 
 ORCA_SHADOW_CHAMBER_BLOCK = "\n".join([

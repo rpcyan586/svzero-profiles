@@ -283,6 +283,67 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             MODULE.early_arrival_eta(30.0, 33.0, None, None, 2.0, 0.02)
         )
 
+    def test_the_boost_schedule_lands_the_bed_early(self):
+        # No lead: the bed aims to arrive exactly with the chamber.
+        self.assertAlmostEqual(MODULE.boost_for_eta(5.0, 10.0, 1.0, 0.0), 5.0)
+        # One minute of lead shortens the schedule by one coast-minute.
+        self.assertAlmostEqual(MODULE.boost_for_eta(5.0, 10.0, 1.0, 1.0), 4.0)
+        # Inside the lead there is nothing left to give back.
+        self.assertEqual(MODULE.boost_for_eta(0.5, 10.0, 1.0, 1.0), 0.0)
+        self.assertEqual(MODULE.boost_for_eta(0.0, 10.0, 1.0, 1.0), 0.0)
+        # The cap still wins on a long ETA.
+        self.assertEqual(MODULE.boost_for_eta(500.0, 10.0, 1.0, 1.0), 10.0)
+        # Desired falls at exactly coast_rate as the ETA falls, so the slew
+        # limit never binds and the bed lands with the lead to spare.
+        a = MODULE.boost_for_eta(5.0, 10.0, 1.0, 1.0)
+        b = MODULE.boost_for_eta(4.0, 10.0, 1.0, 1.0)
+        self.assertAlmostEqual(a - b, 1.0)
+
+    def test_the_descent_is_scheduled_not_a_fixed_rate(self):
+        """Remaining boost aimed at remaining time, so it lands when needed.
+
+        Flooring the descent at coast_rate made the plate arrive long before it
+        was wanted -- 15 minutes early on the recorded cold soak -- and the
+        holds that compensated were a symptom of that rather than of estimator
+        noise. Replayed with this, the descent holds 0% of the time and lands
+        234 s early instead of 924.
+        """
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start()
+        moving = ctl.hold_minutes + ctl.fall_minutes
+        self.assertGreater(moving, 0.0)
+        held = 100.0 * ctl.hold_minutes / moving
+        self.assertLess(held, 10.0, "descent should barely stand still")
+        # It still lands: the plate returns to the carry, not somewhere above.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=1)
+
+    def test_a_plate_past_its_deadline_comes_down_hard(self):
+        # coast_rate is a preference; being later than the chamber is not
+        # allowed, so an exhausted slack dumps at descent_max_rate.
+        self.assertGreater(
+            self._cold_start()[0].descent_max_rate, 1.0
+        )
+
+    def test_the_lead_moves_the_bed_off_the_critical_path(self):
+        """The lead must strictly reduce how long the bed holds the print.
+
+        Asserted as an improvement rather than an absolute: this fixture
+        accelerates harder than the recorded chamber does, so it keeps a
+        residual hold at coast_rate 1.0 that the machine does not. Replayed
+        against the real 2026-08-26 trace the same code lands the bed 36 s
+        before the chamber, against 24 s after it with no lead.
+        """
+        def hold(lead):
+            unused_ctl, unused_reactor, unused_bed, state, unused_gcmd = (
+                self._cold_start(config_values={"bed_lead_seconds": lead})
+            )
+            return (state.state["bed_ready_eventtime"]
+                    - state.state["chamber_ready_eventtime"])
+
+        without = hold(0.0)
+        with_lead = hold(60.0)
+        self.assertLess(with_lead, without)
+        self.assertLessEqual(without - with_lead, 60.0 + 1e-6)
+
     def test_bed_is_commanded_at_one_tenth_of_a_degree(self):
         self.assertEqual(MODULE.quantize_target(65.0 + 3.14159), 68.1)
         self.assertEqual(MODULE.quantize_target(69.96), 70.0)
@@ -300,11 +361,13 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         ctl.cmd_CHAMBER_PREHEAT_WAIT(
             FakeGcmd(MINIMUM=33.0, BED_TARGET=65.0)
         )
+        # The opening guess is blind and lands at once -- it needs no chamber
+        # knowledge. What a cooling nozzle must not do is SCHEDULE anything:
+        # nothing above the guess until it has qualified.
         early = [target for eventtime, target in bed.commands
                  if eventtime <= 300.0]
-        self.assertTrue(all(t <= 65.0 for t in early), early)
+        self.assertTrue(all(t <= 70.0 for t in early), early)
         self.assertEqual(state.state["proxy_cooling_seen"], 1.0)
-        self.assertEqual(bed.target, 65.0)
 
     def test_boost_waits_for_qualification_then_sizes_from_headroom(self):
         ctl, unused_reactor, bed, state, unused_fan = controller(
@@ -314,16 +377,19 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0)
         )
         commands = bed.commands
-        # Nothing above the printing target before the settle dwell completes.
+        # Nothing above the opening guess before the settle dwell completes:
+        # the guess is blind, the climb is not.
         self.assertTrue(all(
-            target <= 65.0 for eventtime, target in commands
+            target <= 70.0 for eventtime, target in commands
             if eventtime < ctl.settle_dwell
         ))
         peak = max(target for unused_time, target in commands)
         self.assertGreater(peak, 65.0)
         self.assertLessEqual(peak, 75.0)
-        self.assertEqual(commands[-1][1], 65.0)
-        self.assertEqual(bed.target, 65.0)
+        self.assertAlmostEqual(commands[-1][1], 65.0 + ctl.bed_carry, places=3)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
 
     def test_only_a_fraction_of_the_headroom_is_committed(self):
         # The boost warms the chamber it is scheduled against, so arrival beats
@@ -349,6 +415,223 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertLess(halved, greedy)
         self.assertGreater(halved, 65.0)
 
+    def test_the_boost_threshold_is_a_separate_knob_from_the_display_one(self):
+        # minimum_rate asks "can an ETA be shown at all". boost_min_rate asks
+        # "is this worth scheduling against". They are equal during
+        # development, deliberately -- the aim is the earliest and largest
+        # boost the ETA will justify -- but raising one must not move the
+        # other, and raising it must actually suppress the step-up.
+        ctl, unused_reactor, bed, unused_state, gcmd = self._cold_start()
+        self.assertGreater(max(t for unused, t in bed.commands), 70.0)
+
+        # boost_min_rate now gates only the LINEAR fallback. approach_eta needs
+        # no slope threshold: it already refuses without real curvature and an
+        # asymptote above the target, which is a stricter test than any rate.
+        # A slow but genuine approach is exactly when a big boost is wanted.
+        ctl2, unused2, bed2, unused3, gcmd2 = self._cold_start(
+            config_values={"boost_min_rate": 5.0}
+        )
+        self.assertGreater(max(t for unused, t in bed2.commands), 65.0)
+        self.assertEqual(ctl2.minimum_rate, ctl.minimum_rate)
+        self.assertEqual(ctl2.boost_min_rate, 5.0)
+
+    def test_a_flat_slope_is_not_confidently_warming(self):
+        # The 2026-08-25 cold start: overnight-settled nozzle, slope 0.00+-0.00.
+        self.assertFalse(MODULE.confidently_warming(0.0, 0.0, 2.0, 0.02))
+        # And the first ETA it produced, 291 min off ~0.02 C/min, maps to the
+        # entire cap -- so the lower bound has to clear the minimum rate.
+        self.assertFalse(MODULE.confidently_warming(0.02, 0.05, 2.0, 0.02))
+        self.assertFalse(MODULE.confidently_warming(None, None, 2.0, 0.02))
+        # A real trend passes.
+        self.assertTrue(MODULE.confidently_warming(0.55, 0.05, 2.0, 0.02))
+
+    @staticmethod
+    def _stub_history(temperature, samples=400):
+        """A Moonraker whose stored history is dead flat, as after a night idle."""
+        payload = {"extruder": {
+            "temperatures": [temperature] * samples,
+            "targets": [0.0] * samples,
+        }}
+
+        class Client:
+            def __init__(self, *a, **k):
+                pass
+
+            def run(self, calls):
+                return {calls[0][0]: payload}
+
+            @staticmethod
+            def quote(v):
+                return v
+
+        return Client
+
+    def _cold_start(self, config_values=None, ramp_seconds=180.0, rate=0.55,
+                    flat_seconds=0.0):
+        """Qualifies instantly from flat history, then accelerates gradually.
+
+        The chamber does not step to its final slope: the recorded cold start
+        went 0.00 -> 0.03 -> 0.09 -> 0.45 C/min over two minutes. A fixture that
+        jumps straight to the final rate puts a kink in the regression window,
+        inflates its standard error, and suppresses the step-up for reasons the
+        machine does not have.
+        """
+        curve_a = rate / (120.0 * ramp_seconds)
+
+        def nozzle(seconds):
+            if seconds <= flat_seconds:
+                return 25.9
+            t = seconds - flat_seconds
+            if t <= ramp_seconds:
+                return 25.9 + curve_a * t * t
+            peak = 25.9 + curve_a * ramp_seconds * ramp_seconds
+            return peak + rate * (t - ramp_seconds) / 60.0
+
+        values = {"history_seconds": 300.0}
+        values.update(config_values or {})
+        original = MODULE.moonraker.MoonrakerClient
+        MODULE.moonraker.MoonrakerClient = self._stub_history(25.9)
+        try:
+            ctl, reactor, bed, state, fan = controller(
+                nozzle, config_values=values
+            )
+            gcmd = FakeGcmd(MINIMUM=32.0, BED_TARGET=65.0)
+            ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        finally:
+            MODULE.moonraker.MoonrakerClient = original
+        return ctl, reactor, bed, state, gcmd
+
+    def test_the_opening_guess_lands_before_any_slope_exists(self):
+        # INITIAL_BOOST exists precisely to guess ahead of a usable trend. A
+        # 65 C target goes to 70 the moment the nozzle qualifies, even though
+        # an overnight-idle machine qualifies at t=0 with slope 0.00 +- 0.00.
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start()
+        first_above = next(
+            (t for unused, t in bed.commands if t > 65.0), None
+        )
+        self.assertEqual(first_above, 70.0, [t for _, t in bed.commands[:6]])
+
+    def test_the_boost_climbs_toward_the_cap_once_the_eta_permits(self):
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start()
+        peak = max(t for unused, t in bed.commands)
+        self.assertGreater(peak, 70.0, "should climb past the opening guess")
+        self.assertLessEqual(peak, ctl.max_bed_temp,
+                             "never past the absolute plate ceiling")
+        self.assertTrue(
+            any("bed" in m and "climbing" in m for m in gcmd.responses),
+            gcmd.responses,
+        )
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
+
+    def test_it_climbs_then_only_falls(self):
+        # "Do not step up again" binds once decay has started, not before.
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start()
+        targets = [t for unused, t in bed.commands]
+        peak_index = targets.index(max(targets))
+        rising = targets[:peak_index + 1]
+        falling = targets[peak_index:]
+        self.assertTrue(all(a <= b for a, b in zip(rising, rising[1:])), rising)
+        self.assertTrue(
+            all(a >= b for a, b in zip(falling, falling[1:])), falling
+        )
+
+    def test_the_blind_phase_ramps_and_is_bounded(self):
+        # Flat for ten minutes before it starts warming. The bed must sit at
+        # the opening guess throughout, not decay away from it -- treating "no
+        # ETA" as "desired zero" latched decay on the first pass and made the
+        # climb unreachable.
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start(
+            flat_seconds=600.0
+        )
+        # The plate ramps blind rather than sitting on the guess: holding it
+        # flat was a soft plateau that bought nothing. Whole degrees, and
+        # bounded, because without an ETA there is no way to know the ramp can
+        # be unwound in time.
+        during = [t for w, t in bed.commands if w <= 600.0]
+        self.assertEqual(during[0], 70.0)
+        self.assertGreater(len(during), 3, during)
+        self.assertEqual([t for t in during if t != int(t)], [], during)
+        self.assertLessEqual(max(during), 65.0 + ctl.blind_max)
+
+    def test_the_climb_is_rate_limited_not_a_jump(self):
+        # The plate used to jump straight to the ETA-permitted level. It now
+        # rises at climb_rate, so consecutive commands step by a bounded amount
+        # rather than arriving in one move.
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start(
+            config_values={"climb_rate": 1.0}
+        )
+        rising = [t for unused, t in bed.commands]
+        peak_index = rising.index(max(rising))
+        steps = [b - a for a, b in zip(rising[:peak_index],
+                                       rising[1:peak_index + 1])]
+        climbs = [d for d in steps if d > 0]
+        self.assertTrue(climbs, rising)
+        # 1 C/min over a 5 s update is 0.083 C; allow slack for the opening
+        # guess, which is a single deliberate jump to bed_target + 5.
+        self.assertTrue(
+            all(d <= 5.0 + 1e-6 for d in climbs), climbs
+        )
+        self.assertGreater(len(climbs), 1, "a rate limited climb has stages")
+
+    def test_every_console_line_carries_a_seconds_stamp(self):
+        # Several lines can land inside one Mainsail console minute and the
+        # count varies, so minute resolution alone is unreadable.
+        import re
+        ctl, unused_reactor, unused_bed, unused_state, gcmd = self._cold_start()
+        self.assertTrue(gcmd.responses)
+        for message in gcmd.responses:
+            with self.subTest(message=message[:48]):
+                self.assertRegex(message, r"^:[0-5][0-9] M191 ")
+
+    def test_the_turn_does_not_fire_on_a_downward_eta_blip(self):
+        """A threshold crossing on a noisy signal fires on its dips.
+
+        That turned the plate around early and low, and the high hold fraction
+        afterwards was the evidence: the schedule kept saying the boost was
+        still supported. Deciding the turn on the highest recent ETA resists a
+        single blip. Replayed on the cold soak this raised the peak from 77.7
+        to 83.2 and the effective descent from 0.48 to 0.74 C/min at once.
+        """
+        deep = self._cold_start()[0]
+        self.assertGreater(deep.turn_eta_window, 0.0)
+
+        blind = self._cold_start(config_values={"turn_eta_window": 0.0})
+        windowed = self._cold_start(config_values={"turn_eta_window": 240.0})
+        blind_peak = max(t for unused, t in blind[2].commands)
+        windowed_peak = max(t for unused, t in windowed[2].commands)
+        self.assertGreaterEqual(windowed_peak, blind_peak)
+
+    def test_the_descent_floors_on_the_live_eta_not_the_robust_one(self):
+        # The turn may be decided on a stale high reading; the descent must not
+        # hold on one, or it would refuse to come down on out-of-date evidence.
+        source = (KLIPPER / "chamber_preheat.py").read_text()
+        body = source[source.index("if decaying and current_boost"):]
+        self.assertIn("floor_at", body)
+        self.assertNotIn("robust_eta", body.split("command =")[0])
+
+    def test_the_carry_stays_inside_klippers_pid_settle_window(self):
+        # ControlPID.check_busy tests the ABSOLUTE error against
+        # PID_SETTLE_DELTA = 1.0, so a plate above its printing target blocks
+        # the M190 that follows M191 while it cools. A carry at or over 1.0
+        # would buy chamber heat by making the operator wait for the bed.
+        ctl = self._cold_start()[0]
+        self.assertLess(ctl.bed_carry, 1.0)
+        cfg = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        import re
+        shipped = re.search(r"^bed_carry:\s*([0-9.]+)", cfg, re.M)
+        self.assertIsNotNone(shipped)
+        self.assertLess(float(shipped.group(1)), 1.0)
+
+    def test_the_ceiling_is_an_absolute_plate_temperature(self):
+        # Not a boost magnitude: it must not move when the printing target does.
+        ctl, unused_reactor, bed, state, gcmd = self._cold_start(
+            config_values={"max_bed_temp": 72.0}
+        )
+        self.assertLessEqual(max(t for unused, t in bed.commands), 72.0)
+        self.assertEqual(ctl.max_bed_temp, 72.0)
+
     def test_boost_never_exceeds_the_time_available_to_coast_it_off(self):
         # The complaint: the print ended up waiting on a bed that could not
         # unwind before the chamber arrived.
@@ -365,18 +648,23 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         # The bed must not hold the print open for long after the chamber.
         self.assertLessEqual(print_at - chamber_at, 90.0)
 
-    def test_boost_is_skipped_when_the_slope_is_unusable(self):
+    def test_an_unusable_slope_still_gets_the_opening_guess(self):
+        # Previously this asserted no boost at all. INITIAL_BOOST is the guess
+        # made before a usable slope exists, so the bed goes to target+5 and
+        # simply never climbs past it.
         ctl, unused_reactor, bed, state, unused_fan = controller(
             lambda seconds: 25.0 if seconds <= 400.0
-            else 25.0 + (seconds - 400.0) / 60.0
+            else 25.0 + (seconds - 400.0) / 60.0,
+            config_values={"history_seconds": 0.0},
         )
         ctl.cmd_CHAMBER_PREHEAT_WAIT(
             FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0)
         )
-        early = [target for eventtime, target in bed.commands
-                 if eventtime <= 400.0]
-        self.assertTrue(all(t <= 65.0 for t in early), early)
-        self.assertEqual(bed.target, 65.0)
+        early = [t for when, t in bed.commands if when <= 400.0]
+        self.assertTrue(all(t <= 65.0 + ctl.blind_max for t in early), early)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
 
     def test_bed_heater_limit_reduces_the_peak_without_changing_coast_rate(self):
         ctl, unused_reactor, bed, unused_state, unused_fan = controller(
@@ -388,7 +676,9 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         )
         peak = max(target for unused_time, target in bed.commands)
         self.assertLessEqual(peak, 69.0)
-        self.assertEqual(bed.target, 65.0)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
 
     def test_per_call_policy_parameters_override_config_defaults(self):
         ctl, unused_reactor, bed, unused_state, unused_fan = controller(
@@ -454,7 +744,9 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         gate = ctl.proxy_gate
         self.assertTrue(gate.by_settling or gate.by_asymptote is not None)
         self.assertFalse(gate.forced)
-        self.assertEqual(bed.target, 65.0)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
         self.assertEqual(fan.commands[0], (0.0, 1.0))
         self.assertEqual(fan.commands[-1][1], 0.0)
 
@@ -488,7 +780,9 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         ))
         self.assertTrue(ctl.proxy_gate.forced)
         self.assertGreaterEqual(reactor.now, 300.0)
-        self.assertEqual(bed.target, 65.0)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
 
     def test_history_stops_at_the_last_commanded_nozzle_target(self):
         # 60 s of heating, then 120 s cooling after M104 S0. Only the tail
@@ -655,7 +949,9 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             any("history rejected" in m for m in gcmd.responses),
             gcmd.responses,
         )
-        self.assertEqual(bed.target, 65.0)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
 
     def test_unreachable_moonraker_costs_the_wait_but_never_the_print(self):
         class Client:
@@ -681,7 +977,9 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             )
         finally:
             MODULE.moonraker.MoonrakerClient = original
-        self.assertEqual(bed.target, 65.0)
+        # A completed soak keeps bed_carry: the plate settles one degree
+        # above the printing target, not on it.
+        self.assertAlmostEqual(bed.target, 65.0 + ctl.bed_carry, places=3)
         self.assertEqual(state.state["proxy_validity"], MODULE.ProxyGate.VALID)
 
     def test_a_chamber_already_at_target_still_records_its_timestamps(self):
