@@ -102,7 +102,13 @@ def check(path):
     settings.setdefault("gcode_macro _global_var",
                         Mock(z_maximum_lifting_distance=155,
                              filament_sensor_print=False,
+                             load_filament_extruder_temp=250,
                              cancel_park=Mock(x=10.0, y=10.0, z=10.0, e=2.0)))
+    # PURGE_LINE reads _BRUSH to absorb the scrub retract and end-of-print debt.
+    # _BRUSH is defined in nozzle_brush.cfg; when purge_line.cfg is checked
+    # standalone the mock must supply the variables PURGE_LINE touches.
+    settings.setdefault("gcode_macro _BRUSH",
+                        Mock(retracted=3.0, owed_max=10.0, retract_f=2700))
     printer = Mock(settings)
     printer.update({
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),

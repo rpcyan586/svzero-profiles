@@ -1338,6 +1338,19 @@ def emit_orca_vendor(model, out_dir):
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json"))))
             m["machine_start_gcode"] = preamble + tail
+        elif g.startswith(ORCA_START_HEADER.split("\n")[0]):
+            # Re-generating our own output. Find the PURGE_LINE command and
+            # keep only what follows it as the tail, so the preamble is
+            # replaced wholesale and changes to start_gcode.py take effect.
+            purge_marker = "PURGE_LINE "
+            idx = g.find(purge_marker)
+            if idx >= 0:
+                tail = g[g.find("\n", idx):]
+            else:
+                tail = "\n"
+            preamble = ORCA_START_PREAMBLE.replace(
+                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json"))))
+            m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         m["print_host"] = default_host["host"]
         lh = model["layer_heights"].get(noz, {}).get("Draft")

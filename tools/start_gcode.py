@@ -62,9 +62,6 @@ ORCA_START_TAIL = "\n".join([
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
     "M104 S[nozzle_temperature_initial_layer]",
     "M109 S[nozzle_temperature_initial_layer]",
-    "BRUSH_PRIME ; give back exactly what CLEAN_NOZZLE retracted; it could not be",
-    "; primed earlier because the clean and probe sequence runs below",
-    "; min_extrude_temp, where Klipper refuses any E move",
     "PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]"
     " NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirt_loops * initial_layer_line_width + 2}",
 ])
