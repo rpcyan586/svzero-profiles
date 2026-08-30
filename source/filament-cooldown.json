@@ -1,0 +1,29 @@
+{
+  "_what": "Material-aware post-print cooldown policy, passed to COOLDOWN_ARM from the start G-code.",
+  "_why": "Sovol's END_PRINT drops the bed and chamber from print temperature to ambient in one step. For a material printed on a 110 C plate inside a 60 C chamber that is a step change of tens of degrees across a part that is still bonded to the plate, and the part and the plate do not contract at the same rate. The ramp holds both on a scheduled descent to a common endpoint so the differential stays small.",
+  "_mechanism": "This is NOT annealing. PC's Tg is around 147 C and it prints on a 110 C plate, so the part is already glassy before the cooldown starts and no stress relaxation is available at these temperatures. What the ramp buys is a smaller part-to-plate differential, no exhaust draft across one face, and a smaller top-to-bottom gradient. Say that rather than claiming stress relief.",
+  "_status": "PROPOSED commissioning policy, not a measurement. Nothing here has been validated on hardware. The default row is the 2026-01-02 design constant recovered in notes/Sovol_Zero_END_PRINT_Controlled_Cooldown_Context_2026-08-30.md; the PC row is the only deliberate deviation from it.",
+  "_keyed_on": "filament_type only, the same placeholder the CLEAN_TEMP curve uses. Every other input the ramp needs -- the bed target and the chamber ceiling -- is read live from the printer at END_PRINT, so it cannot go stale and needs no slicer involvement.",
+  "_fallback": "The default row, which is the recovered 35 / 1.5 / 5.0 design. A print sliced from a profile that never learned about this still gets a correct generic ramp, because the print's own temperatures set the severity. The macro carries the same default row independently in _COOLDOWN_CFG.",
+  "_endpoint": "35 C is an operational endpoint recovered from the prior design, not a Tg calculation: below any transition that matters here, above room temperature so the macro is not servoing to ambient, and a clean point to release active control. Do not embellish it into a material-science claim.",
+  "_rates": "chamber_rate and bed_rate are MAXIMA on the commanded target descent, not guarantees about measured temperature. The schedule takes the slower of the two constraints and slows the other to match, so both reach the endpoint together. See notes/design-end-print-cooldown.md for the arithmetic.",
+  "by_type": {
+    "PLA":  { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "TPU":  { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "PETG": { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "ABS":  { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "ASA":  { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "PA":   { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+    "PC":   { "final": 35, "chamber_rate": 1.0, "bed_rate": 2.5 }
+  },
+  "default": { "final": 35, "chamber_rate": 1.5, "bed_rate": 5.0 },
+  "_notes": {
+    "PLA": "Prints with a chamber ceiling at or below the endpoint and a 60 C bed, so the arithmetic degenerates to a short bed-only descent on its own. No special case is needed and none is written.",
+    "TPU": "Same as PLA. A 40 C bed is 1 minute of ramp. Self-limiting.",
+    "PETG": "Bonds hard to smooth PEI while hot and releases cold. The ramp is the recovered default.",
+    "ABS": "The recovered reference case. Bed 110 chamber 60 gives 16.7 min at 1.5 and 4.5 C/min. Deliberately identical to ASA -- no ABS-specific behaviour is defined here, and the re-warm destress cycle some community macros run after the ramp is explicitly NOT implemented.",
+    "ASA": "As ABS.",
+    "PA": "Semi-crystalline, unlike everything else in this table. Slower cooling raises crystallinity and therefore total shrinkage, so nylon is the one material where a slower ramp can make dimensional accuracy worse. Left at the default rather than slowed, and it should not be slowed without a measurement.",
+    "PC": "The only deviation from the recovered defaults. Highest bed temperature in the set, the largest shrink compensation in our filament profiles at 100.7 percent, and the hardest bond to the plate, so the bed is the binding constraint rather than the chamber. Bed 2.5 C/min makes the bed govern: 110/60 gives 30 min, chamber 0.833 C/min, 72 s cadence, 1.0 C chamber and 3.0 C bed per step."
+  }
+}

@@ -1103,6 +1103,59 @@ def clean_temp_lines(data):
     return out
 
 
+def cooldown_lines(data):
+    """Material-aware post-print cooldown policy, as start-G-code lines.
+
+    Emitted into the START G-code, not the end G-code, even though END_PRINT is
+    what consumes it. The policy has to be in RAM before the print finishes and
+    the start block is where the other generated material lookup already lives;
+    machine_end_gcode stays the bare `END_PRINT` every published bundle ships.
+
+    ONLY ROWS THAT DIFFER FROM THE DEFAULT ARE EMITTED. Six of the seven
+    materials in the table carry the recovered generic policy, and six identical
+    branches would be noise that hides the one row that matters. COOLDOWN_ARM
+    and _COOLDOWN_CFG both carry the same default independently, so a material
+    that falls through the else gets it either way.
+
+    Omitting the whole block is supported and safe: END_PRINT uses the default
+    row, and the print's own bed and chamber temperatures still set the
+    severity. That is the property that makes the ramp work on stock profiles.
+    """
+    by = data["by_type"]
+    dflt = data["default"]
+
+    def fmt(v):
+        return ("%g" % float(v))
+
+    special = sorted((t, p) for t, p in by.items() if p != dflt)
+    fellthrough = sorted(t for t, p in by.items() if p == dflt)
+
+    out = [
+        ";>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit",
+        ";  PROPOSED policy, not a measurement. Keyed on filament_type only; the",
+        ";  bed target and chamber ceiling are read live at END_PRINT, so nothing",
+        ";  here can go stale and a Klipper restart simply loses the override.",
+        ";  Rates are MAXIMA on the commanded descent. The slower of the two",
+        ";  governs and the other is slowed to match, so both reach the endpoint",
+        ";  together. Omitting this block is safe -- END_PRINT uses the same",
+        ";  default row that %s take here." % (", ".join(fellthrough) or "all materials"),
+    ]
+    for i, (t, p) in enumerate(special):
+        kw = "if" if i == 0 else "elsif"
+        out.append('{%s filament_type[0]=="%s"}COOLDOWN_ARM MATERIAL=%s FINAL=%s'
+                   ' CHAMBER_RATE=%s BED_RATE=%s'
+                   % (kw, t, t, fmt(p["final"]), fmt(p["chamber_rate"]),
+                      fmt(p["bed_rate"])))
+    lead = "{else}" if special else ""
+    out.append('%sCOOLDOWN_ARM FINAL=%s CHAMBER_RATE=%s BED_RATE=%s'
+               % (lead, fmt(dflt["final"]), fmt(dflt["chamber_rate"]),
+                  fmt(dflt["bed_rate"])))
+    if special:
+        out.append("{endif}")
+    out.append(";<<<COOLDOWN")
+    return out
+
+
 # Sovol's start G-code does not end at the temperature wait: it continues into
 # its OWN two-segment purge, wrapped in a first_layer_print_min test, and only
 # then reaches SET_PRINT_STATS_INFO. Replacing just the preamble left that purge
@@ -1336,7 +1389,8 @@ def emit_orca_vendor(model, out_dir):
                 after = tail.split(ORCA_PURGE_START, 1)[1]
                 tail = "\n" + after.split(ORCA_PURGE_END, 1)[1].lstrip("\n")
             preamble = ORCA_START_PREAMBLE.replace(
-                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json"))))
+                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
             m["machine_start_gcode"] = preamble + tail
         elif g.startswith(ORCA_START_HEADER.split("\n")[0]):
             # Re-generating our own output. Find the PURGE_LINE command and
@@ -1349,7 +1403,8 @@ def emit_orca_vendor(model, out_dir):
             else:
                 tail = "\n"
             preamble = ORCA_START_PREAMBLE.replace(
-                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json"))))
+                "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
             m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         m["print_host"] = default_host["host"]
@@ -1420,6 +1475,26 @@ def main():
                 ss[sec]["start_gcode"] = new
                 n_ct += 1
     print("clean-temp block injected into %d start_gcode blocks" % n_ct)
+
+    # Same treatment for the cooldown policy: one source table, injected rather
+    # than hand-copied. It goes immediately after the clean-temp block so the
+    # two generated material lookups stay adjacent in the emitted start G-code.
+    cl = "\\n".join(cooldown_lines(load("filament-cooldown.json")))
+    n_cd = 0
+    for sec in ss:
+        g = ss[sec].get("start_gcode")
+        if not g or "@@COOLDOWN@@" in g:
+            continue
+        if ";>>>COOLDOWN" in g:
+            new = re.sub(r";>>>COOLDOWN.*?;<<<COOLDOWN", lambda m: cl, g)
+        elif ";<<<CLEAN_TEMP" in g:
+            new = g.replace(";<<<CLEAN_TEMP", ";<<<CLEAN_TEMP\\n" + cl, 1)
+        else:
+            continue
+        if new != g:
+            ss[sec]["start_gcode"] = new
+            n_cd += 1
+    print("cooldown block injected into %d start_gcode blocks" % n_cd)
 
     problems = check(model, ss)
     print("model: %d nozzles, %d tiers, %d presets expected"

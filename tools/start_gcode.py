@@ -56,6 +56,10 @@ ORCA_CHAMBER_BLOCK = "\n".join([
 
 ORCA_START_TAIL = "\n".join([
     "@@CLEAN_TEMP@@",
+    # Consumed by END_PRINT, armed here: the policy has to be in RAM before the
+    # print finishes, and this is where the other generated material lookup
+    # lives. machine_end_gcode stays the bare END_PRINT every bundle ships.
+    "@@COOLDOWN@@",
     "M190 S[bed_temperature_initial_layer_single] ; bed hot BEFORE calibration and mesh",
     "START_PRINT",
     "G90",
