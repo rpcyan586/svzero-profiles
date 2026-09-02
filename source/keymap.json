@@ -67,7 +67,8 @@
     },
     "z_hop": {
       "ps_ss_key": "retract_lift",
-      "section": "printer"
+      "section": "printer",
+      "_note": "Resolved 2026-09-01: dropped from the print presets entirely and authored as retract_lift on the printer variants, which is the only scope PS/SS read it in. The per-TIER ramp the print presets carried (2x layer height, 0 for Speed) is not expressible anywhere -- retract_lift is printer scope in PS/SS and z_hop is machine scope in Orca, and one printer serves four tiers. The Draft row is the value kept, because Draft is the tier defined as stock."
     },
     "retraction_minimum_travel": {
       "ps_ss_key": "retract_before_travel",
@@ -90,10 +91,6 @@
       "section": "filament",
       "note": "PS/SS have no native PA field; it is passed to Klipper via filament custom g-code or left to printer.cfg."
     },
-    "fan_min_speed": {
-      "ps_ss_key": "min_fan_speed",
-      "section": "filament"
-    },
     "fan_cooling_layer_time": {
       "ps_ss_key": "fan_below_layer_time",
       "section": "filament"
@@ -101,6 +98,11 @@
     "slow_down_layer_time": {
       "ps_ss_key": "slowdown_below_layer_time",
       "section": "filament"
+    },
+    "default_fan_speed": {
+      "ps_ss_key": "min_fan_speed",
+      "section": "filament",
+      "_note": "Three names for one setting, all verified against the installed binaries on 2026-09-01: SuperSlicer default_fan_speed, PrusaSlicer min_fan_speed, Orca fan_min_speed. SuperSlicer drops min_fan_speed SILENTLY -- no warning, absent from the G-code footer -- so the wrong name here costs the fan floor with nothing to notice."
     }
   },
   "unmapped_orca": [
@@ -110,6 +112,7 @@
     "enable_pressure_advance",
     "extrusion_rate_smoothing_external_perimeter_only",
     "filter_out_gap_fill",
+    "first_layer_temperature",
     "fuzzy_skin_noise_type",
     "fuzzy_skin_octaves",
     "fuzzy_skin_persistence",
@@ -158,8 +161,7 @@
     "top_surface_jerk",
     "travel_jerk",
     "wall_direction",
-    "wall_sequence",
-    "first_layer_temperature"
+    "wall_sequence"
   ],
   "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting — see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
   "_value_vocabularies_differ_too": "Mapping key NAMES is not enough: the same key can carry different enum values per slicer. PrusaSlicer 2.9.6 rejected brim_type=auto_brim from the Orca-derived Stock tier and substituted outer_only, with a warning dialog on every launch. Checked the rest of the Stock tier's non-numeric values: seam_position=aligned and fill_pattern=grid are valid in both.",
@@ -186,7 +188,7 @@
       "filament_max_volumetric_speed": "filament_max_volumetric_speed",
       "filament_retract_length": "filament_retraction_length",
       "filament_retract_lift": "filament_z_hop",
-      "fan_min_speed": "fan_min_speed",
+      "default_fan_speed": "fan_min_speed",
       "max_fan_speed": "fan_max_speed",
       "overhangs_fan_speed": "overhang_fan_speed",
       "full_fan_speed_layer": "full_fan_speed_layer",
