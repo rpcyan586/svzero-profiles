@@ -31,8 +31,8 @@ WHAT IT MEASURES, per feature type
 NOT a print test. It proves what the slicer emitted, which is a different claim
 from the part being good.
 
-    ./slice-harness.py                       # 0.4 nozzle, Draft, all three
-    ./slice-harness.py --nozzle 0.6 --tier Speed
+    ./slice-harness.py                       # 0.4 nozzle, Standard, all three
+    ./slice-harness.py --nozzle 0.6 --tier Draft
     ./slice-harness.py --slicers ss          # just SuperSlicer
     ./slice-harness.py --keep                # leave the G-code for inspection
 """
@@ -338,7 +338,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--nozzle", default="0.4")
-    ap.add_argument("--tier", default="Draft")
+    ap.add_argument("--tier", default="Standard")
     ap.add_argument("--filament", default="SV Zero PLA - Brass")
     ap.add_argument("--slicers", default="ps,ss,orca")
     ap.add_argument("--workdir", default=WORK)

@@ -108,9 +108,22 @@ def check(path):
     cp = configparser.RawConfigParser(strict=False, inline_comment_prefixes=('#', ';'))
     cp.read_string('\n'.join(l.split('#')[0] for l in open(path, encoding="utf-8")))
 
+    # Every gcode_macro, not only the underscore-prefixed state holders. Klipper
+    # exposes variable_* on all of them, so restricting this to _NAME made the
+    # validator LESS faithful than the target: a macro reading its own variable
+    # rendered Undefined here and worked on the printer, which is the wrong way
+    # round for a gate.
     settings = {s: Mock({k[9:]: ast.literal_eval(v.strip())
                          for k, v in cp.items(s) if k.startswith("variable_")})
-                for s in cp.sections() if s.startswith("gcode_macro _")}
+                for s in cp.sections() if s.startswith("gcode_macro ")}
+    # A macro that budgets current has to read the strip's present state, so
+    # every [neopixel] section in the file gets an object with a dark chain of
+    # its own declared length. Derived from the file rather than hard-coded, so
+    # this keeps working for the next strip.
+    for _s in cp.sections():
+        if _s.startswith("neopixel "):
+            _n = cp.getint(_s, "chain_count", fallback=1)
+            settings.setdefault(_s, Mock(color_data=[[0.0, 0.0, 0.0, 0.0]] * _n))
     # Shared macro files may depend on a small hardware-identity include that is
     # validated separately. Supply the same public interface here so the common
     # controller can still be rendered as a standalone source file.
@@ -336,6 +349,19 @@ def check(path):
                   "gcode_macro _COOLDOWN_CFG": None}),
             ]
 
+        elif s == "gcode_macro LIGHT_PATTERN":
+            scenarios = [
+                ("counting", Mock(COUNT="20"), "COUNT=20", {}, {}, {}),
+                ("over-budget", Mock(COUNT="125", VALUE="1.0"),
+                 "COUNT=125 VALUE=1.0", {}, {}, {}),
+            ]
+        elif s == "gcode_macro NOZZLE_LIGHT":
+            scenarios = [
+                ("whole-chain", Mock(W="0.05"), "W=0.05", {}, {}, {}),
+                ("spotlight", Mock(W="1.0", INDEX="7"), "W=1.0 INDEX=7", {}, {}, {}),
+                ("over-budget", Mock(W="1.0"), "W=1.0", {}, {}, {}),
+            ]
+
         # An optional 7th element: a string the rendered output MUST contain.
         # Jinja only evaluates the branch it takes, so a scenario that quietly
         # lands in the wrong one renders fine and validates nothing -- the
@@ -362,9 +388,22 @@ def check(path):
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
             ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "CHAMBER_OFF",
             ("gcode_macro CHAMBER_AUTOSTART", "cooldown-installed"): "COOLDOWN_ABORT",
+            # The budget branches. A whole-chain 0.05 fits, a single pixel at
+            # full fits and must carry its INDEX through, and the whole chain at
+            # full white cannot fit and must come back scaled.
+            ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "WHITE=0.05",
+            ("gcode_macro NOZZLE_LIGHT", "spotlight"): "INDEX=7",
+            ("gcode_macro NOZZLE_LIGHT", "over-budget"): "clamped",
+            ("gcode_macro LIGHT_PATTERN", "counting"): "INDEX=20",
+            ("gcode_macro LIGHT_PATTERN", "over-budget"): "refused",
         }
         # The inactive tick must produce nothing at all.
-        forbid = {("gcode_macro _COOLDOWN_TICK", "inactive"): "SET_GCODE_VARIABLE",
+        forbid = {("gcode_macro LIGHT_PATTERN", "counting"): "refused",
+                  ("gcode_macro LIGHT_PATTERN", "over-budget"): "SET_LED",
+                  ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "clamped",
+                  ("gcode_macro NOZZLE_LIGHT", "spotlight"): "clamped",
+                  ("gcode_macro NOZZLE_LIGHT", "over-budget"): "WHITE=1.0",
+                  ("gcode_macro _COOLDOWN_TICK", "inactive"): "SET_GCODE_VARIABLE",
                   ("gcode_macro END_PRINT", "cooldown-installed"): "TURN_OFF_HEATERS",
                   ("gcode_macro END_PRINT", "cooldown-absent"): "COOLDOWN_START",
                   ("gcode_macro CANCEL_PRINT", "cooldown-absent"): "COOLDOWN_ABORT",

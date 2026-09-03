@@ -69,7 +69,7 @@ def check(path):
                 pass
     # Deliberate omissions. A 0.2 mm nozzle has no business with a Speed tier;
     # tier coverage is a design choice per nozzle, not proportional scaling.
-    EXPECTED_GAPS = {"0.2n": {"Speed", "ExtraDraft"}}
+    EXPECTED_GAPS = {"0.2n": {"Draft", "Speed", "ExtraDraft"}}   # old names kept: a stale bundle must still validate
 
     tiers = sorted({m.group(1) for m in
                     (re.match(r"print:SV Zero \d\.\dn - [\d.]+mm \((\w+)\)", x) for x in names) if m})

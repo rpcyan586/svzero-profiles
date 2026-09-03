@@ -255,7 +255,7 @@
    },
    "variants": [
     {
-     "id": "*SV Zero - Quality*",
+     "id": "*SV Zero - Fine*",
      "values": {
       "bridge_acceleration": "50%",
       "default_acceleration": "26301",
@@ -277,7 +277,7 @@
      }
     },
     {
-     "id": "*SV Zero - Normal*",
+     "id": "*SV Zero - Optimal*",
      "values": {
       "bridge_acceleration": "50%",
       "default_acceleration": "30246",
@@ -299,7 +299,7 @@
      }
     },
     {
-     "id": "*SV Zero - Draft*",
+     "id": "*SV Zero - Standard*",
      "values": {
       "thin_walls_speed": "100%",
       "overhangs_speed": "100%",
@@ -321,7 +321,7 @@
      }
     },
     {
-     "id": "*SV Zero - Speed*",
+     "id": "*SV Zero - Draft*",
      "values": {
       "bridge_acceleration": "50%",
       "default_acceleration": "40000",
@@ -353,30 +353,30 @@
      "id": "SV Zero 0.2n presets",
      "variants": [
       {
-       "id": "SV Zero 0.2n - 0.05mm (Quality)",
-       "name": "SV Zero 0.2n - 0.05mm (Quality)",
+       "id": "SV Zero 0.2n - 0.05mm (Fine)",
+       "name": "SV Zero 0.2n - 0.05mm (Fine)",
        "inherits": [
-        "*SV Zero - Quality*"
+        "*SV Zero - Fine*"
        ],
        "values": {
         "layer_height": "0.05"
        }
       },
       {
-       "id": "SV Zero 0.2n - 0.10mm (Normal)",
-       "name": "SV Zero 0.2n - 0.10mm (Normal)",
+       "id": "SV Zero 0.2n - 0.10mm (Optimal)",
+       "name": "SV Zero 0.2n - 0.10mm (Optimal)",
        "inherits": [
-        "*SV Zero - Normal*"
+        "*SV Zero - Optimal*"
        ],
        "values": {
         "layer_height": "0.10"
        }
       },
       {
-       "id": "SV Zero 0.2n - 0.15mm (Draft)",
-       "name": "SV Zero 0.2n - 0.15mm (Draft)",
+       "id": "SV Zero 0.2n - 0.15mm (Standard)",
+       "name": "SV Zero 0.2n - 0.15mm (Standard)",
        "inherits": [
-        "*SV Zero - Draft*"
+        "*SV Zero - Standard*"
        ],
        "values": {
         "layer_height": "0.15"
@@ -389,40 +389,40 @@
      "id": "SV Zero 0.4n presets",
      "variants": [
       {
-       "id": "SV Zero 0.4n - 0.10mm (Quality)",
-       "name": "SV Zero 0.4n - 0.10mm (Quality)",
+       "id": "SV Zero 0.4n - 0.10mm (Fine)",
+       "name": "SV Zero 0.4n - 0.10mm (Fine)",
        "inherits": [
-        "*SV Zero - Quality*"
+        "*SV Zero - Fine*"
        ],
        "values": {
         "layer_height": "0.10"
        }
       },
       {
-       "id": "SV Zero 0.4n - 0.15mm (Normal)",
-       "name": "SV Zero 0.4n - 0.15mm (Normal)",
+       "id": "SV Zero 0.4n - 0.15mm (Optimal)",
+       "name": "SV Zero 0.4n - 0.15mm (Optimal)",
        "inherits": [
-        "*SV Zero - Normal*"
+        "*SV Zero - Optimal*"
        ],
        "values": {
         "layer_height": "0.15"
        }
       },
       {
-       "id": "SV Zero 0.4n - 0.20mm (Draft)",
-       "name": "SV Zero 0.4n - 0.20mm (Draft)",
+       "id": "SV Zero 0.4n - 0.20mm (Standard)",
+       "name": "SV Zero 0.4n - 0.20mm (Standard)",
        "inherits": [
-        "*SV Zero - Draft*"
+        "*SV Zero - Standard*"
        ],
        "values": {
         "layer_height": "0.2"
        }
       },
       {
-       "id": "SV Zero 0.4n - 0.25mm (Speed)",
-       "name": "SV Zero 0.4n - 0.25mm (Speed)",
+       "id": "SV Zero 0.4n - 0.25mm (Draft)",
+       "name": "SV Zero 0.4n - 0.25mm (Draft)",
        "inherits": [
-        "*SV Zero - Speed*"
+        "*SV Zero - Draft*"
        ],
        "values": {
         "layer_height": "0.25"
@@ -435,40 +435,40 @@
      "id": "SV Zero 0.6n presets",
      "variants": [
       {
-       "id": "SV Zero 0.6n - 0.20mm (Quality)",
-       "name": "SV Zero 0.6n - 0.20mm (Quality)",
+       "id": "SV Zero 0.6n - 0.20mm (Fine)",
+       "name": "SV Zero 0.6n - 0.20mm (Fine)",
        "inherits": [
-        "*SV Zero - Quality*"
+        "*SV Zero - Fine*"
        ],
        "values": {
         "layer_height": "0.2"
        }
       },
       {
-       "id": "SV Zero 0.6n - 0.25mm (Normal)",
-       "name": "SV Zero 0.6n - 0.25mm (Normal)",
+       "id": "SV Zero 0.6n - 0.25mm (Optimal)",
+       "name": "SV Zero 0.6n - 0.25mm (Optimal)",
        "inherits": [
-        "*SV Zero - Normal*"
+        "*SV Zero - Optimal*"
        ],
        "values": {
         "layer_height": "0.25"
        }
       },
       {
-       "id": "SV Zero 0.6n - 0.3mm (Draft)",
-       "name": "SV Zero 0.6n - 0.3mm (Draft)",
+       "id": "SV Zero 0.6n - 0.3mm (Standard)",
+       "name": "SV Zero 0.6n - 0.3mm (Standard)",
        "inherits": [
-        "*SV Zero - Draft*"
+        "*SV Zero - Standard*"
        ],
        "values": {
         "layer_height": "0.3"
        }
       },
       {
-       "id": "SV Zero 0.6n - 0.4mm (Speed)",
-       "name": "SV Zero 0.6n - 0.4mm (Speed)",
+       "id": "SV Zero 0.6n - 0.4mm (Draft)",
+       "name": "SV Zero 0.6n - 0.4mm (Draft)",
        "inherits": [
-        "*SV Zero - Speed*"
+        "*SV Zero - Draft*"
        ],
        "values": {
         "layer_height": "0.4"
@@ -481,40 +481,40 @@
      "id": "SV Zero 0.8n presets",
      "variants": [
       {
-       "id": "SV Zero 0.8n - 0.25mm (Quality)",
-       "name": "SV Zero 0.8n - 0.25mm (Quality)",
+       "id": "SV Zero 0.8n - 0.25mm (Fine)",
+       "name": "SV Zero 0.8n - 0.25mm (Fine)",
        "inherits": [
-        "*SV Zero - Quality*"
+        "*SV Zero - Fine*"
        ],
        "values": {
         "layer_height": "0.25"
        }
       },
       {
-       "id": "SV Zero 0.8n - 0.3mm (Normal)",
-       "name": "SV Zero 0.8n - 0.3mm (Normal)",
+       "id": "SV Zero 0.8n - 0.3mm (Optimal)",
+       "name": "SV Zero 0.8n - 0.3mm (Optimal)",
        "inherits": [
-        "*SV Zero - Normal*"
+        "*SV Zero - Optimal*"
        ],
        "values": {
         "layer_height": "0.3"
        }
       },
       {
-       "id": "SV Zero 0.8n - 0.4mm (Draft)",
-       "name": "SV Zero 0.8n - 0.4mm (Draft)",
+       "id": "SV Zero 0.8n - 0.4mm (Standard)",
+       "name": "SV Zero 0.8n - 0.4mm (Standard)",
        "inherits": [
-        "*SV Zero - Draft*"
+        "*SV Zero - Standard*"
        ],
        "values": {
         "layer_height": "0.4"
        }
       },
       {
-       "id": "SV Zero 0.8n - 0.6mm (Speed)",
-       "name": "SV Zero 0.8n - 0.6mm (Speed)",
+       "id": "SV Zero 0.8n - 0.6mm (Draft)",
+       "name": "SV Zero 0.8n - 0.6mm (Draft)",
        "inherits": [
-        "*SV Zero - Speed*"
+        "*SV Zero - Draft*"
        ],
        "values": {
         "layer_height": "0.6"
@@ -527,40 +527,40 @@
      "id": "SV Zero 1.0n presets",
      "variants": [
       {
-       "id": "SV Zero 1.0n - 0.4mm (Quality)",
-       "name": "SV Zero 1.0n - 0.4mm (Quality)",
+       "id": "SV Zero 1.0n - 0.4mm (Fine)",
+       "name": "SV Zero 1.0n - 0.4mm (Fine)",
        "inherits": [
-        "*SV Zero - Quality*"
+        "*SV Zero - Fine*"
        ],
        "values": {
         "layer_height": "0.4"
        }
       },
       {
-       "id": "SV Zero 1.0n - 0.5mm (Normal)",
-       "name": "SV Zero 1.0n - 0.5mm (Normal)",
+       "id": "SV Zero 1.0n - 0.5mm (Optimal)",
+       "name": "SV Zero 1.0n - 0.5mm (Optimal)",
        "inherits": [
-        "*SV Zero - Normal*"
+        "*SV Zero - Optimal*"
        ],
        "values": {
         "layer_height": "0.5"
        }
       },
       {
-       "id": "SV Zero 1.0n - 0.6mm (Draft)",
-       "name": "SV Zero 1.0n - 0.6mm (Draft)",
+       "id": "SV Zero 1.0n - 0.6mm (Standard)",
+       "name": "SV Zero 1.0n - 0.6mm (Standard)",
        "inherits": [
-        "*SV Zero - Draft*"
+        "*SV Zero - Standard*"
        ],
        "values": {
         "layer_height": "0.6"
        }
       },
       {
-       "id": "SV Zero 1.0n - 0.8mm (Speed)",
-       "name": "SV Zero 1.0n - 0.8mm (Speed)",
+       "id": "SV Zero 1.0n - 0.8mm (Draft)",
+       "name": "SV Zero 1.0n - 0.8mm (Draft)",
        "inherits": [
-        "*SV Zero - Speed*"
+        "*SV Zero - Draft*"
        ],
        "values": {
         "layer_height": "0.8"

@@ -273,7 +273,7 @@ def install_prusa(datadir):
     })
     set_ini_keys(os.path.join(datadir, "PrusaSlicer.ini"), "presets", {
         "printer": "SV Zero 0.4n",
-        "print": "SV Zero 0.4n - 0.20mm (Draft)",
+        "print": "SV Zero 0.4n - 0.20mm (Standard)",
         # PLA, not the ABS that alphabetical order was selecting.
         "filament": "SV Zero PLA - Brass",
         "physical_printer": "Zero2 * SV Zero 0.4n",
@@ -338,7 +338,7 @@ def install_orca(datadir):
     # Orca calls the process preset "print" in the conf. Left unset it opens on
     # nothing, which reads as "our profiles are missing" even when they loaded.
     d.setdefault("presets", {})["machine"] = "SV Zero 0.4 nozzle"
-    d["presets"]["print"] = "0.20mm Draft @SV Zero 0.4 nozzle"
+    d["presets"]["print"] = "0.20mm Standard @SV Zero 0.4 nozzle"
     # "filaments", plural, and a list -- the selection is per extruder. The
     # singular "filament" is silently ignored, and Orca then opens on
     # Generic PLA @System from its own library while our presets sit there loaded

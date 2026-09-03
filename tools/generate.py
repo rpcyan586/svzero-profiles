@@ -268,7 +268,7 @@ def check(model, ss):
         if "sqv" not in model["tiers"][tier]:
             problems.append("tier %s has no sqv" % tier)
 
-    # Tiers are an ordered ramp: Quality slowest, ExtraDraft fastest. Any speed
+    # Tiers are an ordered ramp: Fine slowest, Draft fastest. Any speed
     # that goes backwards along that order is a defect, and it is invisible in
     # the INI because the tiers express speed inconsistently -- some absolute,
     # some as a percentage of a per-tier `default_speed`. Resolve, then compare.
@@ -296,7 +296,7 @@ def check(model, ss):
         for (t1, v1), (t2, v2) in zip(seq, seq[1:]):
             if v2 < v1:
                 problems.append("%s goes backwards: %s=%g then %s=%g "
-                                "(tiers must ramp Quality->ExtraDraft)" % (k, t1, v1, t2, v2))
+                                "(tiers must ramp Fine->Draft)" % (k, t1, v1, t2, v2))
     lim = model.get("machine", {}).get("limits", {})
     cap = lim.get("max_accel")
     if cap:
@@ -385,7 +385,7 @@ def apply_speed_model(model, ss):
     Collapses every tier speed onto one number per tier. Uniform ratios live in
     *SV Zero General* so they cannot diverge between tiers; each tier base
     carries only `default_speed`. Before this, three tiers agreed to within
-    rounding while Draft expressed everything as percentages of a default_speed
+    rounding while the fastest rung expressed everything as percentages of a default_speed
     that sat *below* Normal's — which is how infill ended up running backwards
     along the ramp.
     """
@@ -801,7 +801,16 @@ def emit_ps_presets(ss, out_dir):
     """
     kinds = ("print", "filament", "printer", "physical_printer")
     for d in kinds:
-        os.makedirs(os.path.join(out_dir, d), exist_ok=True)
+        sub = os.path.join(out_dir, d)
+        os.makedirs(sub, exist_ok=True)
+        # Clear first. These are whole-directory output, and a preset that is
+        # renamed rather than changed leaves its old file behind -- which
+        # installs as a second, stale preset next to the real one. The Orca
+        # emitter has always done this; this one had not, and the 2026-09-02
+        # tier rename produced 19 orphans before it was noticed.
+        for old in os.listdir(sub):
+            if old.endswith(".ini"):
+                os.remove(os.path.join(sub, old))
     written = 0
     for name in ss:
         if ":" not in name:
@@ -846,6 +855,100 @@ def emit_ps_presets(ss, out_dir):
                     fh.write("%s = %s\n" % (k, v))
         written += 1
     return written
+
+
+def ps_bundle_resolve(ss):
+    """Give the bundles the same three conversions the flattened presets get.
+
+    Until 2026-09-02 they got none of them. `emit_ps_presets` ran
+    `ps_absolutise_speeds`, `ps_percent_to_mm` and the `PS_KNOWN` filter; the two
+    bundle emitters stripped `SS_ONLY` and nothing else. So the artefact people
+    actually import -- the config bundle, and the vendor bundle behind it --
+    shipped percent-of-nozzle widths into a field PrusaSlicer resolves against
+    LAYER HEIGHT, percent-of-`default_speed` speeds against a `default_speed`
+    PrusaSlicer does not have, and 89 keys it does not define. The loose presets
+    were right and the published form was wrong, from the same master.
+
+    The bundle cannot simply be flattened -- inheritance and hidden `*Base*`
+    presets are the whole reason the vendor form exists. So the resolution is
+    pushed DOWN: each concrete preset is flattened, converted, and any key the
+    conversion changed is written onto that preset, where it overrides the base.
+    The percentages left behind in the bases are then removed, because every
+    concrete preset now carries an absolute value and a stale percentage in a
+    base is a trap for the next preset added.
+
+    Acceptance test, run in the harness: flattening this bundle must reproduce
+    `bundles/ps-presets/` exactly.
+    """
+    out = collections.OrderedDict((n, collections.OrderedDict(kv))
+                                  for n, kv in ss.items())
+
+    # ---- print and printer: resolve per concrete preset, against its own
+    # nozzle. Printers matter too -- min/max_layer_height are percent-of-nozzle
+    # in the master and PrusaSlicer takes them in millimetres, and they live on
+    # the nozzle-independent printer base where nothing can resolve them.
+    resolved = set()
+    for kind in ("print", "printer"):
+        for name in list(out):
+            if not name.startswith(kind + ":") or name.startswith(kind + ":*"):
+                continue
+            preset = name.split(":", 1)[1]
+            flat = flatten(ss, name)
+            kv = collections.OrderedDict(flat)
+            if kind == "print":
+                ps_absolutise_speeds(kv)
+            ps_percent_to_mm(kv, preset)
+            for k, v in kv.items():
+                if str(flat.get(k)) != str(v):
+                    out[name][k] = v
+                    resolved.add(k)
+        for name in out:
+            if not name.startswith(kind + ":*"):
+                continue
+            for k in [k for k in out[name]
+                      if k in resolved and str(out[name][k]).strip().endswith("%")]:
+                del out[name][k]
+
+    # ---- filament: the same translations, written where the key is declared.
+    # Read through the chain, write to the section that owns it, so a value
+    # inherited from a base is not silently re-declared on the child.
+    for name in list(out):
+        if not name.startswith("filament:"):
+            continue
+        own, flat = out[name], flatten(ss, name)
+        sh = own.get("filament_shrink")
+        if sh:
+            ps = shrink_to_ps(sh)
+            if ps is not None:
+                own["filament_shrinkage_compensation_xy"] = ps
+                own["filament_shrinkage_compensation_z"] = "0%"
+        pa = own.get("filament_pressure_advance")
+        if pa:
+            g = flat.get("start_filament_gcode", "").strip()
+            cmd = "SET_PRESSURE_ADVANCE ADVANCE=%s" % pa
+            if "SET_PRESSURE_ADVANCE" not in g:
+                own["start_filament_gcode"] = (g + "\n" + cmd).strip() if g else cmd
+
+    # ---- renames, then the key filter. FILTER LAST -- the translations above
+    # consume SuperSlicer-only source keys (filament_shrink becomes
+    # filament_shrinkage_compensation_xy, filament_pressure_advance becomes
+    # start_filament_gcode), so dropping SS_ONLY first deletes the input and the
+    # output is never produced. The first version of this function did exactly
+    # that and lost shrinkage and pressure advance from all 23 filaments.
+    for name, kv in out.items():
+        for src, dst in PS_RENAME.items():
+            if src in kv:
+                kv.setdefault(dst, kv.pop(src))
+    dropped = 0
+    for name in list(out):
+        if name == "vendor" or name.startswith("printer_model:"):
+            continue          # bundle structure, not slicing options
+        before = len(out[name])
+        out[name] = collections.OrderedDict(
+            (k, v) for k, v in out[name].items()
+            if k in PS_KNOWN and k not in SS_ONLY)
+        dropped += before - len(out[name])
+    return out, dropped
 
 
 def emit_ps_vendor(model, ss, out_dir):
@@ -904,14 +1007,14 @@ def emit_ps_vendor(model, ss, out_dir):
     # [printer_model:] block above. Without them the vendor loads but the wizard
     # has no machine to offer, which is the PrusaSlicer analogue of the Orca
     # "vendor parses, Default Printer selected" symptom.
-    for name, kv in ss.items():
+    resolved, _dropped = ps_bundle_resolve(ss)
+    for name, kv in resolved.items():
         if ":" not in name:
             continue
         kind, preset = name.split(":", 1)
         if kind not in ("print", "filament", "printer"):
             continue          # physical_printer is per-user, never vendor data
-        kv = collections.OrderedDict((k, v) for k, v in kv.items()
-                                     if k not in SS_ONLY)
+        kv = collections.OrderedDict(kv)
         if kind == "printer" and not preset.startswith("*"):
             kv["printer_model"] = PS_PRINTER_MODEL
             noz = next((n for n in nozzles if preset.endswith("%sn" % n)), None)
@@ -926,7 +1029,7 @@ def emit_ps_vendor(model, ss, out_dir):
                 # not formatted uniformly across presets (0.4n uses "0.20mm",
                 # 0.6n uses "0.3mm"), so reconstruction silently points at a
                 # preset that does not exist.
-                tier = model["tiers"].get("_default_print_tier", "Draft")
+                tier = model["tiers"].get("_default_print_tier", "Standard")
                 want = re.compile(r"^print:SV Zero %sn - [\d.]+mm \(%s\)$"
                                   % (re.escape(noz), tier))
                 hit = next((k.split(":", 1)[1] for k in ss if want.match(k)), None)
@@ -949,19 +1052,13 @@ def emit_ps_vendor(model, ss, out_dir):
 
 
 def emit_ps(ss, out_path):
-    """PrusaSlicer from SuperSlicer.
+    """PrusaSlicer from SuperSlicer -- a translation, not a copy.
 
-    Measured: zero SuperSlicer-only keys in this bundle's print presets, so the
-    transform is a copy. Kept as an explicit filter anyway — SuperSlicer does
-    have keys PrusaSlicer rejects, and the day one is used, a silent copy would
-    produce a bundle PrusaSlicer refuses to import.
+    It was a copy until 2026-09-02, which is why the published bundle disagreed
+    with the loose presets generated from the same master. See
+    ps_bundle_resolve.
     """
-    out = collections.OrderedDict()
-    dropped = 0
-    for name, kv in ss.items():
-        out[name] = collections.OrderedDict(
-            (k, v) for k, v in kv.items() if k not in SS_ONLY)
-        dropped += len(kv) - len(out[name])
+    out, dropped = ps_bundle_resolve(ss)
     write_ini(out_path, out, "PrusaSlicer bundle, derived from the SuperSlicer master",
               target=("PrusaSlicer", PS_TARGET))
     return dropped
@@ -1144,7 +1241,6 @@ def emit_orca(model, ss, keymap, out_dir):
     rev = {v: k for k, v in keymap["mapped"].items()}
     written, unmapped, unresolved = 0, collections.Counter(), []
     written_names = []
-    alias = {"Speed": "ExtraDraft"}
     for name, kv in ss.items():
         m = re.match(r"print:SV Zero (\d\.\d)n - ([\d.]+)mm \((\w+)\)", name)
         if not m:
@@ -1238,10 +1334,11 @@ def emit_orca(model, ss, keymap, out_dir):
             # "0.2" while the file is "0.20mm" — a dangling reference, and Orca
             # treats a machine preset pointing at a non-existent process as
             # broken rather than defaulting.
-            draft = next((n for n in written_names
-                          if n.endswith("Draft @SV Zero %s nozzle" % noz)), None)
-            if draft:
-                mach["default_print_profile"] = draft
+            dflt = model["tiers"].get("_default_print_tier", "Standard")
+            hit = next((n for n in written_names
+                        if n.endswith("%s @SV Zero %s nozzle" % (dflt, noz))), None)
+            if hit:
+                mach["default_print_profile"] = hit
             # Ours, not Sovol's. This pointed at "SOVOL ZERO PLA - Brass" while
             # our own filament presets existed, so Orca had no reason to open on
             # one of them.
@@ -1612,10 +1709,12 @@ def emit_orca_vendor(model, ss, out_dir):
             m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         m["print_host"] = default_host["host"]
-        lh = model["layer_heights"].get(noz, {}).get("Draft")
+        dflt = model["tiers"].get("_default_print_tier", "Standard")
+        lh = model["layer_heights"].get(noz, {}).get(dflt)
         if lh is not None:
-            m["default_print_profile"] = "%smm Draft @SV Zero %s nozzle" % (
-                ("%.2f" % lh).rstrip("0").rstrip(".") if False else format(lh, ".2f"), noz)
+            m["default_print_profile"] = "%smm " + dflt + " @SV Zero %s nozzle"
+            m["default_print_profile"] = ("%smm %s @SV Zero %s nozzle") % (
+                format(lh, ".2f"), dflt, noz)
         fn = "SV Zero %s nozzle.json" % noz
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
         machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})
@@ -1745,6 +1844,11 @@ def main():
         print("  rendered presets match the model")
 
     emit = {e.strip() for e in args.emit.split(",") if e.strip()}
+    # Every PrusaSlicer emitter filters on this now, so it is loaded once and
+    # unconditionally. It used to be loaded only for ps-presets/ps-vendor, which
+    # is half of why `--emit ps` shipped keys PrusaSlicer does not define.
+    _k = load("ps-known-options.json")
+    PS_KNOWN.update(_k["options"]); PS_KNOWN.update(_k["metadata"])
     if "ss" in emit:
         write_ini(master, ss, "SuperSlicer bundle — GENERATED from source/presets.json",
                   target=("SuperSlicer", model.get("targets", {}).get("superslicer", {}).get("version", "?")))
@@ -1752,9 +1856,6 @@ def main():
     if "ps" in emit:
         n = emit_ps(ss, os.path.join(ROOT, "bundles", "SVZero_PrusaSlicer.ini"))
         print("  wrote PrusaSlicer bundle (%d keys filtered)" % n)
-    if "ps-presets" in emit or "ps-vendor" in emit:
-        _k = load("ps-known-options.json")
-        PS_KNOWN.update(_k["options"]); PS_KNOWN.update(_k["metadata"])
     if "ps-vendor" in emit:
         nm, npz = emit_ps_vendor(model, ss, os.path.join(ROOT, "bundles", "ps-vendor"))
         print("  wrote PrusaSlicer vendor bundle: %d variants, %d print presets" % (nm, npz))
