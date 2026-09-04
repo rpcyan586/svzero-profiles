@@ -19,6 +19,57 @@ sys.path.insert(0, str(PATH.parent))
 import start_gcode  # noqa: E402
 
 
+def render_orca_block(block, values):
+    """Render one chamber block the way OrcaSlicer's placeholder parser does.
+
+    A model of exactly the grammar these two blocks use -- `{if COND}`,
+    `{else}`, `{endif}` and `{key[0]}` substitution -- not a general
+    implementation of Orca's expression language.
+
+    It exists because asserting on the block's TEXT is what let the Minimal=0
+    defect ship: every string the old tests looked for was present, and the
+    branch that actually fired was the wrong one. Checked against OrcaSlicer
+    2.4.2 on 2026-09-03 by slicing all four cases through the real CLI; the
+    emitted chamber lines matched this renderer exactly.
+    """
+    def truth(expression):
+        expression = expression.strip()
+        if ">" in expression:
+            left, right = expression.split(">", 1)
+            return lookup(left.strip()) > float(right.strip())
+        return lookup(expression) != 0.0
+
+    def lookup(reference):
+        name, _, index = reference.partition("[")
+        return float(values[name][int(index.rstrip("]"))])
+
+    out = []
+    stack = []
+    position = 0
+    while position < len(block):
+        start = block.find("{", position)
+        if start < 0:
+            if all(stack):
+                out.append(block[position:])
+            break
+        if all(stack):
+            out.append(block[position:start])
+        end = block.index("}", start)
+        token = block[start + 1:end]
+        position = end + 1
+        if token.startswith("if "):
+            stack.append(truth(token[3:]) if all(stack) else False)
+        elif token == "else":
+            # An else inside a branch whose parent is off stays off.
+            stack[-1] = (not stack[-1]) if all(stack[:-1]) else False
+        elif token == "endif":
+            stack.pop()
+        elif all(stack):
+            out.append("%g" % lookup(token))
+    return [line for line in "".join(out).split("\n")
+            if line.strip() and not line.startswith(";")]
+
+
 class InstallPresetsTest(unittest.TestCase):
     def test_generated_orca_zero_profiles_are_single_filament(self):
         machine_dir = PATH.parents[1] / "bundles/orca-vendor/SVZero/machine"
@@ -90,10 +141,63 @@ class InstallPresetsTest(unittest.TestCase):
     def test_normal_orca_start_honors_activation(self):
         start = MODULE.ORCA_NORMAL_CHAMBER_START
         self.assertIn("{if activate_chamber_temp_control[0]}", start)
-        self.assertIn("M191 S{chamber_temperature[0]}", start)
         self.assertIn("M191 S{chamber_minimal_temperature[0]}", start)
         self.assertIn("M141 S{chamber_temperature[0]}", start)
         self.assertTrue(start.endswith("{else}M191{endif}"))
+
+    def test_zero_minimal_never_substitutes_the_target_as_a_minimum(self):
+        # The defect this test exists for: with Minimal = 0 the block fell
+        # through to `M191 S{chamber_temperature[0]}` and waited for the
+        # TARGET. An ABS job sliced Minimal=0 Target=60 held the print open
+        # 13 minutes with the bed boosted to 117 C on 2026-09-03. Zero means
+        # do not wait, so the target must never reach an M191 S at all.
+        for name, block in (
+            ("normal", MODULE.ORCA_NORMAL_CHAMBER_START),
+            ("shadow", MODULE.ORCA_SHADOW_CHAMBER_START),
+        ):
+            with self.subTest(block=name):
+                for line in block.split("\n"):
+                    if "chamber_temperature[0]" in line and "M191" in line:
+                        self.fail("target reaches an M191 in %s: %r"
+                                  % (name, line))
+
+    def test_both_orca_blocks_render_the_four_chamber_cases(self):
+        # Structure alone proved nothing here before: the old block contained
+        # every string this file asserted and still emitted the wrong branch.
+        # Render each case instead and name the exact lines expected.
+        cases = {
+            # activation, target, minimal -> the chamber commands emitted
+            ("1", "60", "45"): ["M191 S45", "M141 S60"],
+            # Minimal 0: no wait, target still controlled.
+            ("1", "60", "0"): ["M141 S60"],
+            # Target 0: no chamber control at all, stated rather than omitted
+            # so a stale ch_target cannot survive from the previous job.
+            ("1", "0", "0"): ["M141 S0"],
+            # Unchecked: bare M191, which is minimum 22 C / target 32 C in the
+            # macro. A barebones profile still lands somewhere safe.
+            ("0", "60", "45"): ["M191"],
+        }
+        for name, block, suffix in (
+            ("normal", MODULE.ORCA_NORMAL_CHAMBER_START, ""),
+            ("shadow", MODULE.ORCA_SHADOW_CHAMBER_START,
+             " Z15 STIR=1 " + start_gcode.ORCA_SHADOW_BOOST),
+        ):
+            for (active, target, minimal), expected in cases.items():
+                if suffix:
+                    expected = [line + suffix if line.startswith("M191")
+                                else line for line in expected]
+                with self.subTest(block=name, activate=active,
+                                  target=target, minimal=minimal):
+                    rendered = render_orca_block(block, {
+                        "activate_chamber_temp_control": [active],
+                        "chamber_temperature": [target],
+                        "chamber_minimal_temperature": [minimal],
+                    })
+                    self.assertEqual(
+                        [line for line in rendered
+                         if line.startswith(("M191", "M141"))],
+                        expected,
+                    )
 
     def test_orca_shadow_mode_moves_bed_before_anchor_and_nozzle_after(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -117,11 +221,7 @@ class InstallPresetsTest(unittest.TestCase):
                 result,
             )
             self.assertIn("{if activate_chamber_temp_control[0]}", result)
-            self.assertIn(
-                "{else}M191 S{chamber_temperature[0]} Z15 STIR=1 "
-                + start_gcode.ORCA_SHADOW_BOOST,
-                result,
-            )
+            self.assertIn("{else}M141 S0{endif}", result)
             self.assertIn("M141 S{chamber_temperature[0]}", result)
             self.assertIn(
                 "{else}M191 Z15 STIR=1 "

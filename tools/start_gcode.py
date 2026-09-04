@@ -37,20 +37,42 @@ ORCA_START_HEADER = "\n".join([
 ])
 
 # The publication chamber policy. install-presets.py locates this exact text.
+#
+# Orca's two fields decide the branch, and a zero in either is a REQUEST, not a
+# gap to be filled in:
+#
+#   Minimal > 0   M191 waits for exactly it, then M141 sets the Target.
+#   Minimal = 0   no M191 at all -- zero means do not wait. The Target still
+#                 goes to M141, so the chamber is controlled, just not waited
+#                 for. Until 2026-09-03 this branch substituted the TARGET as
+#                 the minimum, which turned a deliberate no-wait job into a
+#                 full soak: an ABS job sliced Minimal=0 Target=60 emitted
+#                 `M191 S60` and held the print open for 13 minutes with the
+#                 bed boosted to 117 C. The comment here already claimed the
+#                 fallback was bare M191; the code did something else.
+#   Target  = 0   M141 S0 and nothing else. No wait, no ceiling, no chamber
+#                 control -- which is what asking for a zero target means. It
+#                 is emitted rather than omitted so a stale ch_target from the
+#                 previous job cannot survive into this one.
+#
+# Unchecked activation emits bare M191. That is the barebones-profile case, and
+# the macro's own defaults answer it: minimum 22 C, target 32 C. A profile that
+# says nothing still lands somewhere safe instead of uncontrolled.
 ORCA_CHAMBER_BLOCK = "\n".join([
     ";  Chamber control is never omitted. With activation enabled, M191 waits",
-    ";  for Orca's exact Minimal temperature and M141 sets its Target. Unchecked",
-    ";  or incomplete activation uses bare M191 and the S32/22C fallback.",
+    ";  for Orca's exact Minimal temperature and M141 sets its Target. A zero",
+    ";  Minimal skips the wait and keeps the Target; a zero Target turns",
+    ";  chamber control off entirely. Unchecked activation uses bare M191 and",
+    ";  its own 22 C minimum / 32 C target fallback.",
     ORCA_PREFLIGHT_BLOCK,
     "M140 S[bed_temperature_initial_layer_single]",
     "{if activate_chamber_temp_control[0]}",
     "{if chamber_temperature[0] > 0}",
     "{if chamber_minimal_temperature[0] > 0}",
     "M191 S{chamber_minimal_temperature[0]}",
-    "{else}M191 S{chamber_temperature[0]}",
     "{endif}",
     "M141 S{chamber_temperature[0]}",
-    "{else}M191{endif}",
+    "{else}M141 S0{endif}",
     "{else}M191{endif}",
 ])
 
@@ -60,7 +82,10 @@ ORCA_START_TAIL = "\n".join([
     # print finishes, and this is where the other generated material lookup
     # lives. machine_end_gcode stays the bare END_PRINT every bundle ships.
     "@@COOLDOWN@@",
-    "M190 S[bed_temperature_initial_layer_single] ; bed hot BEFORE calibration and mesh",
+    # NO M190 HERE. It moved into START_PRINT, behind CLEAN_NOZZLE, so the
+    # nozzle is wiped while the plate is still falling from the preheat ceiling
+    # instead of after it. The calibration and mesh still run on a settled
+    # plate -- see start_print.cfg.
     "START_PRINT",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
@@ -91,6 +116,8 @@ ORCA_SHADOW_CHAMBER_BLOCK = "\n".join([
     ";>>>CHAMBER_SHADOW_TEST sandbox-only, not publication policy",
     ";  Start bed heat first, apply activation/target/minimum policy, park at",
     ";  the XY center and run the full toolhead fan at Z15 before nozzle heat.",
+    ";  A zero Minimal skips M191 outright -- no park, no stir, no soak, and",
+    ";  no bed boost -- because zero means do not wait.",
     ";  The spool gate stays ahead of bed heat here too: a sandbox test print",
     ";  consumes the same real filament as a publication one.",
     ORCA_PREFLIGHT_BLOCK.split("\n")[-1],
@@ -99,10 +126,9 @@ ORCA_SHADOW_CHAMBER_BLOCK = "\n".join([
     "{if chamber_temperature[0] > 0}",
     "{if chamber_minimal_temperature[0] > 0}",
     "M191 S{chamber_minimal_temperature[0]} Z15 STIR=1 " + ORCA_SHADOW_BOOST,
-    "{else}M191 S{chamber_temperature[0]} Z15 STIR=1 " + ORCA_SHADOW_BOOST,
     "{endif}",
     "M141 S{chamber_temperature[0]}",
-    "{else}M191 Z15 STIR=1 " + ORCA_SHADOW_BOOST + "{endif}",
+    "{else}M141 S0{endif}",
     "{else}M191 Z15 STIR=1 " + ORCA_SHADOW_BOOST + "{endif}",
     ";<<<CHAMBER_SHADOW_TEST",
 ])

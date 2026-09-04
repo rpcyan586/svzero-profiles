@@ -1398,56 +1398,41 @@ def clean_temp_lines(data):
 
 
 def cooldown_lines(data):
-    """Material-aware post-print cooldown policy, as start-G-code lines.
+    """Post-print cooldown policy, as start-G-code lines.
+
+    ONE LINE NOW. It used to emit the rates themselves, per material, which meant
+    the numbers existed in two places -- this table and the macro -- and a print
+    sliced anywhere else silently took the generic row. The table moved into
+    cooldown.cfg's _COOLDOWN_MATERIALS, so the slicer's whole job is to NAME the
+    material and Klipper owns the policy.
+
+    That is what makes the same print get the same descent from Orca, from
+    PrusaSlicer, from Sovol's stock profile, or from no slicer involvement at all
+    -- when nothing names it, END_PRINT falls back to the material spool_guard
+    latched off Spoolman at print start. Same principle as END_PRINT's retract
+    debt closing through CLEAN_NOZZLE with no slicer in the loop.
 
     Emitted into the START G-code, not the end G-code, even though END_PRINT is
-    what consumes it. The policy has to be in RAM before the print finishes and
-    the start block is where the other generated material lookup already lives;
-    machine_end_gcode stays the bare `END_PRINT` every published bundle ships.
+    what consumes it: the policy has to be in RAM before the print finishes, and
+    the start block is where the other generated material lookup already lives.
 
-    ONLY ROWS THAT DIFFER FROM THE DEFAULT ARE EMITTED. Six of the seven
-    materials in the table carry the recovered generic policy, and six identical
-    branches would be noise that hides the one row that matters. COOLDOWN_ARM
-    and _COOLDOWN_CFG both carry the same default independently, so a material
-    that falls through the else gets it either way.
+    Omitting the whole block stays supported and safe.
 
-    Omitting the whole block is supported and safe: END_PRINT uses the default
-    row, and the print's own bed and chamber temperatures still set the
-    severity. That is the property that makes the ramp work on stock profiles.
+    `data` is still read, and still only for its comment: the rates it carries
+    are no longer authoritative and the file says so.
     """
-    by = data["by_type"]
-    dflt = data["default"]
-
-    def fmt(v):
-        return ("%g" % float(v))
-
-    special = sorted((t, p) for t, p in by.items() if p != dflt)
-    fellthrough = sorted(t for t, p in by.items() if p == dflt)
-
-    out = [
+    return [
         ";>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit",
-        ";  PROPOSED policy, not a measurement. Keyed on filament_type only; the",
-        ";  bed target and chamber ceiling are read live at END_PRINT, so nothing",
-        ";  here can go stale and a Klipper restart simply loses the override.",
-        ";  Rates are MAXIMA on the commanded descent. The slower of the two",
-        ";  governs and the other is slowed to match, so both reach the endpoint",
-        ";  together. Omitting this block is safe -- END_PRINT uses the same",
-        ";  default row that %s take here." % (", ".join(fellthrough) or "all materials"),
+        ";  Names the material; the RATES live in cooldown.cfg's",
+        ";  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool",
+        ";  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE",
+        ";  or BED_RATE here only to OVERRIDE the table for an experiment.",
+        ";  Omitting this block is safe: END_PRINT then asks spool_guard what is",
+        ";  loaded, and falls back to the default row if nothing knows.",
+        "COOLDOWN_ARM MATERIAL=[filament_type]",
+        ";<<<COOLDOWN",
     ]
-    for i, (t, p) in enumerate(special):
-        kw = "if" if i == 0 else "elsif"
-        out.append('{%s filament_type[0]=="%s"}COOLDOWN_ARM MATERIAL=%s FINAL=%s'
-                   ' CHAMBER_RATE=%s BED_RATE=%s'
-                   % (kw, t, t, fmt(p["final"]), fmt(p["chamber_rate"]),
-                      fmt(p["bed_rate"])))
-    lead = "{else}" if special else ""
-    out.append('%sCOOLDOWN_ARM FINAL=%s CHAMBER_RATE=%s BED_RATE=%s'
-               % (lead, fmt(dflt["final"]), fmt(dflt["chamber_rate"]),
-                  fmt(dflt["bed_rate"])))
-    if special:
-        out.append("{endif}")
-    out.append(";<<<COOLDOWN")
-    return out
+
 
 
 # Sovol's start G-code does not end at the temperature wait: it continues into

@@ -473,6 +473,38 @@ class ChamberPreheat:
         # The rise after the opening guess is rate limited rather than a jump
         # to the ETA-permitted level, so the plate climbs monotonically until
         # the ETA says it must turn around and come back down.
+        # BOOST POLICY. "hold" is the operator's model and the default from
+        # 2026-09-03: put the plate on its ceiling at once, leave it there
+        # while it is doing the work, and hand it back to the printing target
+        # the moment the chamber crosses its minimum.
+        #
+        # "eta" is the original planner, kept whole and reachable in one config
+        # line rather than deleted. It sizes the boost from the chamber ETA --
+        # boost_for_eta maps minutes remaining to degrees, so the plate coasts
+        # down at coast_rate and lands on target just before the chamber
+        # arrives. That reasoning is sound and its failure is empirical: the
+        # coast holds the plate BELOW the ceiling with the heater for as long
+        # as it lasts, and every one of those minutes is one the chamber is
+        # being heated less. Observed 2026-09-03 on a real ABS print -- 111 to
+        # 124 at 3 C/min, then twenty minutes walking back down at the 1 C/min
+        # floor, with the bed sitting on target and idle at the end of it while
+        # the chamber ETA still read 4 to 11 minutes. The schedule delays the
+        # thing it is waiting for.
+        #
+        # Under "hold" the descent is not scheduled at all: the plate is simply
+        # released and falls at whatever passive loss gives, which the measured
+        # curve puts near 5 C/min up there against the 1 C/min it was being
+        # walked down at. See notes/data/cooldown/zero2-passive-decay-20260903.md.
+        # Passive fall rate used ONLY to report a bed ETA under the "hold"
+        # policy. It estimates, it does not command: nothing schedules the
+        # descent there. 5 C/min is the measured plate loss near print
+        # temperature, not a design constant.
+        self.bed_release_rate = config.getfloat(
+            "bed_release_rate", 5.0, above=0.0
+        )
+        self.boost_policy = config.getchoice(
+            "boost_policy", {"hold": "hold", "eta": "eta"}, "hold"
+        )
         self.climb_rate = config.getfloat("climb_rate", 3.0, above=0.0)
         # Before any ETA exists the plate ramps blind at climb_rate, commanded
         # in whole degrees so the moves are legible on the graph. Holding the
@@ -877,7 +909,15 @@ class ChamberPreheat:
             opening = 0.0
             if (boost_requested and boost_cap > 0.0
                     and start_temp < minimum):
-                opening = min(initial_boost, boost_cap)
+                # Hold goes to the ceiling here, at the very first command.
+                # This is the earliest the plate can be told anything, and
+                # under this policy there is nothing to learn first: the
+                # ceiling does not depend on the ETA, the slope, or whether the
+                # nozzle has qualified as a chamber proxy yet.
+                opening = (
+                    boost_cap if self.boost_policy == "hold"
+                    else min(initial_boost, boost_cap)
+                )
             self._set_bed(bed, quantize_target(bed_target + opening))
             if opening > 0.0:
                 gcmd.respond_info(
@@ -1004,7 +1044,16 @@ class ChamberPreheat:
                 # slope quality, is the gate: a nozzle that is not yet a
                 # chamber thermometer must not schedule anything, but one that
                 # is need not wait for a measurable trend to start heating.
-                planned_boost = min(initial_boost, boost_cap)
+                # Under "hold" the opening guess IS the ceiling. INITIAL_BOOST
+                # exists because the ETA planner cannot size a boost before a
+                # slope exists, so it commits a small one and grows it later.
+                # Hold never sizes anything, so there is nothing to be
+                # tentative about and a 5 C opening would just be the first
+                # stair of the ramp this policy exists to remove.
+                planned_boost = (
+                    boost_cap if self.boost_policy == "hold"
+                    else min(initial_boost, boost_cap)
+                )
                 coast_reason = 1 if planned_boost > 0.0 else 3
             elif boost_requested and available_boost <= 0.0:
                 coast_reason = 3
@@ -1120,7 +1169,42 @@ class ChamberPreheat:
                     ) * self.boost_fraction
                 )
 
-                if turn is None and not eta_seen:
+                if self.boost_policy == "hold":
+                    # THE WHOLE POLICY. On the ceiling while the chamber is
+                    # still climbing, on the printing target the instant it is
+                    # not. No ETA sizing, no climb rate, no coast: the plate is
+                    # released rather than walked down, and passive loss up
+                    # here is roughly five times the rate it was being walked
+                    # at. `turn`, `supported` and `decaying` are computed above
+                    # and deliberately unused -- they stay live so the telemetry
+                    # still records what the ETA planner WOULD have done, which
+                    # is what makes the two comparable on the same print.
+                    want = self.bed_carry if chamber_ready else boost_cap
+                    if abs(want - current_boost) > 1e-9:
+                        rising = want > current_boost
+                        current_boost = want
+                        self.peak_boost = max(self.peak_boost, current_boost)
+                        bed_ready = False
+                        coast_reason = 1 if rising else 2
+                        self._set_state(
+                            preheat_phase=2,
+                            boost_bed_target=quantize_target(
+                                bed_target + current_boost
+                            ),
+                            boost_coast_reason=coast_reason,
+                        )
+                        gcmd.respond_info(
+                            "%s bed %s %.1f%s"
+                            % (
+                                self._stamp(eventtime),
+                                "to ceiling" if rising else "released to",
+                                bed_target + current_boost,
+                                "" if rising
+                                else " -- chamber minimum crossed",
+                            )
+                        )
+                    bed_gated = not chamber_ready
+                elif turn is None and not eta_seen:
                     # No ETA yet, so ramp blind rather than sitting on the
                     # opening guess. A flat hold there was a soft plateau that
                     # bought nothing; whole-degree steps keep it legible.
@@ -1186,7 +1270,8 @@ class ChamberPreheat:
                 if turn is not None:
                     eta_seen = True
 
-                if decaying and current_boost > self.bed_carry:
+                if (self.boost_policy == "eta" and decaying
+                        and current_boost > self.bed_carry):
                     # coast_rate is a FLOOR, not a target. Descending slower
                     # than it would leave the plate still ramping when the
                     # print starts, and a plate with a live gradient in it
@@ -1235,9 +1320,18 @@ class ChamberPreheat:
                 if command != last_command:
                     self._set_bed(bed, command)
                     last_command = command
-                self.bed_eta = (
-                    0.0 if bed_ready else max(current_boost / coast_rate, 0.0)
-                )
+                if bed_ready:
+                    self.bed_eta = 0.0
+                elif self.boost_policy == "hold":
+                    # Only meaningful once released; while the plate is held on
+                    # the ceiling on purpose there is no descent to estimate.
+                    self.bed_eta = (
+                        max((current_boost - self.bed_carry), 0.0)
+                        / self.bed_release_rate
+                        if chamber_ready else None
+                    )
+                else:
+                    self.bed_eta = max(current_boost / coast_rate, 0.0)
                 carried = bed_target + self.bed_carry
                 if (
                     not bed_ready

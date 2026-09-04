@@ -151,7 +151,9 @@ def check(path):
                              c0=60.0, b0=110.0, c_cmd=60.0, b_cmd=110.0,
                              c_step=1.0, b_step=3.0, interval=40.0,
                              has_heater=0, elapsed=0, settle_elapsed=0,
-                             idle_restore=1800.0, coast_warned=0))
+                             idle_restore=1800.0, coast_warned=0,
+                             material="default", rates_set=0, assist=0,
+                             assist_curtain=0.0, ch_written=32.0))
     settings.setdefault("gcode_macro _COOLDOWN_CFG",
                         Mock(final=35.0, chamber_rate=1.5, bed_rate=5.0,
                              chamber_step=1.0, deadband=2.0, settle_min=180,
@@ -171,7 +173,8 @@ def check(path):
             axis_minimum=Mock(x=0.0, y=0.0, z=0.0),
             axis_maximum=Mock(x=200.0, y=200.0, z=250.0),
         ),
-        "save_variables": Mock(variables=Mock(nb_lane=0, ch_target=32.0, ch_kp=0.15,
+        "save_variables": Mock(variables=Mock(was_interrupted=0.0,
+                                         nb_lane=0, ch_target=32.0, ch_kp=0.15,
                                               end_retract=0.0)),
         "filament_switch_sensor filament_sensor": Mock(enabled=True,
                                                        filament_detected=True),
@@ -186,7 +189,8 @@ def check(path):
         "temperature_sensor chamber_temp": Mock(temperature=30.0),
         "temperature_sensor Toolhead_Temp": Mock(temperature=30.0),
         "fan_generic exhaust_fan": Mock(speed=0.0, rpm=1500.0),
-        "print_stats": Mock(state="standby", info=Mock(current_layer=None)),
+        "print_stats": Mock(state="standby", filename="job.gcode",
+                            info=Mock(current_layer=None)),
     })
     params = Mock(
         VOL_MAX="21", FIL_D="1.75", NOZZLE="0.4", CLEAR="4", CORNER="1",
@@ -238,6 +242,15 @@ def check(path):
                 ("standalone", None, "S32", {}, {}),
                 ("post-minimum", None, "S33",
                  {"preheat_target_pending": 1}, {}),
+                # Orca Target 0. This has to be distinguishable at
+                # START_PRINT from a profile that never mentioned the chamber,
+                # which is what control_declined carries.
+                ("declined", None, "S0", {}, {}),
+                # Orca appends this AFTER machine_end_gcode, so it lands while a
+                # cooldown ramp is live. It must be deferred, not applied: a
+                # 43-minute ABS ramp lost its chamber leg to exactly this.
+                ("ramp-owns-it", None, "S0", {}, {},
+                 {"gcode_macro _COOL_STATE": Mock(active=1)}),
             ]
         elif s == "gcode_macro M191":
             scenarios = [
@@ -276,10 +289,18 @@ def check(path):
                         c0=60.0, b0=110.0, c_cmd=60.0, b_cmd=110.0,
                         c_step=1.0, b_step=3.0, interval=72.0,
                         has_heater=0, elapsed=600, settle_elapsed=180,
-                        idle_restore=1800.0, coast_warned=0)
+                        idle_restore=1800.0, coast_warned=0,
+                        material="pc", rates_set=0, assist=0,
+                        assist_curtain=0.0, ch_written=0.0)
             base.update(kw)
             if ch is None:
                 ch = base["c_cmd"] + (2.0 if base["has_heater"] else 0.0)
+            # ch_written tracks ch_target for the same reason ch_target tracks
+            # c_cmd: the override check now compares against what the ramp last
+            # WROTE, so a scenario that left them apart would test the abort
+            # path and never render the ramp.
+            if "ch_written" not in kw:
+                base["ch_written"] = ch
             patch = {"gcode_macro _COOL_STATE": Mock(base),
                      "save_variables": Mock(variables=Mock(ch_target=ch))}
             patch.update(hot_bed)
@@ -299,6 +320,13 @@ def check(path):
                  {"heater_bed": Mock(temperature=25.0, target=0.0),
                   "save_variables": Mock(variables=Mock(ch_target=0.0))}),
             ]
+        elif s == "gcode_macro _COOLDOWN_CLEAR":
+            # KEEP_POLICY is the whole point of this macro having a parameter,
+            # and it is only reachable by passing one. Rendered with the default
+            # it proves nothing about the branch that matters.
+            scenarios = [("clears-policy", None, "", {}, {}),
+                         ("keeps-policy", None, "KEEP_POLICY=1", {}, {})]
+
         elif s == "gcode_macro _COOLDOWN_TICK":
             scenarios = [
                 ("inactive", params, "", {}, {}, cool(active=0)),
@@ -313,12 +341,61 @@ def check(path):
                  cool(c_cmd=35.5, b_cmd=110.0,
                       **{"b_step": 200.0})),
                 ("abort-bed-override", params, "", {}, {}, cool(b_cmd=42.0)),
-                ("abort-chamber-override", params, "", {}, {}, cool(ch=48.0)),
+                ("abort-chamber-override", params, "", {}, {},
+                 cool(ch=48.0, ch_written=60.0)),
+                # M141 S0 -- a RELEASE, which slicers emit at end of job. It
+                # must drop the chamber leg and keep ramping the bed, not abort.
+                ("chamber-released", params, "", {}, {},
+                 cool(ch=0.0, ch_written=62.0, c_step=1.0)),
                 ("watchdog", params, "", {}, {}, cool(elapsed=99999)),
                 ("abort-new-print", params, "", {}, {},
                  dict(cool(), **{"print_stats":
                                  Mock(state="printing",
                                       info=Mock(current_layer=None))})),
+                # ASSIST. The bed is below the ceiling and a long way behind the
+                # schedule -- the regime where the heater has nothing left.
+                ("assist-engage", params, "", {}, {},
+                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
+                      **{"heater_bed": Mock(temperature=55.0, target=45.0)})),
+                # Same error, bed ABOVE the ceiling. Must NOT engage: this is
+                # the gate that keeps forced air off a part that is still hot.
+                ("assist-ceiling", params, "", {}, {},
+                 dict(cool(b_cmd=95.0, c_cmd=40.0, c_step=0.0),
+                      **{"heater_bed": Mock(temperature=108.0, target=95.0)})),
+                # Latched on, error now inside the release band. Must release
+                # rather than hold, or the fans never stop.
+                ("assist-release", params, "", {}, {},
+                 dict(cool(b_cmd=54.5, c_cmd=40.0, c_step=0.0, assist=1,
+                           assist_curtain=0.3),
+                      **{"heater_bed": Mock(temperature=52.0, target=54.5)})),
+                # Curtain explicitly enabled: the fan write must appear.
+                ("assist-curtain", params, "", {}, {},
+                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
+                      **{"heater_bed": Mock(temperature=55.0, target=45.0),
+                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                             Mock(exhaust_enable=1, curtain_enable=1,
+                                  error_on=3.0, error_off=1.0,
+                                  bed_ceiling=60.0, exhaust_offset=6.0,
+                                  curtain_gain=0.10, curtain_max=0.45)})),
+                # Bed-only ramp -- c_step 0, no chamber ceiling to lower. The
+                # assist must claim one outright rather than min() against the
+                # zero that means "no chamber control".
+                ("assist-bed-only-claims-ceiling", params, "", {}, {},
+                 dict(cool(b_cmd=45.0, c_cmd=0.0, c_step=0.0, ch=0.0, ch_written=0.0),
+                      **{"heater_bed": Mock(temperature=55.0, target=45.0)})),
+                # Latched on with a claimed ceiling, error now inside the release
+                # band: it must hand the ceiling back, not leave the exhaust
+                # venting to a stale setpoint for the rest of the ramp.
+                ("assist-bed-only-releases-ceiling", params, "", {}, {},
+                 dict(cool(b_cmd=54.5, c_cmd=0.0, c_step=0.0, assist=1,
+                           ch=32.0, ch_written=32.0),
+                      **{"heater_bed": Mock(temperature=52.0, target=54.5)})),
+                # No chamber sensor at all. The exhaust half must sit down
+                # quietly rather than commanding a ceiling off a missing read.
+                ("assist-no-chamber-sensor", params, "", {}, {},
+                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
+                      **{"heater_bed": Mock(temperature=55.0, target=45.0),
+                         "temperature_sensor chamber_temp": None})),
             ]
         elif s == "gcode_macro _CHAMBER_GUARD":
             # The whole body is behind `running == 1`, so a scenario that does
@@ -348,18 +425,62 @@ def check(path):
                  {"gcode_macro _COOL_STATE": None,
                   "gcode_macro _COOLDOWN_CFG": None}),
             ]
+            if s == "gcode_macro CHAMBER_AUTOSTART":
+                # The three ways a print can arrive here, which differ only in
+                # _CH_STATE and previously all ended in the same CHAMBER_ON.
+                scenarios += [
+                    ("declined", params, "S40",
+                     {"requested": 1, "control_declined": 1}, {}, {}),
+                    ("slicer-target", params, "S40",
+                     {"requested": 1, "control_declined": 0}, {}, {}),
+                    ("inferred", params, "S40",
+                     {"requested": 0, "control_declined": 0}, {}, {}),
+                ]
 
+        # The over-budget branches are forced with a deliberately tiny budget
+        # rather than with a big request. Trimming the strip from 125 pixels to
+        # 33 made both of them unreachable at the real budget, and the expect
+        # assertions caught it -- the scenarios still rendered, they had simply
+        # stopped testing the branch they were written for. Pinning the budget
+        # keeps them honest at any chain length.
+        starved = {"gcode_macro _LIGHT_CAL": Mock(
+            ma_red=7.70, ma_green=7.76, ma_blue=7.76, ma_white=16.10,
+            ma_quiescent=8.8, ma_budget=20.0, masked=[20])}
+        if s == "gcode_macro SET_LED":
+            scenarios = [
+                ("other-led", None, "LED=Screen_Colour RED=1", {}, {}, {}),
+                ("chain", None, "LED=nozzle_light WHITE=0.2", {}, {}, {}),
+                ("index-masked", None, "LED=nozzle_light WHITE=1 INDEX=20",
+                 {}, {}, {}),
+                ("index-clear", None, "LED=nozzle_light WHITE=1 INDEX=7",
+                 {}, {}, {}),
+                ("chain-over", None, "LED=nozzle_light WHITE=1", {}, {}, starved),
+                ("index-over", None, "LED=nozzle_light WHITE=1 INDEX=7",
+                 {}, {}, starved),
+            ]
         elif s == "gcode_macro LIGHT_PATTERN":
             scenarios = [
                 ("counting", Mock(COUNT="20"), "COUNT=20", {}, {}, {}),
-                ("over-budget", Mock(COUNT="125", VALUE="1.0"),
-                 "COUNT=125 VALUE=1.0", {}, {}, {}),
+                ("over-budget", Mock(COUNT="20", VALUE="1.0"),
+                 "COUNT=20 VALUE=1.0", {}, {}, starved),
             ]
         elif s == "gcode_macro NOZZLE_LIGHT":
             scenarios = [
                 ("whole-chain", Mock(W="0.05"), "W=0.05", {}, {}, {}),
                 ("spotlight", Mock(W="1.0", INDEX="7"), "W=1.0 INDEX=7", {}, {}, {}),
-                ("over-budget", Mock(W="1.0"), "W=1.0", {}, {}, {}),
+                # The solver, at the real budget and the real mask: 33 pixels
+                # less [1, 20, 21] is 30 live, (1000 - 8.8) / 30 = 33.04 mA
+                # each, white takes 16.10 of it and 16.94 is left for three
+                # colour dies costing 23.22 together.
+                # MAX=1, not a bare MAX: NOZZLE_LIGHT takes extended parsing
+                # and the dispatcher rejects a bare word with "Malformed
+                # command" before the macro runs. Passing params in directly
+                # here hid that on 2026-09-03, so both halves are spelled out.
+                ("max", Mock(MAX="1"), "MAX=1", {}, {}, {}),
+                # Same solve where white alone cannot reach full: 20 mA budget
+                # over 32 live pixels is 0.35 mA each, so white truncates to
+                # 0.0217 and there is nothing left to buy colour with.
+                ("max-starved", Mock(MAX="1"), "MAX=1", {}, {}, starved),
             ]
 
         # An optional 7th element: a string the rendered output MUST contain.
@@ -378,9 +499,20 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "HEATER=chamber_heater",
             ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
             ("gcode_macro _COOLDOWN_TICK", "abort-bed-override"): "bed target changed",
-            ("gcode_macro _COOLDOWN_TICK", "abort-chamber-override"): "chamber ceiling changed",
+            ("gcode_macro _COOLDOWN_TICK", "abort-chamber-override"): "heaters off",
+            ("gcode_macro _COOLDOWN_TICK", "chamber-released"): "chamber ceiling released",
             ("gcode_macro _COOLDOWN_TICK", "watchdog"): "watchdog",
-            ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "a new print has started",
+            ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "_COOLDOWN_CLEAR KEEP_POLICY=1",
+            ("gcode_macro _COOLDOWN_CLEAR", "clears-policy"): "VARIABLE=policy_set VALUE=0",
+            ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "assist engaged",
+            ("gcode_macro _COOLDOWN_TICK", "assist-release"): "assist released",
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2",
+            ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-claims-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=24.0",
+            # Paired with the forbid below: this proves the scenario really did
+            # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
+            # than that the macro took some other branch entirely.
+            ("gcode_macro COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
+            ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-releases-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=0.0",
             ("gcode_macro END_PRINT", "cooldown-installed"): "COOLDOWN_START",
             ("gcode_macro END_PRINT", "cooldown-absent"): "TURN_OFF_HEATERS",
             ("gcode_macro CANCEL_PRINT", "cooldown-installed"): "COOLDOWN_ABORT",
@@ -388,26 +520,88 @@ def check(path):
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
             ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "CHAMBER_OFF",
             ("gcode_macro CHAMBER_AUTOSTART", "cooldown-installed"): "COOLDOWN_ABORT",
+            # M141 S0 is a decision and must be recorded as one; any positive
+            # target must clear that record rather than inherit it.
+            ("gcode_macro M141", "ramp-owns-it"): "deferred",
+            ("gcode_macro M141", "declined"):
+                "VARIABLE=control_declined VALUE=1",
+            ("gcode_macro M141", "standalone"):
+                "VARIABLE=control_declined VALUE=0",
+            ("gcode_macro CHAMBER_AUTOSTART", "declined"):
+                "chamber control off",
+            ("gcode_macro CHAMBER_AUTOSTART", "slicer-target"):
+                "as requested by the slicer",
+            ("gcode_macro CHAMBER_AUTOSTART", "inferred"): "inferred",
             # The budget branches. A whole-chain 0.05 fits, a single pixel at
             # full fits and must carry its INDEX through, and the whole chain at
             # full white cannot fit and must come back scaled.
-            ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "WHITE=0.05",
+            # NOZZLE_LIGHT enforces nothing now: it hands off and then reports.
+            ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "LIGHT_STATUS",
             ("gcode_macro NOZZLE_LIGHT", "spotlight"): "INDEX=7",
-            ("gcode_macro NOZZLE_LIGHT", "over-budget"): "clamped",
             ("gcode_macro LIGHT_PATTERN", "counting"): "INDEX=20",
+            # Name the numbers, not just "it rendered". These are the whole
+            # claim MAX makes, and an arithmetic slip that still renders is
+            # exactly the failure this file exists to catch.
+            ("gcode_macro NOZZLE_LIGHT", "max"):
+                "RED=0.7295 GREEN=0.7295 BLUE=0.7295 WHITE=1.0",
+            ("gcode_macro NOZZLE_LIGHT", "max-starved"):
+                "RED=0.0 GREEN=0.0 BLUE=0.0 WHITE=0.0217",
             ("gcode_macro LIGHT_PATTERN", "over-budget"): "refused",
+            # The mask wrapper. Another LED passes through untouched, a
+            # whole-chain call is followed by a zeroing of the masked index,
+            # a masked INDEX is zeroed, and an unmasked INDEX is not.
+            ("gcode_macro SET_LED", "other-led"): "LED=Screen_Colour",
+            ("gcode_macro SET_LED", "chain"): "INDEX=20",
+            ("gcode_macro SET_LED", "index-masked"): "INDEX=20",
+            ("gcode_macro SET_LED", "index-clear"): "WHITE=1.0",
+            # Renormalization: scaled down, and never silent about it.
+            ("gcode_macro SET_LED", "chain-over"): "renormalized",
+            ("gcode_macro SET_LED", "index-over"): "renormalized",
         }
         # The inactive tick must produce nothing at all.
-        forbid = {("gcode_macro LIGHT_PATTERN", "counting"): "refused",
+        forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  # The ceiling is the whole point: above it, nothing engages.
+                  ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "assist engaged",
+                  # Curtain is off by default, so the default assist scenario
+                  # must never reach for fan2.
+                  ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
+                  # A ramp with no chamber leg must never start the loop against
+                  # the zero it carries -- that is a full-speed exhaust draft.
+                  ("gcode_macro COOLDOWN_START", "bed-only"): "CHAMBER_ON",
+                  # The new-print abort must not erase the policy that print
+                  # armed for itself behind the same blocking wait.
+                  ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "VARIABLE=policy_set VALUE=0",
+                  ("gcode_macro _COOLDOWN_CLEAR", "keeps-policy"): "VARIABLE=policy_set VALUE=0",
+                  # A release must not reach any abort path at all.
+                  ("gcode_macro _COOLDOWN_TICK", "chamber-released"): "_COOLDOWN_",
+                  # Deferring must not touch ch_target on the way past.
+                  ("gcode_macro M141", "ramp-owns-it"): "SAVE_VARIABLE",
+                  ("gcode_macro SET_LED", "index-masked"): "WHITE=1.0",
+                  ("gcode_macro SET_LED", "index-clear"): "INDEX=20",
+                  # A renormalized call must not pass the raw value through.
+                  ("gcode_macro SET_LED", "chain-over"): "WHITE=1.0",
+                  ("gcode_macro SET_LED", "index-over"): "WHITE=1.0",
+                  ("gcode_macro SET_LED", "chain"): "renormalized",
+                  ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "renormalized",
+                  # The independent check on the solver. SET_LED costs the
+                  # answer with the same constants and refuses to scale it, so
+                  # a solve that overspends says so here without a meter.
+                  ("gcode_macro NOZZLE_LIGHT", "max"): "renormalized",
+                  ("gcode_macro NOZZLE_LIGHT", "max-starved"): "renormalized",
+                  ("gcode_macro LIGHT_PATTERN", "counting"): "refused",
                   ("gcode_macro LIGHT_PATTERN", "over-budget"): "SET_LED",
-                  ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "clamped",
-                  ("gcode_macro NOZZLE_LIGHT", "spotlight"): "clamped",
-                  ("gcode_macro NOZZLE_LIGHT", "over-budget"): "WHITE=1.0",
                   ("gcode_macro _COOLDOWN_TICK", "inactive"): "SET_GCODE_VARIABLE",
                   ("gcode_macro END_PRINT", "cooldown-installed"): "TURN_OFF_HEATERS",
                   ("gcode_macro END_PRINT", "cooldown-absent"): "COOLDOWN_START",
                   ("gcode_macro CANCEL_PRINT", "cooldown-absent"): "COOLDOWN_ABORT",
                   ("gcode_macro CHAMBER_AUTOSTART", "cooldown-absent"): "COOLDOWN_ABORT",
+                  # The whole point of the declined branch: the loop must not
+                  # start, and no ceiling may be inferred behind the request.
+                  ("gcode_macro CHAMBER_AUTOSTART", "declined"): "CHAMBER_ON",
+                  ("gcode_macro CHAMBER_AUTOSTART", "inferred"):
+                      "as requested by the slicer",
+                  ("gcode_macro M141", "declined"):
+                      "VARIABLE=control_declined VALUE=0",
                   ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "CHAMBER_OFF",
                   ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}

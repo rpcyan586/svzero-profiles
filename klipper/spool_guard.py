@@ -102,6 +102,19 @@ class SpoolGuard:
         self._armed_file = None
         self._armed_until = 0.0
         self._armed_reason = ""
+        # THE ACTIVE SPOOL, LATCHED AT PRINT START. SPOOL_GUARD already fetches
+        # this to compare against the job; publishing what it learned costs one
+        # dictionary and saves every downstream consumer from opening its own
+        # Moonraker connection. END_PRINT's cooldown ramp is the first: it needs
+        # the material to pick a descent policy, and it runs hours later, long
+        # after any HTTP call would be appropriate from inside a macro.
+        #
+        # RAM, deliberately, and never persisted. A saved material does not mean
+        # "this print used it", it means "some print did, possibly three jobs
+        # ago" -- the same reasoning that keeps _COOL_STATE volatile. It dies
+        # with a Klipper restart and a consumer that finds it empty falls back.
+        self._spool = {"id": None, "material": None, "name": None,
+                       "vendor": None, "color_hex": None, "at": None}
         self.gcode.register_command(
             "SPOOL_GUARD",
             self.cmd_SPOOL_GUARD,
@@ -213,6 +226,19 @@ class SpoolGuard:
 
         job = fetched.get("job") or {}
         spool = fetched.get("spool") or {}
+        # Latched before the verdict, and only for a real print. A FILE= dry run
+        # must not overwrite the live spool -- rehearsing a check against some
+        # other job would otherwise hand the cooldown ramp that job's material.
+        if not rehearsal:
+            filament = spool.get("filament") or {}
+            self._spool = {
+                "id": fetched.get("spool_id"),
+                "material": normalize_material(filament.get("material")) or None,
+                "name": filament.get("name"),
+                "vendor": (filament.get("vendor") or {}).get("name"),
+                "color_hex": filament.get("color_hex"),
+                "at": self.reactor.monotonic(),
+            }
         result = evaluate(
             job.get("filament_weight_total"),
             job.get("filament_type"),
@@ -240,6 +266,14 @@ class SpoolGuard:
             "armed_seconds": max(
                 0.0, self._armed_until - self.reactor.monotonic()
             ) if self._armed_file else 0.0,
+            # Flattened rather than nested: Klipper status dictionaries are read
+            # from Jinja, where printer.spool_guard.material is a great deal
+            # easier to get right than a subscript into a nested dict.
+            "spool_id": self._spool["id"],
+            "material": self._spool["material"],
+            "filament_name": self._spool["name"],
+            "vendor": self._spool["vendor"],
+            "color_hex": self._spool["color_hex"],
         }
 
 

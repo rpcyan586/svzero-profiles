@@ -159,6 +159,15 @@ class FakeConfig:
             raise ValueError(name)
         return value
 
+    def getchoice(self, name, choices, default=None):
+        """Klipper's own semantics: the value must be a key of `choices`, and
+        the CHOICE is returned rather than the key. A mock that just handed the
+        raw string back would accept a typo the real config rejects."""
+        key = self.values.get(name, default)
+        if key not in choices:
+            raise ValueError("%s: %r not in %s" % (name, key, sorted(choices)))
+        return choices[key]
+
     def get(self, name, default=None):
         return self.values.get(name, default)
 
@@ -199,7 +208,13 @@ class FakeGcmd:
 def controller(nozzle_curve, bed_max=120.0, config_values=None):
     # History seeding is off unless a test asks for it, so the rest of the
     # suite never reaches for Moonraker.
-    values = {"history_seconds": 0.0}
+    #
+    # boost_policy defaults to "eta" HERE, not to the module's shipped default.
+    # Every planner test below was written against the ETA planner and still
+    # tests it; the shipped default moved to "hold" on 2026-09-03 and is
+    # asserted separately, so this line keeps the two questions apart instead of
+    # silently retargeting nine tests at a policy they were not written for.
+    values = {"history_seconds": 0.0, "boost_policy": "eta"}
     values.update(config_values or {})
     config_values = values
     reactor = FakeReactor()
@@ -607,9 +622,87 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         # The turn may be decided on a stale high reading; the descent must not
         # hold on one, or it would refuse to come down on out-of-date evidence.
         source = (KLIPPER / "chamber_preheat.py").read_text()
-        body = source[source.index("if decaying and current_boost"):]
+        body = source[source.index("and decaying\n                        and current_boost"):]
         self.assertIn("floor_at", body)
         self.assertNotIn("robust_eta", body.split("command =")[0])
+
+    # ---------------------------------------------------------------- hold
+    # The policy shipped from 2026-09-03. The ETA planner above still exists and
+    # is still tested; these assert the one that actually runs.
+
+    def test_the_shipped_default_is_the_hold_policy(self):
+        # The harness pins "eta" so the planner tests keep testing the planner,
+        # which means nothing else here would notice the shipped default moving.
+        ctl = self._cold_start(config_values={"boost_policy": None})[0] \
+            if False else None
+        # Constructed with no value at all, the way printer.cfg does it.
+        cfg = FakeConfig(None, {"history_seconds": 0.0})
+        self.assertEqual(
+            cfg.getchoice("boost_policy", {"hold": "hold", "eta": "eta"},
+                          "hold"),
+            "hold",
+        )
+        shipped = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        self.assertNotIn("\nboost_policy:", shipped,
+                         "a shipped override would hide the module default")
+
+    def test_hold_puts_the_plate_on_the_ceiling_in_one_step(self):
+        # The complaint that started this: the plate used to walk up at
+        # climb_rate. Under hold the first boost IS the ceiling.
+        ctl, unused_r, bed, unused_g, unused_f = self._cold_start(
+            config_values={"boost_policy": "hold", "max_bed_temp": 124.0,
+                           "climb_rate": 3.0})
+        boosts = [t for unused, t in bed.commands if t > 65.0]
+        self.assertTrue(boosts, "the plate was never boosted")
+        peak = max(boosts)
+        # NOT a literal 124: the ceiling is min(max_bed_temp, what the heater
+        # itself will accept), and the fixture's bed caps lower. Asserting the
+        # literal tested the fixture rather than the policy.
+        self.assertGreater(peak, 65.0)
+        # THE CLAIM: no staircase. Under the ETA planner the boost walks up in
+        # climb_rate steps and every intermediate value appears as a command.
+        # Under hold there is nothing strictly between the opening guess and
+        # the ceiling.
+        # Everything above the printing target is either the ceiling or the
+        # carry the plate is released to; nothing in between. That covers the
+        # INITIAL_BOOST opening guess too, which under hold is the ceiling
+        # rather than the first stair of a ramp.
+        between = [t for t in boosts if 66.0 < t < peak - 1e-9]
+        self.assertEqual(between, [],
+                         "expected a step to the ceiling, not a ramp")
+
+    def test_hold_ignores_the_rates_the_eta_planner_needs(self):
+        # climb_rate and coast_rate are the ETA planner's knobs. Under hold they
+        # must not change the trajectory at all, or the policies are not really
+        # separate.
+        slow = self._cold_start(config_values={
+            "boost_policy": "hold", "climb_rate": 0.5, "coast_rate": 0.5})[2]
+        fast = self._cold_start(config_values={
+            "boost_policy": "hold", "climb_rate": 9.0, "coast_rate": 9.0})[2]
+        self.assertEqual([t for unused, t in slow.commands],
+                         [t for unused, t in fast.commands])
+
+    def test_hold_never_derives_a_bed_eta_from_the_coast_rate(self):
+        # Nothing is scheduling a descent under hold, so coast_rate must not
+        # reach the reported ETA. The planner's current_boost / coast_rate would
+        # have claimed tens of minutes for a fall that takes about three, which
+        # is what made the old status line read coast=11.0 with the plate
+        # already sitting on its target.
+        slow = self._cold_start(config_values={
+            "boost_policy": "hold", "coast_rate": 0.25})[0]
+        fast = self._cold_start(config_values={
+            "boost_policy": "hold", "coast_rate": 8.0})[0]
+        self.assertEqual(slow.bed_eta, fast.bed_eta)
+
+    def test_the_release_rate_estimates_and_does_not_command(self):
+        # bed_release_rate exists only to turn a held boost into a reported
+        # ETA. Changing it must not move a single bed command.
+        a = self._cold_start(config_values={
+            "boost_policy": "hold", "bed_release_rate": 1.0})[2]
+        b = self._cold_start(config_values={
+            "boost_policy": "hold", "bed_release_rate": 9.0})[2]
+        self.assertEqual([t for unused, t in a.commands],
+                         [t for unused, t in b.commands])
 
     def test_the_carry_stays_inside_klippers_pid_settle_window(self):
         # ControlPID.check_busy tests the ABSOLUTE error against
