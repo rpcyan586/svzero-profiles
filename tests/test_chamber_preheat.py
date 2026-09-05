@@ -704,6 +704,33 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertEqual([t for unused, t in a.commands],
                          [t for unused, t in b.commands])
 
+    def test_the_boost_magnitude_cap_binds_independently_of_the_plate_ceiling(self):
+        # max_bed_temp protects the PLATE and must not scale with anything.
+        # max_bed_boost bounds what the boost COSTS TO UNWIND, which does scale
+        # with the bed. Both have to bind, or the absolute ceiling becomes a
+        # per-material cap by accident -- which is what it was, handing PLA 55 C
+        # of boost authority and PC 10.
+        tight = self._cold_start(config_values={
+            "boost_policy": "hold", "max_bed_temp": 200.0,
+            "max_bed_boost": 25.0})[2]
+        peak = max(t for unused, t in tight.commands)
+        # The fixture's bed sits at 65, so the magnitude cap is what stops it,
+        # not the (deliberately absurd) plate ceiling.
+        self.assertAlmostEqual(peak, 90.0, places=3)
+
+    def test_the_plate_ceiling_still_wins_when_it_is_the_lower_of_the_two(self):
+        loose = self._cold_start(config_values={
+            "boost_policy": "hold", "max_bed_temp": 75.0,
+            "max_bed_boost": 1000.0})[2]
+        self.assertAlmostEqual(max(t for unused, t in loose.commands), 75.0, places=3)
+
+    def test_the_shipped_cap_is_25(self):
+        import re
+        cfg = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        shipped = re.search(r"^max_bed_boost:\s*([0-9.]+)", cfg, re.M)
+        self.assertIsNotNone(shipped)
+        self.assertEqual(float(shipped.group(1)), 25.0)
+
     def test_the_carry_stays_inside_klippers_pid_settle_window(self):
         # ControlPID.check_busy tests the ABSOLUTE error against
         # PID_SETTLE_DELTA = 1.0, so a plate above its printing target blocks

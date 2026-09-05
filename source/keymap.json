@@ -1,6 +1,6 @@
 {
   "_why": "OrcaSlicer descends from Bambu Studio; PrusaSlicer and SuperSlicer share a lineage. Measured against the real files, Orca and SuperSlicer share only 13 exact parameter names out of ~90, while SuperSlicer and PrusaSlicer share all 90. So generating PS from SS is close to a copy, and generating Orca needs this table. The tier anchors in source/tier-anchors.json are in ORCA names because they came from a forum table comparing two Orca profiles; this is what lets them drive PS/SS output too.",
-  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer — a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
+  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer \u2014 a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
   "_scope_note": "Some Orca process keys correspond to PS/SS settings that are NOT process-level. retraction and z-hop are printer-level in PS/SS; pressure advance and volumetric caps are filament-level. Those are listed in `scope_differs` and must be emitted into the right section, not the print preset.",
   "mapped": {
     "layer_height": "layer_height",
@@ -163,7 +163,7 @@
     "wall_direction",
     "wall_sequence"
   ],
-  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting — see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
+  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting \u2014 see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
   "_value_vocabularies_differ_too": "Mapping key NAMES is not enough: the same key can carry different enum values per slicer. PrusaSlicer 2.9.6 rejected brim_type=auto_brim from the Orca-derived Stock tier and substituted outer_only, with a warning dialog on every launch. Checked the rest of the Stock tier's non-numeric values: seam_position=aligned and fill_pattern=grid are valid in both.",
   "value_map": {
     "brim_type": {
@@ -198,7 +198,10 @@
       "chamber_temperature": "chamber_temperature",
       "compatible_printers_condition": "compatible_printers_condition",
       "compatible_prints": "compatible_prints",
-      "compatible_prints_condition": "compatible_prints_condition"
+      "compatible_prints_condition": "compatible_prints_condition",
+      "chamber_minimal_temperature": "chamber_minimal_temperature",
+      "activate_chamber_temp_control": "activate_chamber_temp_control",
+      "start_filament_gcode": "filament_start_gcode"
     },
     "_fan_out": {
       "_why": "Orca has no single bed temperature. It carries one per plate type, and the preset also names which plate it assumes via bed_type. Our presets have a single value, so it is written to all four -- whichever plate the user selects then gets the intended temperature.",
@@ -225,9 +228,8 @@
       }
     },
     "_forced": {
-      "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control remains off as the general material fallback; emit_orca_filament overrides the generated PLA profiles to active control with an exact minimum equal to their 30 C target. An unchecked profile emits bare M191 (firmware target 32 C, compatibility floor 22 C), while an enabled profile emits M191 at Orca's exact Minimal temperature followed by M141 at its Target. The generated start contains the ordered M191 itself, which makes Orca suppress its automatic pre-start duplicate. See notes/incidents/2026-08-17-zero2-startup-crash.",
-      "activate_air_filtration": "0",
-      "activate_chamber_temp_control": "0"
+      "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control WAS forced off here and is not any more: it moved to the material bases in presets.json on 2026-09-04, where each material also carries its own chamber_minimal_temperature. Forcing it off meant every material except PLA emitted BARE M191 and took the macro's 22 C minimum and 32 C target fallback -- so ABS shipped a 60 C ceiling in its preset that never reached the printer. The PLA-only override in emit_orca_filament that worked around this is gone with it. An unchecked profile still emits bare M191; an enabled one emits M191 at Orca's exact Minimal followed by M141 at its Target. The generated start contains the ordered M191 itself, which makes Orca suppress its automatic pre-start duplicate. See notes/incidents/2026-08-17-zero2-startup-crash.",
+      "activate_air_filtration": "0"
     },
     "_unmapped": {
       "bridge_fan_speed": "No filament-scope equivalent in Orca. Its nearest relative, internal_bridge_fan_speed, is process scope, so mapping it here would write into the wrong preset type. Dropped deliberately.",

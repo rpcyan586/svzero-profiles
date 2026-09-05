@@ -595,7 +595,11 @@
         "chamber_temperature": "60",
         "compatible_printers_condition": "",
         "compatible_prints": "",
-        "compatible_prints_condition": ""
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "45",
+        "_why_chamber_minimal": "corpus: ss1gohan13 (SV08) moved the ASA/ABS wait 40 -> 45 C on 2024-09-27; smokin76 runs 45-47 C at nozzle 255 bed 100",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
       },
       "variants": [
         {
@@ -645,7 +649,11 @@
         "chamber_temperature": "60",
         "compatible_printers_condition": "",
         "compatible_prints": "",
-        "compatible_prints_condition": ""
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "45",
+        "_why_chamber_minimal": "no corpus figure for PC on any Sovol. Inherits the ABS wait because it shares the ceiling and the warp mechanism -- INFERRED, not measured",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
       },
       "variants": [
         {
@@ -693,7 +701,11 @@
         "chamber_temperature": "50",
         "compatible_printers_condition": "",
         "compatible_prints": "",
-        "compatible_prints_condition": ""
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "30",
+        "_why_chamber_minimal": "operator's number. Warmer than the PLA/TPU floor and well under the 50 C ceiling, which stays a cap rather than a goal. No corpus figure for PETG chamber on any Sovol -- INFERRED",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
       },
       "variants": [
         {
@@ -764,7 +776,11 @@
         "chamber_temperature": "33",
         "compatible_printers_condition": "",
         "compatible_prints": "",
-        "compatible_prints_condition": ""
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "20",
+        "_why_chamber_minimal": "operator's number, lowered from 25 on 2026-09-04 for the cold-garage case. The corpus runs the other way for PLA -- 'keep the lid off and the doors open' -- so this is a floor against printing into a cold chamber, not a soak",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
       },
       "variants": [
         {
@@ -888,7 +904,11 @@
         "chamber_temperature": "35",
         "compatible_printers_condition": "",
         "compatible_prints": "",
-        "compatible_prints_condition": ""
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "20",
+        "_why_chamber_minimal": "same floor as PLA, and for the same reason: TPU wants no chamber heat, only a guard against a genuinely cold one",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
       },
       "variants": [
         {
@@ -913,5 +933,6 @@
         }
       ]
     }
-  ]
+  ],
+  "_z_offset_stub": "Every filament carries a zero SET_GCODE_OFFSET Z_ADJUST stub. The VALUE is deliberately 0.000 in the published pack -- a per-material first-layer offset is a property of one machine's plate, probe and nozzle, and shipping someone else's number is worse than shipping none. The stub is there so the line exists to edit. Operator's live experiment, 2026-09-04: ABS was taking flakes off the plate at 0.020 and is being tried at 0.040."
 }

@@ -1513,13 +1513,15 @@ def emit_orca_filament(model, ss, keymap, out_dir):
                 unmapped[k] += 1
         doc.update(forced)
         doc.pop("_why", None)
-        # PLA is the compatibility/default material and must still be regulated.
-        # Keep the derivation visible: its exact minimum is its configured target,
-        # currently 33 C in *SV Zero PLA Base*. Other materials retain the
-        # conservative bare-M191 fallback until their minimums are characterized.
-        if ftype == "PLA":
-            doc["activate_chamber_temp_control"] = "1"
-            doc["chamber_minimal_temperature"] = doc["chamber_temperature"]
+        # The PLA-only chamber override that used to sit here is GONE. It existed
+        # because activate_chamber_temp_control was forced off for everything,
+        # which left PLA as the single regulated material and every other one on
+        # the macro's bare-M191 fallback of 22 C minimum and 32 C target -- so
+        # ABS carried a 60 C ceiling in its preset that never reached the
+        # printer. Activation and the minimum are per-material data in
+        # presets.json now, and PLA's minimum is 25 rather than its own 33 C
+        # target: the old derivation made PLA wait for the ceiling it was
+        # supposed to be capped at.
         doc["compatible_printers"] = machines
 
         # NEVER emit an empty compatibility value. compatible_prints = [""] does
