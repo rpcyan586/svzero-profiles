@@ -24,8 +24,18 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # Runs before any heater is commanded, so a refused job costs nothing. Inert
 # unless the optional spool_guard extra is installed; see
 # notes/kb/spool-preflight.md.
+# Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
+# as plain strings and a mismatch only warns -- see the note in that file.
+SVZERO_PACK_VERSION = "1.0.4"
+
 ORCA_PREFLIGHT_BLOCK = "\n".join([
-    ";  _PREFLIGHT is first so a rejected job costs no heating. It is inert",
+    ";  SVZERO_REQUIRE names the pack this profile was built against. It only",
+    ";  ever WARNS: on a printer without the pack it is an unknown command,",
+    ";  which Klipper reports and steps over, and on a printer with a different",
+    ";  pack version it prints one line. It also tells the pack that a job was",
+    ";  sliced by an SV Zero profile, so START_PRINT can say when one was not.",
+    "SVZERO_REQUIRE VERSION=%s" % SVZERO_PACK_VERSION,
+    ";  _PREFLIGHT is next so a rejected job costs no heating. It is inert",
     ";  unless the optional spool_guard extra is installed.",
     "_PREFLIGHT",
 ])

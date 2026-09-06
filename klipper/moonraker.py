@@ -15,7 +15,21 @@ import urllib.request
 
 
 class MoonrakerError(Exception):
-    """A request failed. Callers decide whether that is fatal."""
+    """A request failed. Callers decide whether that is fatal.
+
+    `status` carries the HTTP status when there was one, so a caller can tell
+    "this endpoint does not exist here" from "the host did not answer". Those
+    deserve opposite responses: a 404 on the Spoolman proxy means Spoolman is
+    simply not configured, which is most users, and refusing their prints over
+    it would be absurd. A timeout means something that should be there is not.
+    """
+
+    def __init__(self, message, status=None, key=None):
+        super().__init__(message)
+        self.status = status
+        # Which of the batched calls failed. Matching on the message text would
+        # work today and break the first time somebody rewords a key.
+        self.key = key
 
 
 class MoonrakerClient:
@@ -65,7 +79,10 @@ class MoonrakerClient:
             )
         if "__failed__" in box:
             key, error = box["__failed__"]
-            raise MoonrakerError("%s (%s)" % (key, error))
+            # urllib raises HTTPError for a status and URLError for transport,
+            # and only the former carries `code`.
+            raise MoonrakerError("%s (%s)" % (key, error),
+                                 status=getattr(error, "code", None), key=key)
         return box
 
     @staticmethod

@@ -17,6 +17,11 @@ import collections, glob, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 OVR = json.load(open(os.path.join(ROOT, "source", "nozzle-overrides.json")))
+# The option names PrusaSlicer actually accepts, from `prusa-slicer --help-fff`.
+# Needed because the width check below is otherwise slicer-blind: see the note
+# in check().
+PS_OPTS = set(json.load(open(os.path.join(
+    ROOT, "source", "ps-known-options.json")))["options"])
 
 
 def parse(path):
@@ -34,6 +39,14 @@ def check(path):
     secs = parse(path)
     names = set(secs)
     problems = []
+    # SuperSlicer's option set is a superset of PrusaSlicer's, and
+    # nozzle-overrides.json is written in SuperSlicer's vocabulary. Keys
+    # PrusaSlicer does not have are dropped from its bundle by generate.py --
+    # correctly -- so demanding them back is asking for a key the slicer would
+    # reject. Only the PrusaSlicer bundle gets this exemption; SuperSlicer is
+    # still held to every key.
+    is_ps = "PrusaSlicer" in os.path.basename(path)
+    not_in_ps = []
 
     for n, s in secs.items():
         par = (s.get("inherits") or "").strip()
@@ -61,6 +74,12 @@ def check(path):
         for k, v in ref.items():
             if k == "z_hop":
                 continue
+            if is_ps and k not in PS_OPTS:
+                # Reported below rather than skipped silently: if PrusaSlicer
+                # ever gains the option, this line is what says the exemption
+                # is now hiding a real gap.
+                not_in_ps.append(k)
+                continue
             got = chain.get(k)
             if got is None:
                 problems.append("%s: %s unset (would inherit a wrong nozzle's width)" % (n, k))
@@ -86,6 +105,65 @@ def check(path):
     print("== %s ==" % os.path.basename(path))
     print("   %d sections, %d with inherits, tiers seen: %s"
           % (len(secs), sum(1 for s in secs.values() if s.get("inherits")), ", ".join(tiers) or "—"))
+    if not_in_ps:
+        c = collections.Counter(not_in_ps)
+        print("   note: %s not a PrusaSlicer option, exempted from the width "
+              "check on %d preset(s): %s"
+              % ("keys" if len(c) > 1 else "key", max(c.values()),
+                 ", ".join(sorted(c))))
+    for p in problems:
+        print("   FAIL  %s" % p)
+    if not problems:
+        print("   OK")
+    return len(problems)
+
+
+def check_orca_vendor(vend_root):
+    """Every index entry must resolve to a parseable profile, and vice versa.
+
+    Orca resolves a vendor against the INDEX, not the disk, and fails the whole
+    vendor on any single unresolvable entry -- no printers and no filaments, with
+    nothing in the UI to say why. On 2026-09-05 the vendor assembler wrote the
+    machine_model and then cleared the directory it had just written it into, so
+    the index pointed at a file that no longer existed. The bundle looked fine in
+    git (one missing file among 51) and was completely dead in the slicer.
+
+    The reverse direction matters too: an orphan on disk is invisible to Orca and
+    indistinguishable from a live profile to a human reading the repo.
+    """
+    idx_path = os.path.join(vend_root, "SVZero.json")
+    if not os.path.exists(idx_path):
+        return 0
+    problems = []
+    idx = json.load(open(idx_path, encoding="utf-8"))
+    base = os.path.join(vend_root, "SVZero")
+    referenced = set()
+    for key in ("machine_model_list", "machine_list",
+                "process_list", "filament_list"):
+        for e in idx.get(key, []):
+            sub = e.get("sub_path", "")
+            referenced.add(sub)
+            path = os.path.join(base, sub)
+            if not os.path.exists(path):
+                problems.append("%s: %s referenced but missing" % (key, sub))
+            elif os.path.getsize(path) == 0:
+                problems.append("%s: %s is empty" % (key, sub))
+            else:
+                try:
+                    json.load(open(path, encoding="utf-8"))
+                except Exception as exc:
+                    problems.append("%s: %s unparseable (%s)"
+                                    % (key, sub, type(exc).__name__))
+    for sub in ("machine", "process", "filament"):
+        d = os.path.join(base, sub)
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".json") and "%s/%s" % (sub, f) not in referenced:
+                problems.append("orphan on disk, not in the index: %s/%s"
+                                % (sub, f))
+    print("== orca vendor bundle ==")
+    print("   %d indexed profile(s)" % len(referenced))
     for p in problems:
         print("   FAIL  %s" % p)
     if not problems:
@@ -96,4 +174,6 @@ def check(path):
 if __name__ == "__main__":
     paths = sys.argv[1:] or sorted(glob.glob(os.path.join(ROOT, "bundles", "*.ini")))
     bad = sum(check(p) for p in paths)
+    if not sys.argv[1:]:
+        bad += check_orca_vendor(os.path.join(ROOT, "bundles", "orca-vendor"))
     sys.exit(1 if bad else 0)

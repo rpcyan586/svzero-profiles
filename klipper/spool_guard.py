@@ -121,22 +121,60 @@ class SpoolGuard:
             desc=self.cmd_SPOOL_GUARD_help,
         )
 
+    def _announce_no_spoolman(self):
+        """Say it once per session, then stay quiet.
+
+        This doubles as the only advertisement the feature gets. Somebody who
+        never configured Spoolman still learns, once, that the gate exists and
+        what it would do for them -- which is better than a silently inert
+        section nobody ever reads.
+        """
+        if getattr(self, "_said_no_spoolman", False):
+            return
+        self._said_no_spoolman = True
+        self.gcode.respond_info(
+            "spool_guard: Spoolman is not configured on this Moonraker, so "
+            "spool checks are skipped. Configure [spoolman] in moonraker.conf "
+            "to have jobs checked for enough filament and the right material "
+            "before any heater is commanded."
+        )
+
     def _fetch(self, filename, live=None):
         client = moonraker.MoonrakerClient(
             self.reactor, self.moonraker_url, self.timeout
         )
         quoted = client.quote(filename)
+        job_key = "read this job's metadata from Moonraker"
+        spool_key = "ask Moonraker which spool is active"
+        meta_call = (job_key, "/server/files/metadata?filename=%s" % quoted, None)
         try:
             got = client.run([
-                ("read this job's metadata from Moonraker",
-                 "/server/files/metadata?filename=%s" % quoted, None),
-                ("ask Moonraker which spool is active",
-                 "/server/spoolman/spool_id", None),
+                meta_call,
+                (spool_key, "/server/spoolman/spool_id", None),
             ])
         except moonraker.MoonrakerError as error:
-            raise self._refuse(
-                "could not %s" % error, "fix it, or SPOOL_GUARD BYPASS=1", live
-            )
+            # SPOOLMAN IS SIMPLY NOT SET UP HERE, which is most installations.
+            # Moonraker answers 404 because it never loaded the spoolman
+            # component, not because anything is broken, and refusing every
+            # print over that would make the pack unusable for anyone who does
+            # not run Spoolman -- while the one-line install pulls this file in
+            # for everybody. A 404 on that endpoint is an ABSENT FEATURE; a
+            # timeout or a 500 is a broken one, and those still refuse.
+            if error.status == 404 and error.key == spool_key:
+                self._announce_no_spoolman()
+                try:
+                    got = client.run([meta_call])
+                except moonraker.MoonrakerError as retry:
+                    raise self._refuse(
+                        "could not %s" % retry,
+                        "fix it, or SPOOL_GUARD BYPASS=1", live
+                    )
+                got[spool_key] = None
+            else:
+                raise self._refuse(
+                    "could not %s" % error,
+                    "fix it, or SPOOL_GUARD BYPASS=1", live
+                )
         job = got["read this job's metadata from Moonraker"]
         active = got["ask Moonraker which spool is active"] or {}
         spool_id = active.get("spool_id")

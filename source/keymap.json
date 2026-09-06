@@ -50,7 +50,9 @@
     "support_interface_spacing": "support_material_interface_spacing",
     "support_top_z_distance": "support_material_contact_distance",
     "support_bottom_z_distance": "support_material_bottom_contact_distance",
-    "support_interface_top_layers": "support_material_interface_layers"
+    "support_interface_top_layers": "support_material_interface_layers",
+    "enable_support": "support_material",
+    "support_on_build_plate_only": "support_material_buildplate_only"
   },
   "scope_differs": {
     "retraction_length": {
@@ -245,5 +247,12 @@
       "PC": "fdm_filament_pc",
       "_base": "fdm_filament_common"
     }
+  },
+  "process_forced": {
+    "_why": "Not translations -- decisions, and Orca-only concepts with no PS/SS equivalent to translate FROM. Same role as filament_scope._forced. gcode_label_objects is PRINTER scope in PS/SS (set to 'firmware' in *SV Zero Base*) but PROCESS scope in Orca, which is why it never reached an Orca profile and the operator had to tick Label Objects by hand on 2026-09-05 -- without it Orca emits no EXCLUDE_OBJECT_DEFINE and object skipping has nothing to skip. support_type carries Orca's combined style+automation vocabulary, tree(auto), which PS splits across support_material_style and support_material_auto. support_critical_regions_only exists only in Orca. seam_slope_type is Orca's scarf joint seam and has no PS/SS counterpart at all -- it is absent from both INIs and from ps-known-options.json. It is set to 'external' because seam_position is 'aligned', which stacks every layer's seam on the same point: measured in a 2026-09-05 ABS print, the outer wall started at exactly X=61.488 on layer after layer, so the seam is a single continuous line up the part. Scarf ramps that junction over a distance instead of butting it, which removes the witness line without scattering seams over the surface the way 'random' or 'nearest' would. 'external' rather than 'all' keeps the ramp on visible contours only. Marked beta by Orca.",
+    "gcode_label_objects": "1",
+    "support_type": "tree(auto)",
+    "support_critical_regions_only": "1",
+    "seam_slope_type": "external"
   }
 }

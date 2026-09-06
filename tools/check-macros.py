@@ -151,15 +151,19 @@ def check(path):
                              c0=60.0, b0=110.0, c_cmd=60.0, b_cmd=110.0,
                              c_step=1.0, b_step=3.0, interval=40.0,
                              has_heater=0, elapsed=0, settle_elapsed=0,
+                             c_rate=0.83, b_rate=2.5, total_s=1800.0,
+                             last_report=0,
                              idle_restore=1800.0, coast_warned=0,
                              material="default", rates_set=0, assist=0,
-                             assist_curtain=0.0, ch_written=32.0))
+                             assist_curtain=0.0, assist_exhaust=0.0,
+                             ch_written=32.0))
     settings.setdefault("gcode_macro _COOLDOWN_CFG",
                         Mock(final=35.0, chamber_rate=1.5, bed_rate=5.0,
                              chamber_step=1.0, deadband=2.0, settle_min=180,
                              settle_max=600, settle_slope=0.5, settle_tick=15,
                              park_z=100.0, max_seconds=5400, coast_delta=5.0,
-                             override_delta=0.5, idle_margin=300))
+                             override_delta=0.5, idle_margin=300,
+                             ramp_tick=15, report_seconds=60))
     # cooldown.cfg reads the chamber loop's own state -- `running` to decide
     # whether it must restart the loop, `chamber_slope` to gate the settle.
     settings.setdefault("gcode_macro _CH_STATE",
@@ -212,7 +216,74 @@ def check(path):
         if not cp.has_option(s, 'gcode') or not cp.get(s, 'gcode').strip():
             continue
         scenarios = [("", params, "S40", {}, {})]
-        if s == "gcode_macro _CH_PROXY_ANCHOR":
+        if s == "gcode_macro SET_CLEAN_TEMP":
+            # The table moved out of the slicer's G-code on 2026-09-05, so the
+            # lookup is now ours to get right rather than the emitter's.
+            scenarios = [
+                ("exact", Mock(MATERIAL="ABS"), "MATERIAL=ABS", {}, {}),
+                # Prefix match over `order`: "PLA+" must land on pla.
+                ("prefix", Mock(MATERIAL="PLA+"), "MATERIAL=PLA+", {}, {}),
+                # Unknown material takes Sovol's flat 200, not a guess.
+                ("fallback", Mock(MATERIAL="Nylon"), "MATERIAL=Nylon", {}, {}),
+                ("explicit", Mock(MATERIAL="ABS", TEMP="150"),
+                 "MATERIAL=ABS TEMP=150", {}, {}),
+            ]
+        elif s == "gcode_macro START_PRINT":
+            scenarios = [
+                # 1.3.7: a load cell exists, so the tuned overlay path runs.
+                ("load-cell", params, "", {}, {},
+                 {"probe_pressure": Mock(last_z_result=0.0)}),
+                # 1.4.x: eddy only. METHOD must be omitted entirely so the
+                # extra's own "already calibrated" skip can fire.
+                ("eddy-only", params, "", {}, {},
+                 {"probe_pressure": None}),
+            ]
+        elif s == "gcode_macro CHAMBER_STIR_ORBIT":
+            scenarios = [
+                # Shipped defaults on a 152.4 mm plate: 26 rings inside 60 s.
+                ("default", params, "", {}, {}),
+                ("default2", params, "", {}, {}),
+                # A budget that cannot fit even the first ring must say so
+                # rather than emitting a partial sweep.
+                # 0.5 s at 6000 mm/min allows 50 mm; the first ring alone needs
+                # 2*pi*10 + step + the straight return = 74.8 mm. BUDGET=1 was
+                # the first guess and it FITS one ring, which is the macro being
+                # right and the test being wrong.
+                ("no-budget", Mock(BUDGET="0.5"), "BUDGET=0.5", {}, {}),
+                # Edge clamp: a huge R_MAX must still be cut to the reach.
+                ("clamped", Mock(R_MAX="500"), "R_MAX=500", {}, {}),
+            ]
+        elif s == "gcode_macro _BRUSH_INFER_CLEAN_TEMP":
+            sv = lambda **kw: {"save_variables": Mock(variables=Mock(**kw))}
+            scenarios = [
+                # The spool knows: reuse the table rather than the curve.
+                ("from-spool", params, "", {}, {},
+                 dict(sv(last_nozzle_temp=270.0),
+                      **{"spool_guard": Mock(material="ABS")})),
+                # No spool, but this machine printed at 270 last time:
+                # 20 + 2/3*250 = 186.7 -> up to 5 -> 190.
+                ("from-last-print", params, "", {}, {},
+                 sv(last_nozzle_temp=270.0)),
+                # Nothing at all: the one genuinely blind job.
+                ("blind", params, "", {}, {}, sv(last_nozzle_temp=0.0)),
+            ]
+        elif s == "gcode_macro SVZERO_REQUIRE":
+            pack = lambda seen=0: {"gcode_macro _SVZERO_PACK":
+                                   Mock(version="1.0.4", seen=seen)}
+            scenarios = [
+                ("version-match", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
+                 {}, {}, pack()),
+                ("version-mismatch", Mock(VERSION="0.9.0"), "VERSION=0.9.0",
+                 {}, {}, pack()),
+            ]
+        elif s == "gcode_macro _SVZERO_CHECK_PROFILE":
+            scenarios = [
+                ("no-handshake", params, "", {}, {},
+                 {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=0)}),
+                ("handshake-seen", params, "", {}, {},
+                 {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=1)}),
+            ]
+        elif s == "gcode_macro _CH_PROXY_ANCHOR":
             scenarios = [("valid", params, "", {"proxy_valid": 1}, {})]
         elif s == "gcode_macro _CH_PROXY_INVALIDATE":
             scenarios = [
@@ -275,7 +346,7 @@ def check(path):
                                                         target=60.0)}
         hot_bed = {"heater_bed": Mock(temperature=108.0, target=110.0)}
 
-        def cool(ch=None, **kw):
+        def cool(ch=None, bed_temp=None, **kw):
             """A _COOL_STATE mid-ramp on the PC policy: 110/60 to 35 at 2.5.
 
             ch_target is kept consistent with c_cmd by default, because
@@ -284,15 +355,44 @@ def check(path):
             and never render the ramp. Pass `ch` to test the mismatch on
             purpose.
             """
+            # Rates and total, as COOLDOWN_START would derive them for this
+            # policy: cd 25 and bd 75 over t_total = max(25/1.0, 75/2.5) = 30
+            # min, so rc = 0.8333 and rb = 2.5 and both axes land together.
             base = dict(active=1, phase=2, policy_set=1, p_final=35.0,
                         p_chamber_rate=1.0, p_bed_rate=2.5,
                         c0=60.0, b0=110.0, c_cmd=60.0, b_cmd=110.0,
                         c_step=1.0, b_step=3.0, interval=72.0,
-                        has_heater=0, elapsed=600, settle_elapsed=180,
+                        c_rate=25.0 / 30.0, b_rate=2.5, total_s=1800.0,
+                        last_report=0,
+                        has_heater=0, elapsed=640, settle_elapsed=180,
                         idle_restore=1800.0, coast_warned=0,
                         material="pc", rates_set=0, assist=0,
-                        assist_curtain=0.0, ch_written=0.0)
+                        assist_curtain=0.0, assist_exhaust=0.0,
+                        ch_written=0.0)
+            # `b_at` places the scenario on the tick that commands this bed
+            # setpoint, by solving the schedule for elapsed. Assist cases care
+            # about where the bed is RELATIVE to its commanded value, and since
+            # the commanded value is now a function of the clock, setting it
+            # directly would describe an impossible state.
+            b_at = kw.pop("b_at", None)
             base.update(kw)
+            if b_at is not None:
+                base["elapsed"] = int(base["settle_elapsed"]
+                                      + (base["b0"] - b_at) / base["b_rate"] * 60.0
+                                      - 15)
+            # THE COMMANDED PAIR IS DERIVED FROM ELAPSED, not carried
+            # independently. Since 2026-09-05 the macro computes its setpoints
+            # as c0 - rate * t, so a scenario that set elapsed and c_cmd to
+            # unrelated values would describe a state the ramp can never be in
+            # -- and, worse, would still render. Anything the scenario passes
+            # explicitly still wins, which is how the override cases work.
+            _ramp = max(0, base["elapsed"] - base["settle_elapsed"]) if base["phase"] == 2 else 0
+            for _k, _r, _z in (("c_cmd", base["c_rate"], base["c0"]),
+                               ("b_cmd", base["b_rate"], base["b0"])):
+                if _k not in kw:
+                    base[_k] = float(max(base["p_final"], round(_z - _r * _ramp / 60.0)))
+            if "last_report" not in kw:
+                base["last_report"] = _ramp
             if ch is None:
                 ch = base["c_cmd"] + (2.0 if base["has_heater"] else 0.0)
             # ch_written tracks ch_target for the same reason ch_target tracks
@@ -303,7 +403,13 @@ def check(path):
                 base["ch_written"] = ch
             patch = {"gcode_macro _COOL_STATE": Mock(base),
                      "save_variables": Mock(variables=Mock(ch_target=ch))}
-            patch.update(hot_bed)
+            # The bed the ramp believes it commanded, coasting a little above
+            # it. A fixed 110 here would trip the bed-override abort in every
+            # scenario whose b_cmd has moved on. Scenarios that want the
+            # mismatch, or a specific bed temperature, still pass heater_bed.
+            patch["heater_bed"] = Mock(
+                temperature=base["b_cmd"] + 8.0 if bed_temp is None else bed_temp,
+                target=base["b_cmd"])
             return patch
 
         if s == "gcode_macro COOLDOWN_START":
@@ -320,6 +426,31 @@ def check(path):
                  {"heater_bed": Mock(temperature=25.0, target=0.0),
                   "save_variables": Mock(variables=Mock(ch_target=0.0))}),
             ]
+        elif s == "gcode_macro _CHAMBER_VENT":
+            # This supervisor had NO scenarios, so its branches were never
+            # rendered. It is also the macro that can drive the exhaust to 1.0.
+            hot = {"extruder": Mock(temperature=250.0, target=250.0, power=0.5),
+                   "fan_generic exhaust_fan": Mock(speed=0.0, rpm=0.0)}
+            def vent(floor, **kw):
+                sv = {"was_interrupted": 0.0, "nb_lane": 0, "ch_target": 32.0,
+                      "ch_vent_floor": floor, "ch_stall_rpm": 500,
+                      "ch_stall_samples": 3, "ch_start_grace": 2}
+                sv.update(kw)
+                return dict(hot, **{"save_variables": Mock(variables=Mock(sv))})
+            scenarios = [
+                # A real floor, chamber PI not running: it must command the fan.
+                ("floor-set-runs", None, "", {"running": 0, "vent_latched": 1}, {},
+                 vent(0.11)),
+                # ZERO floor: must NOT latch and must NOT command a speed. If it
+                # latched at zero duty the tach guard would count a fan that is
+                # off by design as a stall and fail safe at 1.0.
+                ("floor-zero-is-off", None, "", {"running": 0, "vent_latched": 1}, {},
+                 vent(0.0)),
+                # The rounding IS the deadband: below half a percent is off.
+                ("floor-rounds-to-off", None, "", {"running": 0, "vent_latched": 1}, {},
+                 vent(0.004)),
+            ]
+
         elif s == "gcode_macro _COOLDOWN_CLEAR":
             # KEEP_POLICY is the whole point of this macro having a parameter,
             # and it is only reachable by passing one. Rendered with the default
@@ -334,13 +465,25 @@ def check(path):
                  cool(phase=1, settle_elapsed=0, elapsed=0)),
                 ("settle-flat", params, "", {}, {},
                  cool(phase=1, settle_elapsed=180, elapsed=180)),
+                # The settle phase used to say NOTHING for up to ten minutes,
+                # which read as a hung cooldown. A still-moving chamber holds
+                # the phase open, so this must report rather than fall silent.
+                ("settle-progress", params, "", {}, {},
+                 dict(cool(phase=1, settle_elapsed=300, elapsed=300),
+                      **{"gcode_macro _CH_STATE":
+                          Mock(running=1, chamber_slope=-1.2)})),
                 ("ramp-heaterless", params, "", {}, {}, cool()),
+                # Whole-degree commands, and a progress line with an ETA.
+                ("ramp-integer", params, "", {}, {}, cool()),
+                ("ramp-progress", params, "", {}, {}, cool(last_report=0)),
                 ("ramp-heater", params, "", {}, {},
                  dict(cool(has_heater=1), **heater)),
-                ("ramp-last-step", params, "", {}, {},
-                 cool(c_cmd=35.5, b_cmd=110.0,
-                      **{"b_step": 200.0})),
-                ("abort-bed-override", params, "", {}, {}, cool(b_cmd=42.0)),
+                # The endpoint is reached by ELAPSED now: settle 180 plus the
+                # full 1800 s schedule, so both axes snap to final together.
+                ("ramp-last-step", params, "", {}, {}, cool(elapsed=1980)),
+                ("abort-bed-override", params, "", {}, {},
+                 dict(cool(), **{"heater_bed": Mock(temperature=108.0,
+                                                    target=42.0)})),
                 ("abort-chamber-override", params, "", {}, {},
                  cool(ch=48.0, ch_written=60.0)),
                 # M141 S0 -- a RELEASE, which slicers emit at end of job. It
@@ -355,47 +498,63 @@ def check(path):
                 # ASSIST. The bed is below the ceiling and a long way behind the
                 # schedule -- the regime where the heater has nothing left.
                 ("assist-engage", params, "", {}, {},
-                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
-                      **{"heater_bed": Mock(temperature=55.0, target=45.0)})),
+                 cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=55.0)),
+                # Just past error_on: the exhaust must come up at the stall
+                # floor, NOT at full. err 1.5, over 0.5 of a 5 C band, so
+                # 0.13 + 0.87 * 0.1 = 0.217.
+                ("assist-min-fan", params, "", {}, {},
+                 cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=46.5)),
+                # Same small error with the curtain ENABLED: it must still stay
+                # out, because the exhaust is nowhere near spent.
+                ("assist-curtain-withheld", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=46.5),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                             Mock(exhaust_enable=1, curtain_enable=1,
+                                  error_on=1.0, error_off=0.3,
+                                  exhaust_span=5.0, exhaust_min=0.0,
+                                  exhaust_max=1.0, curtain_span=5.0,
+                                  curtain_max=0.45, bed_ceiling=60.0)})),
                 # Same error, bed ABOVE the ceiling. Must NOT engage: this is
                 # the gate that keeps forced air off a part that is still hot.
                 ("assist-ceiling", params, "", {}, {},
-                 dict(cool(b_cmd=95.0, c_cmd=40.0, c_step=0.0),
-                      **{"heater_bed": Mock(temperature=108.0, target=95.0)})),
+                 dict(cool(b_at=95.0, c_step=0.0, c_rate=0.0, bed_temp=108.0),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                             Mock(exhaust_enable=1, curtain_enable=1,
+                                  error_on=1.0, error_off=0.3,
+                                  exhaust_span=5.0, exhaust_min=0.0,
+                                  exhaust_max=1.0, curtain_span=5.0,
+                                  curtain_max=0.45, bed_ceiling=60.0)})),
                 # Latched on, error now inside the release band. Must release
                 # rather than hold, or the fans never stop.
                 ("assist-release", params, "", {}, {},
-                 dict(cool(b_cmd=54.5, c_cmd=40.0, c_step=0.0, assist=1,
-                           assist_curtain=0.3),
-                      **{"heater_bed": Mock(temperature=52.0, target=54.5)})),
+                 cool(b_at=54.0, c_step=0.0, c_rate=0.0, assist=1,
+                      assist_curtain=0.3, bed_temp=52.0)),
                 # Curtain explicitly enabled: the fan write must appear.
                 ("assist-curtain", params, "", {}, {},
-                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
-                      **{"heater_bed": Mock(temperature=55.0, target=45.0),
-                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=55.0),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
                              Mock(exhaust_enable=1, curtain_enable=1,
-                                  error_on=3.0, error_off=1.0,
-                                  bed_ceiling=60.0, exhaust_offset=6.0,
-                                  curtain_gain=0.10, curtain_max=0.45)})),
+                                  error_on=1.0, error_off=0.3,
+                                  exhaust_span=5.0, exhaust_min=0.0,
+                                  exhaust_max=1.0, curtain_span=5.0,
+                                  curtain_max=0.45, bed_ceiling=60.0)})),
                 # Bed-only ramp -- c_step 0, no chamber ceiling to lower. The
                 # assist must claim one outright rather than min() against the
                 # zero that means "no chamber control".
                 ("assist-bed-only-claims-ceiling", params, "", {}, {},
-                 dict(cool(b_cmd=45.0, c_cmd=0.0, c_step=0.0, ch=0.0, ch_written=0.0),
-                      **{"heater_bed": Mock(temperature=55.0, target=45.0)})),
+                 cool(b_at=45.0, c_cmd=0.0, c_step=0.0, c_rate=0.0, ch=0.0,
+                      ch_written=0.0, bed_temp=55.0)),
                 # Latched on with a claimed ceiling, error now inside the release
                 # band: it must hand the ceiling back, not leave the exhaust
                 # venting to a stale setpoint for the rest of the ramp.
                 ("assist-bed-only-releases-ceiling", params, "", {}, {},
-                 dict(cool(b_cmd=54.5, c_cmd=0.0, c_step=0.0, assist=1,
-                           ch=32.0, ch_written=32.0),
-                      **{"heater_bed": Mock(temperature=52.0, target=54.5)})),
+                 cool(b_at=54.0, c_cmd=0.0, c_step=0.0, c_rate=0.0, assist=1,
+                      ch=32.0, ch_written=32.0, bed_temp=52.0)),
                 # No chamber sensor at all. The exhaust half must sit down
                 # quietly rather than commanding a ceiling off a missing read.
                 ("assist-no-chamber-sensor", params, "", {}, {},
-                 dict(cool(b_cmd=45.0, c_cmd=40.0, c_step=0.0),
-                      **{"heater_bed": Mock(temperature=55.0, target=45.0),
-                         "temperature_sensor chamber_temp": None})),
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=55.0),
+                      **{"temperature_sensor chamber_temp": None})),
             ]
         elif s == "gcode_macro _CHAMBER_GUARD":
             # The whole body is behind `running == 1`, so a scenario that does
@@ -495,6 +654,30 @@ def check(path):
             ("gcode_macro COOLDOWN_START", "nothing-to-do"): "nothing to ramp",
             ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "DURATION=15",
             ("gcode_macro _COOLDOWN_TICK", "settle-flat"): "starting ramp",
+            ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
+            # Arcs, not straight-line approximations, and a full circle has no
+            # endpoint so gcode_arcs takes its 2*pi branch.
+            ("gcode_macro CHAMBER_STIR_ORBIT", "default"): "G2 I-10.0 J0",
+            # 26 rings from 10 to 60 mm at a 2 mm step, the largest sweep that
+            # fits 60 s at 6000 mm/min.
+            ("gcode_macro CHAMBER_STIR_ORBIT", "default2"): "26 rings 10-60mm",
+            ("gcode_macro CHAMBER_STIR_ORBIT", "no-budget"): "too small for even one ring",
+            ("gcode_macro SET_CLEAN_TEMP", "exact"): "M104 S195",
+            ("gcode_macro _BRUSH_INFER_CLEAN_TEMP", "from-spool"): "SET_CLEAN_TEMP MATERIAL=ABS",
+            ("gcode_macro _BRUSH_INFER_CLEAN_TEMP", "from-last-print"): "SET_CLEAN_TEMP TEMP=190",
+            ("gcode_macro _BRUSH_INFER_CLEAN_TEMP", "blind"): "no print history",
+            ("gcode_macro SET_CLEAN_TEMP", "prefix"): "M104 S170",
+            ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
+            ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
+            # The handshake WARNS and never refuses, in both directions.
+            ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "profile expects pack 0.9.0",
+            ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake"): "not sliced by an rpcyan SV Zero profile",
+            ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "settling 315/600s",
+            # The bed setpoint is commanded in whole degrees: at 460 -> 475 s of
+            # a 2.5 C/min bed leg from 110 the line sits at 90.21, which must be
+            # commanded as 90 and not as 90.21.
+            ("gcode_macro _COOLDOWN_TICK", "ramp-integer"): "M140 S90",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-progress"): "cooling to 35C",
             ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "SAVE_VARIABLE VARIABLE=ch_target",
             ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "HEATER=chamber_heater",
             ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
@@ -504,10 +687,19 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "watchdog"): "watchdog",
             ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "_COOLDOWN_CLEAR KEEP_POLICY=1",
             ("gcode_macro _COOLDOWN_CLEAR", "clears-policy"): "VARIABLE=policy_set VALUE=0",
+            ("gcode_macro _CHAMBER_VENT", "floor-set-runs"): "VARIABLE=vent_active VALUE=1",
             ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "assist engaged",
+            ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "assist engaged",
             ("gcode_macro _COOLDOWN_TICK", "assist-release"): "assist released",
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2",
-            ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-claims-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=24.0",
+            # err 10, over 9: the exhaust saturates at 5 C and the curtain
+            # takes the remaining 4 of its own 5 C band -> 0.45 * 0.8 = 0.36.
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2 SPEED=0.36",
+            ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "CHAMBER_ASSIST_FLOOR FLOOR=0.217",
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "CHAMBER_ASSIST_FLOOR FLOOR=0.217",
+            # A bed-only ramp claims a NEUTRAL ceiling -- the chamber's own
+            # 30 C -- so the PI asks for nothing and the assist floor alone
+            # drives the fan. It used to claim chamber-6 = 24, which saturates.
+            ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-claims-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=30.0",
             # Paired with the forbid below: this proves the scenario really did
             # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
             # than that the macro took some other branch entirely.
@@ -560,8 +752,30 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  # The clamp must bite: axis_maximum is 200 in the fixture, so
+                  # a ring at 500 mm would be off the machine entirely.
+                  ("gcode_macro CHAMBER_STIR_ORBIT", "clamped"): "X500",
+                  ("gcode_macro CHAMBER_STIR_ORBIT", "no-budget"): "G2 ",
+                  # On a machine with no load cell, forcing the overlay costs a
+                  # heat-up and a contact probe on EVERY print.
+                  ("gcode_macro START_PRINT", "eddy-only"): "METHOD=force_overlay",
+                  # A matching version must say nothing at all.
+                  ("gcode_macro SVZERO_REQUIRE", "version-match"): "profile expects",
+                  ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen"): "not sliced by",
+                  # Never abort: the whole point is graceful degradation.
+                  ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "action_raise_error",
+                  # Paired with the "M140 S90" expect: a trailing decimal point
+                  # is the failure mode the integer snap exists to prevent, and
+                  # a plain substring expect would happily match "M140 S90.21".
+                  ("gcode_macro _COOLDOWN_TICK", "ramp-integer"): "M140 S90.",
                   # The ceiling is the whole point: above it, nothing engages.
-                  ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "assist engaged",
+                  # The ceiling withholds the CURTAIN only now: a draft across
+                  # a 108 C plate is what it exists to prevent. Extraction is
+                  # still allowed, and is asserted in `expect`.
+                  ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "SET_FAN_SPEED FAN=fan2",
+                  # Engaging must never mean slamming to full duty.
+                  ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "FLOOR=1.0",
+                  ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "SET_FAN_SPEED FAN=fan2",
                   # Curtain is off by default, so the default assist scenario
                   # must never reach for fan2.
                   ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
@@ -576,6 +790,10 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "chamber-released"): "_COOLDOWN_",
                   # Deferring must not touch ch_target on the way past.
                   ("gcode_macro M141", "ramp-owns-it"): "SAVE_VARIABLE",
+                  # A zero floor must never arm the supervisor. vent_active is
+                  # what puts the tach guard on a fan that is off on purpose.
+                  ("gcode_macro _CHAMBER_VENT", "floor-zero-is-off"): "vent_active VALUE=1",
+                  ("gcode_macro _CHAMBER_VENT", "floor-rounds-to-off"): "vent_active VALUE=1",
                   ("gcode_macro SET_LED", "index-masked"): "WHITE=1.0",
                   ("gcode_macro SET_LED", "index-clear"): "INDEX=20",
                   # A renormalized call must not pass the raw value through.

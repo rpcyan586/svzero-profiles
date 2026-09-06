@@ -358,7 +358,13 @@ def install_orca(datadir):
     # choice. Anything removed here is one checkbox away in the same dialog.
     ours = sorted(f[:-5] for f in os.listdir(os.path.join(ours_dir, "filament"))
                   if f.endswith(".json") and not f.startswith("fdm_"))
-    keep = [x for x in d.get("filaments", [])
+    # `or []` rather than a get() default: Orca writes "filaments": null -- not a
+    # missing key -- when it has no filaments to record, which is exactly the
+    # state a dead vendor bundle leaves behind. get(k, []) returns the None, so
+    # the broken bundle crashed the tool meant to reinstall it. Same trap as
+    # Jinja's `in printer` versus `|default`: the key existing says nothing about
+    # the value being usable.
+    keep = [x for x in (d.get("filaments") or [])
             if x.startswith(("Generic PLA", "Generic PETG", "Generic ABS", "Generic TPU"))]
     d["filaments"] = ours + sorted(set(keep))
 

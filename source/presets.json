@@ -242,7 +242,7 @@
         "solid_fill_pattern": "monotonic",
         "solid_infill_extrusion_width": "112.5%",
         "solid_infill_overlap": "100%",
-        "support_material": "0",
+        "support_material": "1",
         "support_material_style": "organic",
         "thin_perimeters": "80%",
         "top_fill_pattern": "monotonic",
@@ -251,7 +251,10 @@
         "top_solid_layers": "4",
         "travel_speed_z": "300",
         "wipe_tower": "0",
-        "xy_size_compensation": "0"
+        "xy_size_compensation": "0",
+        "support_material_auto": "1",
+        "support_material_buildplate_only": "1",
+        "_why_supports": "ON by default from 2026-09-05, operator's call: supports are disliked but occasionally necessary, and anything used or published should have them configured properly rather than left at whatever the slicer defaults to. Tree/organic, automatic, build-plate-only. Orca also gets support_critical_regions_only, which has no PS equivalent -- see keymap.json process_forced."
       },
       "variants": [
         {

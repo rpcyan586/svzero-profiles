@@ -427,7 +427,12 @@ def emit_physical_printers(model, ss):
     model.
     """
     hosts = model.get("hosts")
-    if not hosts:
+    if not hosts or not PERSONAL:
+        # A [physical_printer:] section exists ONLY to carry an address, so
+        # there is nothing to emit for a published bundle -- not a blank one,
+        # which would just be a broken entry in the user's printer list.
+        # Somebody installing the pack adds their own printer once, in the
+        # dialog built for it.
         return 0
     printers = [n for n in ss if n.startswith("printer:") and not n.startswith("printer:*")]
     names = [p.split(":", 1)[1] for p in printers]
@@ -768,6 +773,10 @@ def ps_absolutise_speeds(kv):
 
 
 PS_KNOWN = set()          # filled in main() from source/ps-known-options.json
+# Set by main() from --personal. False is the publishable build, and it is the
+# default precisely because the failure mode of the other default is shipping a
+# stranger a profile pointing at <printer-address> on their own network.
+PERSONAL = False
 
 
 def emit_ps_presets(ss, out_dir):
@@ -1239,6 +1248,11 @@ def emit_orca(model, ss, keymap, out_dir):
         if old.endswith(".json"):
             os.remove(os.path.join(out_dir, old))
     rev = {v: k for k, v in keymap["mapped"].items()}
+    # Orca-only decisions, applied after translation. Same role as
+    # filament_scope._forced: these are settings with no PS/SS key to translate
+    # from, or ones whose scope differs, so nothing upstream can carry them.
+    forced_process = {k: v for k, v in keymap.get("process_forced", {}).items()
+                      if not k.startswith("_")}
     written, unmapped, unresolved = 0, collections.Counter(), []
     written_names = []
     for name, kv in ss.items():
@@ -1298,6 +1312,9 @@ def emit_orca(model, ss, keymap, out_dir):
         # never a slicer field. See model.json _sqv_note.
         # Orca is strict: any non-string scalar fails the profile, and one bad
         # profile fails the whole vendor bundle silently from the user's side.
+        # Orca-only decisions last, so they cannot be overwritten by a
+        # translated value and so they appear on every process preset.
+        doc.update(forced_process)
         for k, v in list(doc.items()):
             if isinstance(v, bool) or isinstance(v, (int, float)):
                 doc[k] = str(v)
@@ -1330,6 +1347,25 @@ def emit_orca(model, ss, keymap, out_dir):
             mach["nozzle_diameter"] = [noz]
             mach["printer_variant"] = noz
             mach["gcode_flavor"] = "klipper"
+            # PINNED, not left to Orca's default, even though the default is
+            # already 1. Three things have to agree here and only one of them
+            # was ever written down:
+            #
+            #   * before_layer_change_gcode contains "G92 E0". Print.cpp:1423
+            #     rejects that outright under ABSOLUTE addressing -- '"G92 E0"
+            #     was found in before_layer_gcode, which is incompatible with
+            #     absolute extruder addressing'.
+            #   * Sovol ships use_relative_e_distances "0" on all five of its
+            #     own machines, so anything inheriting from their base and not
+            #     overriding this gets absolute and hits exactly that error.
+            #   * gcode_label_objects is now 1 (2026-09-05), and Orca's own
+            #     tooltip opens with "Relative extrusion is recommended when
+            #     using label_objects".
+            #
+            # Relative is what we were already getting and what the rest of the
+            # profile is built around; this only stops it depending on an unset
+            # default lining up with our layer G-code by luck.
+            mach["use_relative_e_distances"] = "1"
             # Must match the emitted process filename exactly. "%s" % 0.2 gives
             # "0.2" while the file is "0.20mm" — a dangling reference, and Orca
             # treats a machine preset pointing at a non-existent process as
@@ -1345,8 +1381,12 @@ def emit_orca(model, ss, keymap, out_dir):
             mach["default_filament_profile"] = ["SV Zero PLA - Brass"]
             mach["printable_area"] = ["0x0", "152.4x0", "152.4x152.4", "0x152.4"]
             mach["printable_height"] = "152.4"
+            # host_type stays either way: it says which API Moonraker speaks,
+            # which is true of every Zero and is not anybody's address. Only
+            # print_host is personal.
             mach["host_type"] = hosts["orcaslicer_host_type"]
-            mach["print_host"] = default["host"]
+            if PERSONAL:
+                mach["print_host"] = default["host"]
             json.dump(mach, open(os.path.join(out_dir, "%s.json" % mach["name"]), "w",
                                  encoding="utf-8"), indent=2)
             written += 1
@@ -1363,39 +1403,41 @@ def emit_orca(model, ss, keymap, out_dir):
 # -- before driving straight to an XY position with no Z clearance.
 
 def clean_temp_lines(data):
-    """Material-aware cleaning temperature, as start-G-code lines.
+    """Name the material and let the macro pack own the table.
 
-    CLEAN_NOZZLE is invoked by Sovol's START_PRINT, not by the slicer, so TEMP=
-    cannot be passed as a parameter. The slicer sets the _BRUSH variable instead
-    and START_PRINT's call picks it up. Both PrusaSlicer/SuperSlicer and Orca use
-    the same placeholder parser and the same filament_type vocabulary here
-    (PLA/PETG/ABS/TPU/PC verified across all three emitted bundles), so one block
-    serves every target.
+    RELOCATED 2026-09-05. This used to emit a generated if/elsif ladder ending in
 
-    The M104 beside each SET_GCODE_VARIABLE is the head start: it must match, or
-    the nozzle arrives at the brush at the wrong temperature. Emitting them as a
-    pair from one table is what keeps them matched -- they were two hand-edited
-    constants before, in two files.
+        SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=170
+
+    which was the single line in the whole published profile capable of turning a
+    missing macro pack into an ABORTED JOB. SET_GCODE_VARIABLE is a mux command
+    keyed on MACRO, so with no _BRUSH defined Klipper raises "The value '_BRUSH'
+    is not valid for MACRO". Every other command we emit is an ordinary macro
+    call, and an unknown macro only warns (gcode.py:305 is respond_info, not an
+    exception) -- so that one line was the difference between a profile that
+    degrades and a profile that fails.
+
+    The table now lives in nozzle_brush.cfg as _BRUSH_CLEAN_TEMPS, matching what
+    COOLDOWN_ARM already does one block further down: the slicer names the
+    material, the pack owns the policy. One table serves every slicer, the spool
+    can name the material when no slicer does, and the emitted G-code stops
+    carrying a copy of a curve that is still only proposed.
+
+    `data` is kept as the argument so source/filament-clean-temp.json remains the
+    single documented home of the curve -- it is now the source for the macro's
+    table rather than for these lines, and the comment points a reader at it.
     """
-    by = data["by_type"]
-    dflt = data["default"]
-    out = [
-        ";>>>CLEAN_TEMP generated from source/filament-clean-temp.json -- do not hand-edit",
-        ";  PROPOSED curve, not a measurement. Keyed on filament_type only: the",
-        ";  curve's Brass/Steel split is not visible from any placeholder here and",
-        ";  both local nozzles are material-unverified, so PLA takes one value.",
-        ";  Fallback is Sovol's stock 200 -- vendor behaviour when we know nothing.",
+    return [
+        ";>>>CLEAN_TEMP",
+        ";  The material is NAMED here; the temperature table lives in the macro",
+        ";  pack, in nozzle_brush.cfg's _BRUSH_CLEAN_TEMPS. Same division as",
+        ";  COOLDOWN_ARM below. Provenance for the curve is",
+        ";  source/filament-clean-temp.json.",
+        ";  Safe to omit: without the pack this is an unknown command and only",
+        ";  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.",
+        "SET_CLEAN_TEMP MATERIAL=[filament_type]",
+        ";<<<CLEAN_TEMP",
     ]
-    for i, (t, v) in enumerate(sorted(by.items(), key=lambda kv: kv[1])):
-        kw = "if" if i == 0 else "elsif"
-        out.append('{%s filament_type[0]=="%s"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=%d' % (kw, t, v))
-        out.append("M104 S%d ; head start to the cleaning temperature" % v)
-    out.append("{else}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=%d" % dflt)
-    out.append("M104 S%d ; unknown material -- Sovol's stock cleaning temperature" % dflt)
-    out.append("{endif}")
-    out.append(";<<<CLEAN_TEMP")
-    return out
-
 
 def cooldown_lines(data):
     """Post-print cooldown policy, as start-G-code lines.
@@ -1587,6 +1629,28 @@ def emit_orca_vendor(model, ss, out_dir):
     for sub in ("machine", "process", "filament"):
         os.makedirs(os.path.join(vend, sub), exist_ok=True)
 
+    # CLEAR EVERY SUBDIR BEFORE WRITING ANYTHING, for the reason emit_orca
+    # clears its own output: a renamed tier leaves its old profile behind, and
+    # Orca resolves `inherits` against the index rather than the disk, so an
+    # orphan is invisible to the slicer and indistinguishable from a current
+    # profile to a human reading the repo. Found 2026-09-05 with 19 orphans
+    # against 20 indexed -- old tier names from before a rename.
+    #
+    # ORDER IS THE WHOLE POINT, and getting it wrong cost a working bundle.
+    # Introduced on 2026-09-05, this loop originally ran AFTER the machine_model
+    # below was written, so it deleted the model it had just created. Nothing
+    # rewrote it, the index kept pointing at machine/SV Zero.json, and Orca
+    # failed the ENTIRE vendor on the one unresolvable entry -- no Zero in the
+    # printer list and no filaments at all, with the only clue in Orca's own log
+    # ("unexpected end of input"). Every write in this function must come after
+    # this loop.
+    for sub in ("process", "machine", "filament"):
+        d = os.path.join(vend, sub)
+        if os.path.isdir(d):
+            for old_file in os.listdir(d):
+                if old_file.endswith(".json"):
+                    os.remove(os.path.join(d, old_file))
+
     # the machine_model — this is the piece that was missing
     mm = collections.OrderedDict([
         ("type", "machine_model"), ("name", "SV Zero"), ("model_id", "SV-ZERO"),
@@ -1614,7 +1678,6 @@ def emit_orca_vendor(model, ss, out_dir):
     roots = [("fdm_process_common", "process", process_list),
              ("fdm_machine_common", "machine", machine_list)]
     roots += [(r, "filament", filament_list) for r in ORCA_FILAMENT_ROOTS]
-    os.makedirs(os.path.join(vend, "filament"), exist_ok=True)
     for root, sub, lst in roots:
         src = os.path.join(SOVOL_VENDOR, "Sovol", sub, root + ".json")
         if os.path.exists(src):
@@ -1669,6 +1732,13 @@ def emit_orca_vendor(model, ss, out_dir):
         # Explicit --load-settings slicing does not resolve the vendor root,
         # and the one-filament constraint must survive that supported path.
         m["single_extruder_multi_material"] = "0"
+        # Same pin as the user-preset emitter above, and it has to be repeated
+        # because the vendor machines are built here from scratch rather than
+        # copied from bundles/orca -- the vendor is what Orca actually loads for
+        # the printer list, so a pin that lands only in the user presets is a
+        # pin that never reaches the slicer. See the long note at
+        # mach["use_relative_e_distances"].
+        m["use_relative_e_distances"] = "1"
         g = m.get("machine_start_gcode", "")
         g = g[0] if isinstance(g, list) else g
         if ORCA_START_CUT in g:
@@ -1695,7 +1765,10 @@ def emit_orca_vendor(model, ss, out_dir):
                 "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
             m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
-        m["print_host"] = default_host["host"]
+        # Same rule as the user-preset emitter: the vendor bundle is the thing
+        # strangers install, so it must never carry an address.
+        if PERSONAL:
+            m["print_host"] = default_host["host"]
         dflt = model["tiers"].get("_default_print_tier", "Standard")
         lh = model["layer_heights"].get(noz, {}).get(dflt)
         if lh is not None:
@@ -1738,9 +1811,22 @@ def emit_orca_vendor(model, ss, out_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--emit", default="", help="comma list: ss,ps,ps-presets,ps-vendor,orca,orca-vendor")
+    ap.add_argument("--emit", default="",
+                    help="comma list: ss,ps,ps-presets,ps-vendor,orca,orca-vendor,ps3")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--personal", action="store_true",
+                    help="bake this operator's own printer hosts into the "
+                         "bundle. OFF by default: the published pack must not "
+                         "carry anybody's LAN addresses, and the safe build is "
+                         "the one you get by forgetting the flag.")
     args = ap.parse_args()
+    # Immediately after parsing and before any emitter runs. It was set further
+    # down at first, AFTER emit_physical_printers had already been called, so
+    # --personal silently produced a published bundle -- the one direction of
+    # that mistake that is merely useless rather than leaky, but wrong either
+    # way.
+    global PERSONAL
+    PERSONAL = args.personal
 
     model = load("model.json")
     keymap = load("keymap.json")
@@ -1879,6 +1965,50 @@ def main():
     if args.check and problems:
         sys.exit(1)
 
+
+    if "ps3" in emit:
+        # PrusaSlicer 3.0. Separate module because it shares an option
+        # vocabulary with PS2 and essentially nothing else -- see
+        # notes/kb/prusaslicer3-profiles.md and the header of emit_ps3.py.
+        import emit_ps3
+        ovr = load("nozzle-overrides.json")["by_nozzle_and_tier"]
+        # The per-nozzle values are exactly what forced 19 separate process
+        # presets out of PS2: extrusion widths that must not inherit across
+        # nozzles. In PS3 they are variants on tool.nozzle_diameter instead.
+        per_nozzle = {}
+        for noz, tiers in ovr.items():
+            first = next(iter(tiers.values()))
+            per_nozzle[noz.rstrip("n")] = {
+                k: v for k, v in first.items() if k != "z_hop"}
+        common = dict(ss.get("print:*SV Zero General*", {}))
+        common.pop("inherits", None)
+        # The printer preset's values come from the same PS2 printer section the
+        # other emitters use, so start/end G-code and the machine limits stay in
+        # one place. gcode_flavor is pinned here for the same reason it is
+        # pinned in the Orca emitters: PS3's default is `reprap`, and inheriting
+        # a default that happens to work is how the relative-E tangle started.
+        printer_vals = {}
+        for sec, kv in ss.items():
+            if sec.startswith("printer:") and "SV Zero" in sec:
+                printer_vals = {k: v for k, v in kv.items() if k != "inherits"}
+                break
+        printer_vals["gcode_flavor"] = "klipper"
+        printer_vals["printer_technology"] = "FFF"
+        printer_vals["use_relative_e_distances"] = 1
+        out = os.path.join(ROOT, "bundles", "ps3")
+        os.makedirs(out, exist_ok=True)
+        nfiles, problems, dropped = emit_ps3.emit(
+            model, out, PS_VENDOR_VERSION if "PS_VENDOR_VERSION" in globals()
+            else "1.0.0",
+            per_nozzle, common, printer_vals,
+            ["1.0.0 Initial SV Zero bundle for PrusaSlicer 3"])
+        for p in problems:
+            print("  ps3 SCHEMA: %s" % p)
+        if dropped:
+            print("  ps3: %d key(s) not in PS3's schema, dropped: %s"
+                  % (len(dropped), ", ".join(dropped)))
+        print("  wrote PrusaSlicer 3 bundle: %d file(s), %d schema problem(s)"
+              % (nfiles, len(problems)))
 
 if __name__ == "__main__":
     main()
