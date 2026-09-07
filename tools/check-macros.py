@@ -216,7 +216,9 @@ def check(path):
         if not cp.has_option(s, 'gcode') or not cp.get(s, 'gcode').strip():
             continue
         scenarios = [("", params, "S40", {}, {})]
-        if s == "gcode_macro SET_CLEAN_TEMP":
+        if s == "gcode_macro CHAMBER_ORBIT_SWEEP":
+            scenarios = [("default", Mock(CYCLES="1"), "CYCLES=1", {}, {})]
+        elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
             # lookup is now ours to get right rather than the emitter's.
             scenarios = [
@@ -238,20 +240,42 @@ def check(path):
                 ("eddy-only", params, "", {}, {},
                  {"probe_pressure": None}),
             ]
-        elif s == "gcode_macro CHAMBER_STIR_ORBIT":
+        elif s == "gcode_macro ORBIT_WHINE_SWEEP":
             scenarios = [
-                # Shipped defaults on a 152.4 mm plate: 26 rings inside 60 s.
                 ("default", params, "", {}, {}),
-                ("default2", params, "", {}, {}),
-                # A budget that cannot fit even the first ring must say so
-                # rather than emitting a partial sweep.
-                # 0.5 s at 6000 mm/min allows 50 mm; the first ring alone needs
-                # 2*pi*10 + step + the straight return = 74.8 mm. BUDGET=1 was
-                # the first guess and it FITS one ring, which is the macro being
-                # right and the test being wrong.
-                ("no-budget", Mock(BUDGET="0.5"), "BUDGET=0.5", {}, {}),
-                # Edge clamp: a huge R_MAX must still be cut to the reach.
-                ("clamped", Mock(R_MAX="500"), "R_MAX=500", {}, {}),
+                # 300 mm/s at r=20 needs 4500 mm/s2, just inside the 5000 limit;
+                # r=10 would need 9000 and must be refused rather than attempted.
+                ("over-accel", Mock(R="10", VMIN="300", VMAX="300"),
+                 "R=10 VMIN=300 VMAX=300", {}, {}),
+            ]
+        elif s == "gcode_macro CHAMBER_ORBIT_CYCLE":
+            scenarios = [
+                ("full", params, "", {}, {},
+                 {"gcode_macro _CHAMBER_ORBIT_STATE": Mock(dict(
+                     arcs=[[-14.0, -18.0, 2, 101], [22.0, 26.0, 2, 104],
+                           [-58.0, -58.0, 2, 141], [14.0, 10.0, 2, 101]],
+                     cx=100.0, cy=100.0, feed=6000, active=1, index=0))}),
+                ("inactive", params, "", {}, {},
+                 {"gcode_macro _CHAMBER_ORBIT_STATE": Mock(dict(
+                     arcs=[[-14.0, -18.0, 2, 101]], cx=100.0, cy=100.0, feed=6000,
+                     active=0, index=0))}),
+            ]
+        elif s == "gcode_macro CHAMBER_ORBIT_STEP":
+            # A PRINTER PATCH, not a state override: the 4th element patches the
+            # macro's OWN variables and this macro has none -- it reads
+            # _CHAMBER_ORBIT_STATE. Same trap as _SVZERO_CHECK_PROFILE.
+            arcs = [[-14.0, -18.0, 2, 101], [22.0, 26.0, 2, 104],
+                    [-22.0, -18.0, 2, 104], [14.0, 10.0, 2, 101]]
+            def orbit(**kw):
+                d = dict(arcs=arcs, cx=100.0, cy=100.0, feed=699, active=1,
+                         index=0)
+                d.update(kw)
+                return {"gcode_macro _CHAMBER_ORBIT_STATE": Mock(d)}
+            scenarios = [
+                ("mid-sweep", params, "", {}, {}, orbit(index=1)),
+                # Past the last arc: re-centre and restart, never park outside.
+                ("wraps", params, "", {}, {}, orbit(index=4)),
+                ("inactive", params, "", {}, {}, orbit(active=0)),
             ]
         elif s == "gcode_macro _BRUSH_INFER_CLEAN_TEMP":
             sv = lambda **kw: {"save_variables": Mock(variables=Mock(**kw))}
@@ -368,7 +392,7 @@ def check(path):
                         idle_restore=1800.0, coast_warned=0,
                         material="pc", rates_set=0, assist=0,
                         assist_curtain=0.0, assist_exhaust=0.0,
-                        ch_written=0.0)
+                        curtain_latched=0, ch_written=0.0)
             # `b_at` places the scenario on the tick that commands this bed
             # setpoint, by solving the schedule for elapsed. Assist cases care
             # about where the bed is RELATIVE to its commanded value, and since
@@ -513,7 +537,10 @@ def check(path):
                                   error_on=1.0, error_off=0.3,
                                   exhaust_span=5.0, exhaust_min=0.0,
                                   exhaust_max=1.0, curtain_span=5.0,
-                                  curtain_max=0.45, bed_ceiling=60.0)})),
+                                  curtain_max=1.0, bed_ceiling=60.0,
+                                  curtain_strength_factor=1.0,
+                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_min=0.20)})),
                 # Same error, bed ABOVE the ceiling. Must NOT engage: this is
                 # the gate that keeps forced air off a part that is still hot.
                 ("assist-ceiling", params, "", {}, {},
@@ -523,7 +550,10 @@ def check(path):
                                   error_on=1.0, error_off=0.3,
                                   exhaust_span=5.0, exhaust_min=0.0,
                                   exhaust_max=1.0, curtain_span=5.0,
-                                  curtain_max=0.45, bed_ceiling=60.0)})),
+                                  curtain_max=1.0, bed_ceiling=60.0,
+                                  curtain_strength_factor=1.0,
+                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_min=0.20)})),
                 # Latched on, error now inside the release band. Must release
                 # rather than hold, or the fans never stop.
                 ("assist-release", params, "", {}, {},
@@ -537,7 +567,41 @@ def check(path):
                                   error_on=1.0, error_off=0.3,
                                   exhaust_span=5.0, exhaust_min=0.0,
                                   exhaust_max=1.0, curtain_span=5.0,
-                                  curtain_max=0.45, bed_ceiling=60.0)})),
+                                  curtain_max=1.0, bed_ceiling=60.0,
+                                  curtain_strength_factor=1.0,
+                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_min=0.20)})),
+                # THE HANDOVER. err 6.0, over 5.0, so demand lands exactly on
+                # curtain_latch. The exhaust must STEP DOWN to
+                # latch - k * curtain_min = 0.60 in the same tick the curtain
+                # appears at its floor, and total cooling must be unchanged:
+                # 0.80 alone before, 0.60 + 1.0 * 0.20 after.
+                ("assist-latch-handover", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=51.0),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                             Mock(exhaust_enable=1, curtain_enable=1,
+                                  error_on=1.0, error_off=0.3,
+                                  exhaust_span=5.0, exhaust_min=0.0,
+                                  exhaust_max=1.0, curtain_span=5.0,
+                                  curtain_max=1.0, bed_ceiling=60.0,
+                                  curtain_strength_factor=1.0,
+                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_min=0.20)})),
+                # PHASE B. err 7.0, over 6.0, demand 1.04. The exhaust stays
+                # pinned at 0.60 while the curtain alone takes the increment:
+                # (1.04 - 0.60) / 1.0 = 0.44. This is the branch that exists to
+                # keep the loud fan out of its top fifth.
+                ("assist-phase-b", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=52.0),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                             Mock(exhaust_enable=1, curtain_enable=1,
+                                  error_on=1.0, error_off=0.3,
+                                  exhaust_span=5.0, exhaust_min=0.0,
+                                  exhaust_max=1.0, curtain_span=5.0,
+                                  curtain_max=1.0, bed_ceiling=60.0,
+                                  curtain_strength_factor=1.0,
+                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_min=0.20)})),
                 # Bed-only ramp -- c_step 0, no chamber ceiling to lower. The
                 # assist must claim one outright rather than min() against the
                 # zero that means "no chamber control".
@@ -657,11 +721,25 @@ def check(path):
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
-            ("gcode_macro CHAMBER_STIR_ORBIT", "default"): "G2 I-10.0 J0",
+            ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "CHAMBER_ORBIT_CYCLE",
+            # M400 before each announcement, or the console races the motion.
+            ("gcode_macro ORBIT_WHINE_SWEEP", "default"): "M400",
+            ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
+            # Every arc in ONE script: that is what makes the lookahead blend
+            # them instead of stopping at each junction.
+            ("gcode_macro CHAMBER_ORBIT_CYCLE", "full"): "G2 X42.0 Y100.0 I-58.0 J0 F141",
+            # Pins the whole construction: 6 outbound arcs, the rim semicircle,
+            # 6 interleaved inbound arcs, the hub semicircle.
+            # 18 arcs now that the rim reaches the centreline edge, and the
+            # feed climbs with radius so dwell tracks the bed's excess heat.
+            ("gcode_macro CHAMBER_ORBIT_BEGIN", ""): "arcs (out and back)",
+            ("gcode_macro CHAMBER_ORBIT_STEP", "mid-sweep"): "G2 X126.0 Y100.0 I22.0 J0 F104",
+            # Index past the end wraps straight onto the first arc, which is
+            # where the last inbound arc already left the toolhead.
+            ("gcode_macro CHAMBER_ORBIT_STEP", "wraps"): "G2 X82.0 Y100.0 I-14.0 J0 F101",
+            # Out and back in one armed cycle.
             # 26 rings from 10 to 60 mm at a 2 mm step, the largest sweep that
             # fits 60 s at 6000 mm/min.
-            ("gcode_macro CHAMBER_STIR_ORBIT", "default2"): "26 rings 10-60mm",
-            ("gcode_macro CHAMBER_STIR_ORBIT", "no-budget"): "too small for even one ring",
             ("gcode_macro SET_CLEAN_TEMP", "exact"): "M104 S195",
             ("gcode_macro _BRUSH_INFER_CLEAN_TEMP", "from-spool"): "SET_CLEAN_TEMP MATERIAL=ABS",
             ("gcode_macro _BRUSH_INFER_CLEAN_TEMP", "from-last-print"): "SET_CLEAN_TEMP TEMP=190",
@@ -693,9 +771,17 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "assist-release"): "assist released",
             # err 10, over 9: the exhaust saturates at 5 C and the curtain
             # takes the remaining 4 of its own 5 C band -> 0.45 * 0.8 = 0.36.
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2 SPEED=0.36",
+            # Phase C: demand 1.76 split evenly, so both fans land on 0.88.
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2 SPEED=0.88",
+            ("gcode_macro _COOLDOWN_TICK", "assist-latch-handover"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-phase-b"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.44", "CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
             ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "CHAMBER_ASSIST_FLOOR FLOOR=0.217",
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "CHAMBER_ASSIST_FLOOR FLOOR=0.217",
+            # 0.197, not the 0.217 the same error gives with the curtain
+            # disabled: with a second fan available the exhaust's solo band
+            # runs to curtain_latch rather than to exhaust_max.
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "CHAMBER_ASSIST_FLOOR FLOOR=0.197",
             # A bed-only ramp claims a NEUTRAL ceiling -- the chamber's own
             # 30 C -- so the PI asks for nothing and the assist floor alone
             # drives the fan. It used to claim chamber-6 = 24, which saturates.
@@ -703,7 +789,6 @@ def check(path):
             # Paired with the forbid below: this proves the scenario really did
             # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
             # than that the macro took some other branch entirely.
-            ("gcode_macro COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-releases-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=0.0",
             ("gcode_macro END_PRINT", "cooldown-installed"): "COOLDOWN_START",
             ("gcode_macro END_PRINT", "cooldown-absent"): "TURN_OFF_HEATERS",
@@ -752,10 +837,14 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  # A step that cannot be held must emit no arc at all.
+                  ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
+                  ("gcode_macro CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
+                  ("gcode_macro CHAMBER_ORBIT_STEP", "inactive"): "G3 ",
                   # The clamp must bite: axis_maximum is 200 in the fixture, so
                   # a ring at 500 mm would be off the machine entirely.
-                  ("gcode_macro CHAMBER_STIR_ORBIT", "clamped"): "X500",
-                  ("gcode_macro CHAMBER_STIR_ORBIT", "no-budget"): "G2 ",
+                  # No straight dash home: the inbound leg retraces the arcs.
+                  ("gcode_macro CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
                   # On a machine with no load cell, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
                   ("gcode_macro START_PRINT", "eddy-only"): "METHOD=force_overlay",
@@ -865,18 +954,28 @@ def check(path):
                         print("   FAIL    %s%s -> %r in a RESPOND arg: %s"
                               % (s, suffix, c, ln))
                     continue
+                # A list asserts EVERY entry. The blended cooldown throttle is
+                # the case that forced it: "the exhaust stepped down" and "the
+                # curtain came on at its floor" are one claim about one tick,
+                # and either half alone is satisfied by the wrong branch.
                 want = expect.get((s, label))
-                if want is not None and want not in out:
-                    bad += 1
-                    print("   FAIL    %s%s -> took the wrong branch, no %r in output"
-                          % (s, suffix, want))
-                    continue
+                if want is not None:
+                    miss = [w for w in ([want] if isinstance(want, str) else want)
+                            if w not in out]
+                    if miss:
+                        bad += 1
+                        print("   FAIL    %s%s -> took the wrong branch, no %s in output"
+                              % (s, suffix, ", ".join(repr(m) for m in miss)))
+                        continue
                 never = forbid.get((s, label))
-                if never is not None and never in out:
-                    bad += 1
-                    print("   FAIL    %s%s -> took the wrong branch, %r present"
-                          % (s, suffix, never))
-                    continue
+                if never is not None:
+                    hit = [n for n in ([never] if isinstance(never, str) else never)
+                           if n in out]
+                    if hit:
+                        bad += 1
+                        print("   FAIL    %s%s -> took the wrong branch, %s present"
+                              % (s, suffix, ", ".join(repr(h) for h in hit)))
+                        continue
                 print("   ok      %s%s" % (s, suffix))
             except Exception as e:
                 bad += 1

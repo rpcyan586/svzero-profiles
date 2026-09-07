@@ -65,6 +65,11 @@ SOVOL_VENDOR = os.path.join(
 # host-side: this machine has no /etc/pki/tls, so probing the host would silently
 # choose a different bundle than the one the application sees.
 PS_CERT_STORE = "/etc/pki/tls/certs/ca-bundle.crt"
+# SuperSlicer runs its ConfigWizard whenever its ini has no `version`,
+# regardless of how many presets are on disk. Read from the model so the
+# stamp and the emitters cannot disagree about which release this targets.
+SS_VERSION = json.load(open(os.path.join(ROOT, "source", "model.json"),
+                           encoding="utf-8"))["targets"]["superslicer"]["version"]
 
 
 def set_ini_keys(path, section, want):
@@ -187,6 +192,63 @@ def cap_acceleration(datadir, cap, kinds=("print",)):
                 out.append(line)
             if hit:
                 open(path, "w", encoding="utf-8").writelines(out); n += 1
+    return n
+
+
+def install_superslicer(datadir):
+    """Install flattened SuperSlicer presets, in SuperSlicer's own dialect.
+
+    The sandbox used to stage the config bundle and print an import instruction.
+    That left a fresh datadir with no printer at all: the ConfigWizard runs,
+    offers only the vendors SuperSlicer ships, and clicking through it produces a
+    Prusa machine and no SV Zero. The bundle sat in staged/ waiting for a dialog
+    nobody had been told was mandatory.
+
+    Same fix as PrusaSlicer -- write the presets straight into the datadir --
+    with one thing that must NOT be shared. `--emit ps-presets` resolves widths
+    against the nozzle and speeds against `default_speed`, because PrusaSlicer
+    has no `default_speed` and reads a bare percentage differently. SuperSlicer
+    means those percentages literally, so installing the PrusaSlicer files here
+    would silently re-author every preset. `--emit ss-presets` is the same split
+    with none of those translations, and this installs that.
+    """
+    src = os.path.join(ROOT, "bundles", "ss-presets")
+    if not os.path.isdir(src):
+        raise SystemExit("no bundles/ss-presets -- run: ./tools/generate.py --emit ss-presets")
+    n = 0
+    kinds = ("print", "filament", "printer", "physical_printer")
+    for kind in kinds:
+        d = os.path.join(datadir, kind)
+        for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            if f.startswith("SV Zero") or f.startswith("*SV Zero") or f.startswith("Zero"):
+                os.remove(os.path.join(d, f))
+    for kind in kinds:
+        s_, d_ = os.path.join(src, kind), os.path.join(datadir, kind)
+        os.makedirs(d_, exist_ok=True)
+        for f in sorted(os.listdir(s_)) if os.path.isdir(s_) else []:
+            shutil.copy2(os.path.join(s_, f), os.path.join(d_, f)); n += 1
+
+    # SuperSlicer is a PrusaSlicer fork and keeps the same ini layout, but under
+    # its own filename. Writing PrusaSlicer.ini here would be silently ignored.
+    ini = os.path.join(datadir, "SuperSlicer.ini")
+    set_ini_keys(ini, None, {
+        "preset_update": "0",
+        "show_splash_screen": "0",
+        "show_hints": "0",
+        "version_check": "0",
+        "notify_release": "none",
+        "version_system_info_sent": "99.99.99",
+        # The wizard is what this whole function exists to avoid. SuperSlicer
+        # runs it when the ini has no `version`, treating that as a first launch
+        # no matter how many presets are on disk. Stamped with the version the
+        # model says the emitters target.
+        "version": SS_VERSION,
+    })
+    set_ini_keys(ini, "presets", {
+        "printer": "SV Zero 0.4n",
+        "print": "SV Zero 0.4n - 0.20mm (Standard)",
+        "filament": "SV Zero PLA - Brass",
+    })
     return n
 
 
@@ -405,11 +467,12 @@ if __name__ == "__main__":
     args = [a for i, a in enumerate(argv)
             if not a.startswith("--") and not (i and argv[i-1].startswith("--accel-cap"))]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
-    if len(args) != 2 or args[0] not in ("prusa", "orca"):
+    if len(args) != 2 or args[0] not in ("prusa", "orca", "superslicer"):
         sys.exit(__doc__)
     which, datadir = args
     os.makedirs(datadir, exist_ok=True)
-    n = {"prusa": install_prusa, "orca": install_orca}[which](datadir)
+    n = {"prusa": install_prusa, "orca": install_orca,
+         "superslicer": install_superslicer}[which](datadir)
     print("installed %d presets into %s" % (n, datadir))
     if which == "orca" and "--chamber-shadow-test" in flags:
         c = enable_orca_chamber_shadow_test(datadir)
@@ -421,6 +484,8 @@ if __name__ == "__main__":
             cap = float(sys.argv[sys.argv.index(caps[0]) + 1])
         except (ValueError, IndexError):
             sys.exit("--accel-cap needs a number, e.g. --accel-cap 5000")
+        # Percentage accelerations are skipped by cap_acceleration, which is
+        # what makes it safe on SuperSlicer's dialect as well as PrusaSlicer's.
         c = (cap_acceleration_orca(datadir, cap) if which == "orca"
              else cap_acceleration(datadir, cap))
         print("capped acceleration at %g in %d presets" % (cap, c))

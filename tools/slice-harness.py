@@ -35,6 +35,23 @@ from the part being good.
     ./slice-harness.py --nozzle 0.6 --tier Draft
     ./slice-harness.py --slicers ss          # just SuperSlicer
     ./slice-harness.py --keep                # leave the G-code for inspection
+
+EXIT CODE IS THE POINT, as of 2026-09-06. A refused key or a slicer that
+produced no G-code exits 1. This printed its refusals for weeks and returned 0,
+so a green run meant nothing and nobody had a reason to read the detail --
+`_why_supports` and the Orca chamber keys were in that output the whole time
+while shipping in the published bundles.
+
+IT SLICES THE ARTEFACTS, not only the master. The SuperSlicer arm runs twice:
+once against the master, which is what proves the percentage chain resolves the
+way generate.py assumes, and once against bundles/ss-presets, which is what
+install-presets.py actually writes into a datadir. A defect introduced by an
+EMITTER is invisible to a pass that never reads the emitter's output, and that
+gap is exactly how three broken artefacts shipped.
+
+Master-pass refusals are reported but do not fail when the key is not a
+SuperSlicer option at all -- annotations and Orca-authored keys are meant to be
+there and are filtered on emit. Artefact passes are strict.
 """
 
 import argparse
@@ -45,6 +62,7 @@ import math
 import os
 import re
 import statistics
+import struct
 import subprocess
 import sys
 
@@ -58,6 +76,18 @@ import generate as G  # noqa: E402
 # invisible to them and the slice fails with a file-not-found that reads like a
 # path typo. See docs/PIPELINE.md § The Flatpak catch.
 WORK = os.path.expanduser("~/.svzero-slicer-sandbox/harness")
+# Cross-slicer bounds are LOOSE on purpose: measured spreads on identical
+# settings run to 1.93x on filament and 2.76x on time. Anything tight enough to
+# be interesting here would be a false alarm. These catch gross failure only --
+# one slicer ignoring infill or supports entirely.
+CROSS_MAX = 4.0
+# Extruded volume over the object's solid volume. Wide because it spans 10% and
+# 25% infill, 2 to 6 walls, five nozzles, and support material that adds
+# material outside the object entirely. Measured 0.27-1.77 across this matrix.
+VOL_MIN, VOL_MAX = 0.10, 3.0
+# Against a slicer's OWN recorded number, where determinism makes it meaningful.
+BASELINE_TOL = 0.02
+PRUSA_BRANCH = "stable"      # 2.9.6; the beta alongside it is 3.0
 PRUSA_ID = "com.prusa3d.PrusaSlicer"
 ORCA_ID = "com.orcaslicer.OrcaSlicer"
 
@@ -158,17 +188,46 @@ def rejected_keys(text):
     return sorted(out)
 
 
+def merge_ini(paths, out_path):
+    """Concatenate several preset .ini files into one flat config.
+
+    PrusaSlicer's `--load` takes AT MOST ONE file -- passing three fails with
+    "At Most 1 required but received 3", which is exactly what this arm did
+    from the day it was written. It never produced a G-code, so PrusaSlicer was
+    the one slicer never actually exercised, and it is the one whose published
+    bundle carried 17 broken multi-line values.
+    """
+    seen = collections.OrderedDict()
+    for path in paths:
+        if not os.path.exists(path):
+            return None
+        for line in open(path, encoding="utf-8"):
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, _, v = line.partition("=")
+                seen[k.strip()] = v.strip()
+    with open(out_path, "w", encoding="utf-8") as fh:
+        for k, v in seen.items():
+            fh.write("%s = %s\n" % (k, v))
+    return out_path
+
+
 def slice_ps(work, nozzle, tier, filament, obj):
     d = os.path.join(ROOT, "bundles", "ps-presets")
     prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - *(%s).ini" % (nozzle, tier)))
     if not prnt:
         return None, "no flattened print preset; run generate.py --emit ps-presets"
+    cfg = merge_ini([os.path.join(d, "printer", "SV Zero %sn.ini" % nozzle),
+                     prnt[0],
+                     os.path.join(d, "filament", "%s.ini" % filament)],
+                    os.path.join(work, "ps-config.ini"))
+    if not cfg:
+        return None, "a ps-presets file is missing; run generate.py --emit ps-presets"
     out = os.path.join(work, "ps.gcode")
-    p = run(["flatpak", "run", PRUSA_ID,
+    # --branch matters now that 3.0 beta is installed beside 2.9.6; without it
+    # flatpak picks the beta and this measures the wrong slicer.
+    p = run(["flatpak", "run", "--branch=" + PRUSA_BRANCH, PRUSA_ID,
              "--datadir", os.path.join(work, "psdata"),
-             "--load", os.path.join(d, "printer", "SV Zero %sn.ini" % nozzle),
-             "--load", prnt[0],
-             "--load", os.path.join(d, "filament", "%s.ini" % filament),
+             "--load", cfg,
              "--export-gcode", "-o", out, obj],
             os.path.join(work, "ps.log"))
     return (out if os.path.exists(out) else None), p.stdout + p.stderr
@@ -334,6 +393,281 @@ def report(name, buckets, peak_accel, model, expect, rejects):
     return {f: (max(b["speed"]), med(b["width"])) for f, b in buckets.items()}
 
 
+def totals(path):
+    """(filament_mm, filament_cm3, seconds) from a G-code footer.
+
+    All three slicers write the same two comments, which is what makes a
+    cross-check possible at all:
+
+        ; filament used [mm] = 687.63
+        ; filament used [cm3] = 1.65
+        ; estimated printing time (normal mode) = 5m 11s
+    """
+    mm = cm3 = secs = None
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if not line.startswith(";"):
+                continue
+            m = re.match(r";\s*filament used \[mm\]\s*=\s*([\d.]+)", line)
+            if m:
+                mm = float(m.group(1)); continue
+            m = re.match(r";\s*filament used \[cm3\]\s*=\s*([\d.]+)", line)
+            if m:
+                cm3 = float(m.group(1)); continue
+            m = re.match(r";\s*estimated printing time \(normal mode\)\s*=\s*(.+)", line)
+            if m:
+                t, total = m.group(1).strip(), 0.0
+                for num, unit in re.findall(r"([\d.]+)\s*([dhms])", t):
+                    total += float(num) * {"d": 86400, "h": 3600, "m": 60, "s": 1}[unit]
+                secs = total or None
+    return mm, cm3, secs
+
+
+def stl_volume(path):
+    """Signed volume of a binary STL, mm3. The absolute anchor.
+
+    Cross-slicer agreement cannot catch an error the three SHARE -- a wrong flow
+    ratio, a wrong extrusion width, a nozzle mismatch -- because all three would
+    move together and still agree with each other. The object's own solid volume
+    is independent of every slicer, and the extruded volume has to bear a
+    sensible ratio to it.
+    """
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    n = struct.unpack("<I", raw[80:84])[0]
+    vol = 0.0
+    for i in range(n):
+        off = 84 + i * 50
+        v = struct.unpack("<12f", raw[off:off + 48])
+        a, b, c = v[3:6], v[6:9], v[9:12]
+        vol += (a[0] * (b[1] * c[2] - b[2] * c[1])
+                - a[1] * (b[0] * c[2] - b[2] * c[0])
+                + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0
+    return abs(vol)
+
+
+def spread(values):
+    """max/min of the non-null values, or None when fewer than two."""
+    v = [x for x in values if x]
+    return (max(v) / min(v)) if len(v) > 1 else None
+
+
+def covering_plan(model, filaments, objects):
+    """One row per filament, cycling nozzles and tiers alongside.
+
+    NOT the cross-product -- 5 nozzles x 5 tiers x 18 filaments is 450 slices
+    per slicer and most would re-prove the same thing. This is a covering plan:
+    every nozzle, every tier and every filament appears at least once, in
+    max(5, 5, 18) = 18 rows. Filaments dominate, so they set the count and the
+    other two ride along.
+
+    Tier gaps are honoured -- 0.2 has no Draft and no Strength -- so a row that
+    would land there advances to the next legal tier. That skewing can leave a
+    tier uncovered, which is why coverage is REPAIRED and then asserted rather
+    than assumed to fall out of the arithmetic.
+    """
+    nozzles = list(model["machine"]["nozzles"])
+    tiers = list(model["tiers"]["_order"]) + list(model["tiers"].get("_variants", []))
+    gaps = {k: set(v) for k, v in model["tier_gaps"].items() if not k.startswith("_")}
+
+    def legal(noz, tier):
+        return tier not in gaps.get(noz, set())
+
+    # Cycling both factors on i alone CORRELATES them: with 5 nozzles and 5
+    # tiers, 0.2 would always be Fine and 1.0 always Strength, so 5 of the 23
+    # legal pairs get tested and the same 5 every run. Pick instead the legal
+    # tier this nozzle has seen least, breaking ties on the globally least used
+    # tier -- 18 rows then cover 18 distinct pairs instead of 5.
+    rows = []
+    seen_pair = collections.Counter()
+    seen_tier = collections.Counter()
+    n = max(len(nozzles), len(tiers), len(filaments), len(objects))
+    for i in range(n):
+        noz = nozzles[i % len(nozzles)]
+        tier = min((t for t in tiers if legal(noz, t)),
+                   key=lambda t: (seen_pair[(noz, t)], seen_tier[t], tiers.index(t)))
+        seen_pair[(noz, tier)] += 1
+        seen_tier[tier] += 1
+        rows.append((noz, tier, filaments[i % len(filaments)],
+                     objects[i % len(objects)]))
+
+    for tier in tiers:
+        if not any(r[1] == tier for r in rows):
+            noz = next(x for x in nozzles if legal(x, tier))
+            rows.append((noz, tier, filaments[len(rows) % len(filaments)],
+                         objects[len(rows) % len(objects)]))
+    for noz in nozzles:
+        if not any(r[0] == noz for r in rows):
+            tier = next(t for t in tiers if legal(noz, t))
+            rows.append((noz, tier, filaments[len(rows) % len(filaments)],
+                         objects[len(rows) % len(objects)]))
+    for fil in filaments:
+        if not any(r[2] == fil for r in rows):
+            rows.append((rows[0][0], rows[0][1], fil,
+                         objects[len(rows) % len(objects)]))
+    for ob in objects:
+        if not any(r[3] == ob for r in rows):
+            rows.append((rows[0][0], rows[0][1],
+                         filaments[len(rows) % len(filaments)], ob))
+
+    missing = ([n for n in nozzles if not any(r[0] == n for r in rows)]
+               + [t for t in tiers if not any(r[1] == t for r in rows)]
+               + [f for f in filaments if not any(r[2] == f for r in rows)]
+               + [o for o in objects if not any(r[3] == o for r in rows)])
+    assert not missing, "covering plan misses %s" % missing
+    return rows, nozzles, tiers
+
+
+def run_matrix(args, model, work, obj, want):
+    """Every nozzle, tier, filament and test object at least once, per slicer."""
+    filaments = sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(os.path.join(ROOT, "bundles", "ss-presets", "filament"))
+        if f.endswith(".ini"))
+    objects = [f for f in ("svzero-featurecube.stl", "svzero-overhang.stl",
+                           "svzero-tower.stl")
+               if os.path.exists(os.path.join(work, f))]
+    rows, nozzles, tiers = covering_plan(model, filaments, objects)
+    print("covering plan: %d row(s) -- %d nozzle(s), %d tier(s), %d filament(s), %d object(s)"
+          % (len(rows), len(nozzles), len(tiers), len(filaments), len(objects)))
+    print("%-3s %-6s %-9s %-24s %-12s %s"
+          % ("#", "nozzle", "tier", "filament", "object",
+             "  ".join("%-8s" % w for w in want)))
+    fails = []
+    meas = {}
+    d_ss = os.path.join(ROOT, "bundles", "ss-presets")
+    for i, (noz, tier, fil, ob) in enumerate(rows, 1):
+        obj = os.path.join(work, ob)
+        cells = []
+        for w in want:
+            if w == "ss":
+                art = glob.glob(os.path.join(d_ss, "print",
+                                             "SV Zero %sn - *(%s).ini" % (noz, tier)))
+                cfg = merge_ini([os.path.join(d_ss, "printer", "SV Zero %sn.ini" % noz),
+                                 art[0], os.path.join(d_ss, "filament", "%s.ini" % fil)],
+                                os.path.join(work, "m-ss.ini")) if art else None
+                path, out = slice_ss(work, cfg, obj) if cfg else (None, "no preset for this pair")
+            elif w == "ps":
+                path, out = slice_ps(work, noz, tier, fil, obj)
+            else:
+                path, out = slice_orca(work, noz, tier, fil, obj)
+            if path:
+                mm, cm3, secs = totals(path)
+                meas.setdefault(i, {})[w] = (mm, cm3, secs)
+            rej = rejected_keys(out) if path else []
+            if not path:
+                cells.append("NOGCODE")
+                fails.append((i, "%sn %s" % (noz, ob.replace("svzero-", "").replace(".stl", "")), tier, fil, w,
+                              (out or "").strip().splitlines()[-1:] or ["?"]))
+            elif rej:
+                cells.append("REFUSED")
+                fails.append((i, "%sn %s" % (noz, ob.replace("svzero-", "").replace(".stl", "")), tier, fil, w, [", ".join(rej)]))
+            else:
+                cells.append("ok")
+            if path and os.path.exists(path) and not args.keep:
+                os.remove(path)
+        print("%-3d %-6s %-9s %-24s %-12s %s"
+              % (i, noz, tier, fil[:24], ob.replace("svzero-", "").replace(".stl", ""),
+                 "  ".join("%-8s" % c for c in cells)))
+    # ---- SANITY ON THE TOTALS
+    #
+    # Three checks, and they are deliberately not equally strict, because the
+    # three slicers genuinely disagree. Measured across this matrix: filament
+    # totals spread up to 1.93x and time estimates up to 2.76x on IDENTICAL
+    # settings, driven mostly by support generation and infill implementation.
+    # That is the "algorithmic variability" and no useful gate can be built
+    # across it -- a cross-slicer bound loose enough to accept 1.93x catches
+    # almost nothing.
+    #
+    # So the tight gate is a BASELINE. Each slicer is deterministic: same input,
+    # same output. Comparing a slicer against ITS OWN recorded number makes the
+    # algorithmic difference irrelevant, and then a 2% band is meaningful and a
+    # profile change that quietly alters material or time shows up immediately.
+    #   --record  rewrites source/slice-baseline.json.
+    base_path = os.path.join(ROOT, "source", "slice-baseline.json")
+    base = {}
+    if os.path.exists(base_path):
+        base = json.load(open(base_path, encoding="utf-8")).get("rows", {})
+    fresh = {}
+    print("\n== totals")
+    print("%-3s %-11s %-8s %-9s %-9s %-9s %-7s"
+          % ("#", "object", "slicer", "mm", "cm3", "time s", "vs base"))
+    xs_f, xs_t, ratios = [], [], []
+    for i, (noz, tier, fil, ob) in enumerate(rows, 1):
+        got = meas.get(i, {})
+        if not got:
+            continue
+        sv = stl_volume(os.path.join(work, ob))
+        for w in want:
+            mm, cm3, secs = got.get(w, (None, None, None))
+            if mm is None:
+                continue
+            key = "%s|%sn|%s|%s|%s" % (w, noz, tier, fil, ob)
+            fresh[key] = {"mm": round(mm, 2), "cm3": cm3, "s": secs}
+            drift = ""
+            if key in base and base[key].get("mm"):
+                d = mm / base[key]["mm"]
+                drift = "%+.1f%%" % ((d - 1) * 100)
+                if abs(d - 1) > BASELINE_TOL:
+                    fails.append((i, "%sn %s" % (noz, ob.replace("svzero-", "").replace(".stl", "")), tier, fil, w,
+                                  ["filament %+.1f%% vs baseline (%.1f -> %.1f mm)"
+                                   % ((d - 1) * 100, base[key]["mm"], mm)]))
+            elif base:
+                drift = "new"
+            print("%-3d %-11s %-8s %-9.1f %-9.3f %-9.0f %-7s"
+                  % (i, ob.replace("svzero-", "").replace(".stl", ""), w,
+                     mm, cm3 or 0, secs or 0, drift or "-"))
+        mms = [v[0] for v in got.values() if v[0]]
+        cms = [v[1] for v in got.values() if v[1]]
+        secs_all = [v[2] for v in got.values() if v[2]]
+        f_sp, t_sp = spread(mms), spread(secs_all)
+        if f_sp: xs_f.append(f_sp)
+        if t_sp: xs_t.append(t_sp)
+        # The absolute anchor. Cross-slicer agreement cannot catch an error the
+        # three SHARE -- a wrong flow ratio or extrusion width moves all of them
+        # together and they still agree. The object's own solid volume does not
+        # come from a slicer.
+        for cm3 in cms:
+            r = cm3 * 1000.0 / sv
+            ratios.append(r)
+            if not (VOL_MIN <= r <= VOL_MAX):
+                fails.append((i, "%sn %s" % (noz, ob.replace("svzero-", "").replace(".stl", "")), tier, fil, "volume",
+                              ["extruded/solid %.2f outside %.2f-%.2f"
+                               % (r, VOL_MIN, VOL_MAX)]))
+        if f_sp and f_sp > CROSS_MAX:
+            fails.append((i, "%sn %s" % (noz, ob.replace("svzero-", "").replace(".stl", "")), tier, fil, "cross",
+                          ["filament totals differ %.2fx across slicers" % f_sp]))
+    if xs_f:
+        print("\n   cross-slicer spread  filament %.2f-%.2fx   time %.2f-%.2fx"
+              % (min(xs_f), max(xs_f), min(xs_t or [1]), max(xs_t or [1])))
+        print("   extruded/solid       %.2f-%.2f" % (min(ratios), max(ratios)))
+    if args.record:
+        json.dump({"_what": "Per-slicer totals from a known-good matrix run. The "
+                            "tight gate: each slicer is deterministic, so drift "
+                            "against its OWN number is meaningful where "
+                            "cross-slicer comparison is not.",
+                   "_tolerance": BASELINE_TOL,
+                   "_regenerate": "./tools/slice-harness.py --matrix --record",
+                   "rows": fresh},
+                  open(base_path, "w", encoding="utf-8"), indent=2, sort_keys=True)
+        open(base_path, "a", encoding="utf-8").write("\n")
+        print("   recorded %d baseline entries" % len(fresh))
+
+    print("\ncoverage: nozzles %s | tiers %s | filaments %d of %d | objects %s"
+          % (",".join(sorted({r[0] for r in rows})),
+             ",".join(sorted({r[1] for r in rows})),
+             len({r[2] for r in rows}), len(filaments),
+             ",".join(sorted(o.replace("svzero-", "").replace(".stl", "")
+                             for o in {r[3] for r in rows}))))
+    print("\n== verdict")
+    for i, noz, tier, fil, w, why in fails:
+        print("   FAIL  row %d  %s  %s %s / %s -- %s" % (i, w, noz, tier, fil, why[0][:90]))
+    if not fails:
+        print("   %d row(s) x %d slicer(s) = %d slice(s): all produced G-code, none refused a key"
+              % (len(rows), len(want), len(rows) * len(want)))
+    return 1 if fails else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -343,14 +677,17 @@ def main():
     ap.add_argument("--slicers", default="ps,ss,orca")
     ap.add_argument("--workdir", default=WORK)
     ap.add_argument("--keep", action="store_true", help="keep the G-code and configs")
+    ap.add_argument("--record", action="store_true",
+                    help="rewrite source/slice-baseline.json from this run")
+    ap.add_argument("--matrix", action="store_true",
+                    help="cover every nozzle, tier and filament at least once")
     args = ap.parse_args()
 
     work = os.path.expanduser(args.workdir)
     os.makedirs(work, exist_ok=True)
     obj = os.path.join(work, "svzero-featurecube.stl")
-    if not os.path.exists(obj):
-        subprocess.run([sys.executable, os.path.join(HERE, "make-test-object.py"), work],
-                       check=True)
+    subprocess.run([sys.executable, os.path.join(HERE, "make-test-object.py"),
+                    work, "--shape", "all"], check=True, capture_output=True)
 
     model, ss = build_sections()
     printer, prnt = preset_names(ss, args.nozzle, args.tier)
@@ -364,13 +701,44 @@ def main():
           % (expect["layer_height"], expect["default_speed"], args.nozzle))
 
     want = [s.strip() for s in args.slicers.split(",") if s.strip()]
+    if args.matrix:
+        return run_matrix(args, model, work, obj, want)
     results = {}
+    refused = {}
     if "ss" in want:
+        # TWO SuperSlicer passes, and the second is the one that matters for
+        # shipping. The first slices the MASTER, which is what proves the
+        # percentage chain resolves as generate.py assumes. The second slices
+        # bundles/ss-presets -- the files install-presets.py actually writes
+        # into a datadir -- because a defect introduced by an EMITTER is
+        # invisible to a pass that never reads the emitter's output. That gap
+        # is why three broken artefacts shipped on 2026-09-06.
+        d = os.path.join(ROOT, "bundles", "ss-presets")
+        art = glob.glob(os.path.join(d, "print", "SV Zero %sn - *(%s).ini"
+                                     % (args.nozzle, args.tier)))
+        if art:
+            merged = merge_ini([os.path.join(d, "printer", "SV Zero %sn.ini" % args.nozzle),
+                                art[0],
+                                os.path.join(d, "filament", "%s.ini" % args.filament)],
+                               os.path.join(work, "ss-artefact.ini"))
+            if merged:
+                apath, aout = slice_ss(work, merged, obj)
+                arej = rejected_keys(aout)
+                refused["SuperSlicer (emitted presets)"] = arej
+                print("\n== SuperSlicer %s, EMITTED presets -- %s"
+                      % (args.tier, "sliced clean" if apath and not arej
+                         else "PROBLEM"))
+                if arej:
+                    print("   REFUSED %d key(s): %s" % (len(arej), ", ".join(arej)))
+                if not apath:
+                    print("   no G-code: %s" % (aout.strip().splitlines() or ["?"])[-1])
+                    refused["SuperSlicer (emitted presets)"] = arej + ["<no G-code>"]
         cfg = os.path.join(work, "ss-config.ini")
         write_ss_config(ss, printer, prnt, "filament:%s" % args.filament, cfg)
         path, out = slice_ss(work, cfg, obj)
         if path:
             b, acc = analyse(path, float(fil.get("filament_diameter", 1.75)))
+            refused["SuperSlicer (master)"] = rejected_keys(out)
             results["SuperSlicer"] = report("SuperSlicer %s" % args.tier, b, acc,
                                             model, expect, rejected_keys(out))
         else:
@@ -379,6 +747,7 @@ def main():
         path, out = slice_ps(work, args.nozzle, args.tier, args.filament, obj)
         if path:
             b, acc = analyse(path, float(fil.get("filament_diameter", 1.75)))
+            refused["PrusaSlicer"] = rejected_keys(out)
             results["PrusaSlicer"] = report("PrusaSlicer %s (flattened presets)" % args.tier,
                                             b, acc, model, expect, rejected_keys(out))
         else:
@@ -387,6 +756,7 @@ def main():
         path, out = slice_orca(work, args.nozzle, args.tier, args.filament, obj)
         if path:
             b, acc = analyse(path, float(fil.get("filament_diameter", 1.75)))
+            refused["OrcaSlicer"] = rejected_keys(out)
             results["OrcaSlicer"] = report("OrcaSlicer %s (vendor bundle)" % args.tier,
                                            b, acc, model, expect, rejected_keys(out))
         else:
@@ -425,6 +795,45 @@ def main():
             if os.path.exists(p):
                 os.remove(p)
 
+    # A REFUSED KEY IS A FAILURE, not a note. This printed the refusals for
+    # weeks and returned 0, so nothing downstream could act on it and nobody
+    # reading a green run had any reason to look. _why_supports and the Orca
+    # chamber keys were listed in that output the whole time.
+    # The MASTER pass is expected to carry keys SuperSlicer does not define:
+    # authored annotations, and options written for Orca. That is the whole
+    # reason the emitters filter. So a master-pass refusal only counts when the
+    # key IS a SuperSlicer option and was refused anyway -- that would be a real
+    # defect. Artefact passes are strict: nothing there may be refused, because
+    # an artefact is what somebody installs.
+    ss_known = set()
+    try:
+        _s = G.load("ss-known-options.json")
+        ss_known = set(_s["options"]) | set(_s["metadata"])
+    except Exception:
+        pass
+    expected_in_master = lambda k: k.startswith("_") or (ss_known and k not in ss_known)
+    for slicer in list(refused):
+        if "master" in slicer and ss_known:
+            noted = [k for k in refused[slicer] if expected_in_master(k)]
+            if noted:
+                print("\n== master pass: %d key(s) not SuperSlicer's, filtered on emit"
+                      % len(noted))
+                print("   %s" % ", ".join(noted))
+            refused[slicer] = [k for k in refused[slicer] if not expected_in_master(k)]
+
+    bad = {k: v for k, v in refused.items() if v}
+    missing = [k for k in ("ss", "ps", "orca") if k in want] and [
+        n for n in ("SuperSlicer", "PrusaSlicer", "OrcaSlicer")
+        if n.lower()[:2] in [w[:2] for w in want] and n not in results]
+    print("\n== verdict")
+    for slicer, keys in sorted(bad.items()):
+        print("   FAIL  %s refused: %s" % (slicer, ", ".join(keys)))
+    for n in missing:
+        print("   FAIL  %s produced no G-code" % n)
+    if not bad and not missing:
+        print("   all requested slicers produced G-code and refused nothing")
+    return 1 if (bad or missing) else 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

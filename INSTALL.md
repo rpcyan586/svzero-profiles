@@ -1,8 +1,8 @@
 # Installing
 
-Two steps on the printer, one in the slicer. Nothing needs editing.
+Two steps on the printer, one in the slicer. On 1.3.7 nothing needs editing. On 1.4.x there is one edit, and it is a deletion - see below.
 
-I have two Sovol Zeros - one on 1.4.7 and one still factory-original on 1.3.7 - and the pack works out of the box on both. Where they differ the macros check at runtime rather than asking you which you have.
+I have two Sovol Zeros - one on 1.4.7 and one still factory-original on 1.3.7 - and the pack runs on both from the same files. Where they differ the macros check at runtime rather than asking you which you have; the one thing they cannot check for you is the 1.4.x deletion below, because Klipper refuses to start before any macro exists to look.
 
 ## Printer
 
@@ -33,6 +33,23 @@ or, on 1.4.x:
 
 Pick the one that matches your firmware and include only that one. They differ solely in which hardware file they pull in - the exhaust fan is a different pin and a different object between the two, and the name `fan3` means different hardware on each.
 
+### One deletion, 1.4.x only
+
+Stock 1.4.x printer.cfg carries this, around line 259:
+
+```
+[temperature_fan exhaust_fan]
+pin: PB0
+sensor_type: EPCOS 100K B57560G104F
+sensor_pin: PC4
+```
+
+Comment it out or delete it before you restart. That one section is both halves of what this replaces - it is the watermark controller responsible for the banding and the noise, and it also holds the chamber thermistor - and it claims `PB0` and `PC4`, which the pack needs. Leave it in and Klipper will not start at all: `pin PB0 used multiple times in config`, at config parse, before anything else happens.
+
+There is no way to keep it and override it from an include. A `temperature_fan` cannot be driven by `SET_FAN_SPEED`, and it cannot be turned into a `fan_generic` in place - duplicate sections only merge when they are the same type.
+
+1.3.7 needs none of this. Its exhaust fan is already a plain `[fan_generic fan3]` with no controller on it at all, and its chamber thermistor is already `[temperature_sensor chamber_temp]` on the pin the macros expect, so the pack is purely additive there.
+
 That is the whole install. The include order inside those files is deliberate and load-bearing, which is why they are an explicit list rather than a wildcard: Klipper applies includes linearly and a later duplicate section wins, which is how this overrides Sovol's macros without editing `Macro.cfg`. Their `factory_resets.sh` can overwrite their file without taking these with it.
 
 ## Slicer
@@ -53,7 +70,11 @@ Version drift between the two prints one line naming both versions. It is a warn
 
 ## Optional pieces
 
+Curtain fan. Included and configured, not optional - `curtain_fan.cfg` replaces the stock `[fan_generic fan2]` with a 30 ms PWM period so low duties are actually honoured, a kick to start it from rest, and the PE13 tachometer so a stall is visible. Same pin on both firmwares. The cooldown ramp uses it as the second stage of a blended throttle: the exhaust runs alone until it reaches 80%, then the curtain latches on at its floor and the exhaust steps back to 60% to pay for it, which keeps the total airflow the same and takes the loud fan out of its top fifth. Beyond that the curtain climbs alone until the two match, and then they rise together. It never runs while the bed is above 60 C - extraction is safe on a hot part, a draft across one is what warps it.
+
 Spoolman. If Moonraker has `[spoolman]` configured, jobs are checked for enough filament and the right material before any heater is commanded. If it does not, the check is skipped and says so once per session. You do not have to run Spoolman and you do not have to turn anything off.
+
+Skew compensation. The start G-code carries a commented `SKEW_PROFILE LOAD=` line and no profile name, because a skew profile is a measurement of one machine's geometry and mine is no use on yours. Print a calibration object, save yours with `SKEW_PROFILE SAVE=<name>` and `SAVE_CONFIG`, then uncomment that line with your own name. Both firmwares need an empty `[skew_correction]` section added to `printer.cfg` first - neither ships one. If you have seen a Zero with that section already present, somebody put it there.
 
 Exhaust duty on the temperature chart. Uncomment `[include exhaust_duty.cfg]` in the file you included above. It puts the exhaust fan's commanded duty and its measured RPM on Mainsail's chart as two traces, normalised to the same 0-100 scale. They do not track each other - at 10% duty the rotor is turning at about 29% of full speed - and the gap is widest at the bottom of the range, which is where the cooling assist works.
 

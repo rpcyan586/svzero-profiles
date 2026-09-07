@@ -621,6 +621,25 @@ class ChamberPreheat:
         self.report_seconds = config.getfloat(
             "report_seconds", 30.0, minval=5.0
         )
+        # ORBITING STIR, off until it has been watched on hardware.
+        #
+        # The parked nozzle sits in fan0's downdraft for the whole soak and digs
+        # a cold spot in the plate that it then reads as the chamber. Sweeping a
+        # spiral spreads that extraction evenly -- chamber_orbit.cfg carries the
+        # geometry and why it is semicircles.
+        #
+        # ONE ARC PER LOOP, never a whole sweep. toolhead._process_moves pauses
+        # its caller as soon as the queued buffer passes BUFFER_TIME_HIGH
+        # (toolhead.py:400-408), so handing it 60 s of motion from in here would
+        # stop this loop sampling until the sweep drained. Feeding one semicircle
+        # lets that pause pace the loop against the motion rather than a timer.
+        # It costs sampling cadence, which is why this is a flag and not yet the
+        # default.
+        self.orbit = config.getboolean("orbit", False)
+        # No arcs-per-tick knob. A fixed count was the wrong shape: the queue
+        # tops out at BUFFER_TIME_HIGH regardless of how many are handed over,
+        # so the number never controlled anything useful. _pause feeds until the
+        # tick is up instead.
         self.active = False
         self.slope = None
         self.chamber_eta = None
@@ -679,13 +698,41 @@ class ChamberPreheat:
         return nozzle_temp, bed_temp
 
     def _pause(self, eventtime, seconds):
-        return self.reactor.pause(eventtime + seconds)
+        """Wait out a sampling tick. When orbiting, run one full cycle instead.
+
+        OUT AND BACK, PAUSE, CHECK THE TEMPERATURE, REPEAT -- which is what was
+        asked for, and what the very first version did by accident because it
+        queued the whole sweep in one script.
+
+        Everything after that was me protecting a sampling cadence nobody asked
+        for. Feeding the arcs a few at a time keeps the loop sampling every five
+        seconds, but it cannot keep the motion continuous: the queue tops out at
+        BUFFER_TIME_HIGH, and each time it drains the last move is finalised and
+        the toolhead stops. One script per cycle blends through the lookahead
+        because the junctions are tangent.
+
+        This blocks for most of the cycle, so the nozzle is sampled once per
+        out-and-back rather than every update_seconds. That is the shape that
+        was wanted; the slope window takes irregular spacing.
+        """
+        if not self.orbit:
+            return self.reactor.pause(eventtime + seconds)
+        # RE-ARM EACH CYCLE so the stagger advances: BEGIN recomputes the arc
+        # list from the next start radius, which shifts this cycle's tracks
+        # between the last one's. It is cheap, and the only motion it adds is a
+        # few millimetres of radial hop at the hub.
+        self.gcode.run_script_from_command(
+            "CHAMBER_ORBIT_BEGIN\nCHAMBER_ORBIT_CYCLE")
+        now = self.reactor.monotonic()
+        deadline = eventtime + seconds
+        return now if now >= deadline else self.reactor.pause(deadline)
 
     @staticmethod
     def _set_stir(fan, speed):
         # This asynchronous path bypasses G-code lookahead.  A queued
         # SET_FAN_SPEED does not flush during a blocking temperature wait.
         fan.set_speed(speed)
+
 
     def _seed_from_history(self, gcmd, window, gate, now, current_temp):
         """Pre-fill the slope window from Moonraker's stored nozzle history.
@@ -872,6 +919,12 @@ class ChamberPreheat:
         window = SlopeWindow(self.slope_window)
         try:
             self._set_stir(fan, stir)
+            if self.orbit:
+                # The M191 macro has already homed and parked at bed centre, so
+                # the spiral starts from where the toolhead already is. BEGIN
+                # only computes the arc list and steps to the first radius; the
+                # sweeping is done one arc at a time by the loop below.
+                self.gcode.run_script_from_command("CHAMBER_ORBIT_BEGIN")
             if policy == 1 and start_temp >= minimum and not boost_requested:
                 # The compatibility floor is room temperature and there is no
                 # boost to schedule, so there is no decision the slope could
@@ -1394,6 +1447,9 @@ class ChamberPreheat:
             # did NOT complete gives the plate straight back to its printing
             # target. MCU shutdown independently disables both outputs.
             self._set_stir(fan, 0.0)
+            if self.orbit:
+                # Back to centre before the print's own start G-code moves.
+                self.gcode.run_script_from_command("CHAMBER_ORBIT_END")
             self._set_bed(
                 bed,
                 quantize_target(bed_target + self.bed_carry) if completed

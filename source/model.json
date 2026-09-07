@@ -70,7 +70,22 @@
       "Stock"
     ],
     "_default_print_tier": "Standard",
-    "_naming": "Rungs are OrcaSlicer's Voron V0 ladder -- Extra Fine, Fine, Optimal, Standard, Draft, Extra Draft -- because the V0 is the closest analog to this machine and it is the vocabulary its users already read. Four are shipped; Extra Fine and Extra Draft are reserved for the ends. Renamed from Quality/Normal/Draft/Speed on 2026-09-02; v1.0.2's own 'ExtraDraft' came from this same ladder, so this is a return rather than a new scheme. SPEEDS STILL RAMP PER TIER, which is PrusaSlicer's Voron behaviour and not OrcaSlicer's -- Orca's Voron tiers differ in layer height alone. See docs/CEILINGS.md and docs/CONTEXTS.md."
+    "_naming": "Rungs are OrcaSlicer's Voron V0 ladder -- Extra Fine, Fine, Optimal, Standard, Draft, Extra Draft -- because the V0 is the closest analog to this machine and it is the vocabulary its users already read. Four are shipped; Extra Fine and Extra Draft are reserved for the ends. Renamed from Quality/Normal/Draft/Speed on 2026-09-02; v1.0.2's own 'ExtraDraft' came from this same ladder, so this is a return rather than a new scheme. SPEEDS STILL RAMP PER TIER, which is PrusaSlicer's Voron behaviour and not OrcaSlicer's -- Orca's Voron tiers differ in layer height alone. See docs/CEILINGS.md and docs/CONTEXTS.md.",
+    "_variants": [
+      "Strength"
+    ],
+    "_variants_semantics": "A SECOND AXIS, not a fifth rung. A tier trades quality against time inside a fixed envelope, and _order is checked as a monotonic ramp because of it. A variant sits ON one rung -- same nozzle, same layer height -- and spends material and time on mechanical properties instead. It is deliberately excluded from the ramp checks: it would tie with its anchor on the volumetric column and mean nothing there. See docs/CONTEXTS.md for the third axis, which is the machine envelope rather than either of these.",
+    "Strength": {
+      "anchor": "variant:Standard",
+      "anchor_tier": "Standard",
+      "derivation": "Standard's rung and layer height, Optimal's motion envelope, and a heavier shell. Walls hold ~2.4 mm of wall thickness rather than a wall COUNT, which is what lets one rule serve five nozzles: 6 loops at 0.4 and 4 at 0.6 is Bambu's own ladder (0.20mm/0.30mm Strength @BBL X1C) and it holds 2.52 mm both times, so the constant they are really keeping is thickness. Infill 10%% -> 25%% is unanimous across every vendor Strength profile shipped in OrcaSlicer 2.4.2; only Creality disagrees, upward, at 30%%.",
+      "sqv": 5,
+      "layer_fraction": 0.5,
+      "off_ramp": true,
+      "_why_slower": "PrusaSlicer's STRUCTURAL is the other camp entirely: same geometry as its peers, 45-55%% of their speed and acceleration (0.20mm STRUCTURAL @MK4IS 0.4 runs perimeter 80 against SPEED's 170). Orca's vendors spend geometry; Prusa spends time. Both are cheap here, so this variant takes both -- flow_utilisation 0.7, which is Optimal's, against Standard's 1.0.",
+      "_unmeasured": "The ORDERING of the three effects -- walls, infill, dwell -- is not measured on this machine, and the chamber this pack already owns is very likely to outweigh all three for layer adhesion. Nothing here is a strength measurement; it is the consensus of what other vendors ship, applied through this pack's own model.",
+      "_what_the_delta_is": "Four keys against *SV Zero General*: perimeters (per NOZZLE, in the leaf, because what is held constant is 2.4 mm of wall), fill_density 10% -> 25%, top_solid_layers 4 -> 5, bottom_solid_layers 3 -> 4. All four are in source/keymap.json, so all three emitters promise the same thing. fill_pattern stays grid -- General already sets it, and grid is what Artillery and Creality switch TO for their own Strength profiles. ensure_vertical_shell_thickness is deliberately absent: the keymap has no Orca mapping for it and the value vocabularies differ (bool vs enum), so it would survive two emitters out of three."
+    }
   },
   "_sqv_note": "Square corner velocity is a Klipper property, not a slicer setting. Orca exposes per-feature jerk and PS/SS a single machine jerk; neither maps cleanly, and writing SQV as a slicer field is what caused the PrusaSlicer errors that v1.0.2 removed. So each tier declares an sqv and the generator passes it to START_PRINT as a parameter. The progression 3/5/7/9 comes from the continuity book and is PROPOSED, not measured — faster tiers tolerate higher SQV.",
   "layer_heights": {
@@ -84,32 +99,38 @@
       "Fine": 0.1,
       "Optimal": 0.15,
       "Standard": 0.2,
-      "Draft": 0.25
+      "Draft": 0.25,
+      "Strength": 0.2
     },
     "0.6": {
       "Fine": 0.2,
       "Optimal": 0.25,
       "Standard": 0.3,
-      "Draft": 0.4
+      "Draft": 0.4,
+      "Strength": 0.3
     },
     "0.8": {
       "Fine": 0.25,
       "Optimal": 0.3,
       "Standard": 0.4,
-      "Draft": 0.6
+      "Draft": 0.6,
+      "Strength": 0.4
     },
     "1.0": {
       "Fine": 0.4,
       "Optimal": 0.5,
       "Standard": 0.6,
-      "Draft": 0.8
+      "Draft": 0.8,
+      "Strength": 0.6
     }
   },
   "tier_gaps": {
     "_why": "Deliberate omissions, asserted by tools/validate-bundle.py so they cannot be mistaken for oversights.",
     "0.2": [
-      "Draft"
-    ]
+      "Draft",
+      "Strength"
+    ],
+    "_why_no_02_strength": "A 0.2 mm nozzle is a detail nozzle and holding 2.4 mm of wall there costs 12 loops. No vendor in OrcaSlicer 2.4.2 ships a 0.2-nozzle Strength profile either -- BBL, Creality and Artillery all start at 0.4."
   },
   "_deferred": [
     "Filament volumetric caps, per-tier speed ceilings and the (process, filament-assumption) pairing are deliberately NOT modelled yet. Recorded in docs/STATUS.md: both published anchors already ask for speeds their own filament forbids (stock 350/400/500 against a 262 mm/s ceiling; speedBenchy 500 against 400). Revisit before publishing any tier that advertises a speed."
@@ -121,7 +142,8 @@
       "Fine": 66,
       "Optimal": 76,
       "Standard": 88,
-      "Draft": 100
+      "Draft": 100,
+      "Strength": 76
     },
     "_base_speed_note": "Standard was 60 — below Optimal's 76 — which is what made infill run backwards. 88 places it evenly between Optimal and Draft. This is an interim value: Standard is defined as stock Sovol, whose real speeds are outer 350 / inner 400 / infill 500, and should be derived from the anchor once filament caps are settled.",
     "ratios_of_base": {
@@ -135,7 +157,8 @@
     "ratios_of_other": {
       "external_perimeter_speed": "83%",
       "top_solid_infill_speed": "65%"
-    }
+    },
+    "_base_speed_strength_note": "Optimal's number, not Standard's, because Strength deliberately gives back the speed Standard takes. Only reaches the tier BASE; every concrete preset's default_speed is derived from its own geometry by the flow model below."
   },
   "_flow_design": {
     "_answer": "We are not the first: PrusaSlicer models exactly this split and has since long before us. Print settings -> Speed -> Max volumetric speed is documented as the hotend's capability; Filament settings -> Advanced -> Max volumetric speed is the material's; the lower of the two wins, and 0 disables that one. So the tidy separation exists.",
@@ -154,7 +177,8 @@
       "Fine": 21,
       "Optimal": 21,
       "Standard": 21,
-      "Draft": 50
+      "Draft": 50,
+      "Strength": 21
     },
     "_reference_flow_note": "21 is Sovol's own stock PLA filament profile -- what ships and what most people will run. 50 is the machine rating and what speedBenchy's filament profile declares, which is why Draft is authored against it. Re-author against a measured value once a flow test on a documented spool exists; known and trusted beats maximal.",
     "_why_utilisation": "Holding volumetric constant across tiers inverts the ramp: at a fixed flow, a thin layer needs MORE speed, so Fine came out fastest. Tiers must differ in how much of the available flow they use, not in the flow itself. Standard = 100% because Standard is stock capped at the ceiling, which is the stated definition; Fine and Optimal deliberately leave headroom, which is what buys surface finish.",
@@ -162,7 +186,8 @@
       "Fine": 0.5,
       "Optimal": 0.7,
       "Standard": 1.0,
-      "Draft": 1.0
+      "Draft": 1.0,
+      "Strength": 0.7
     },
     "_reference_flow_provenance": {
       "21": "Sovol's stock PLA filament profile. NOT a Zero measurement: the same 21 appears on the classic SV08 and the SV08 MAX, whose toolheads differ from each other and from the Zero's. It is a house default carried along the product line, and it contradicts Sovol's own published rating for the Zero of <=50 mm3/s by 2.4x. See notes/kb/toolhead-lineage.md.",

@@ -1,0 +1,142 @@
+{
+  "_regenerate": "./tools/slice-harness.py --matrix --record",
+  "_tolerance": 0.02,
+  "_what": "Per-slicer totals from a known-good matrix run. The tight gate: each slicer is deterministic, so drift against its OWN number is meaningful where cross-slicer comparison is not.",
+  "rows": {
+    "orca|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
+      "cm3": 1.13,
+      "mm": 470.59,
+      "s": 1898.0
+    },
+    "orca|0.2n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
+      "cm3": 1.09,
+      "mm": 453.82,
+      "s": 2359.0
+    },
+    "orca|0.4n|Fine|SV Zero PLA Silk - Brass|svzero-featurecube.stl": {
+      "cm3": 1.53,
+      "mm": 635.07,
+      "s": 691.0
+    },
+    "orca|0.4n|Optimal|SV Zero PC|svzero-overhang.stl": {
+      "cm3": 2.2,
+      "mm": 915.67,
+      "s": 1716.0
+    },
+    "orca|0.6n|Draft|SV Zero PLA Silk - Steel|svzero-overhang.stl": {
+      "cm3": 3.08,
+      "mm": 1281.32,
+      "s": 432.0
+    },
+    "orca|0.6n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+      "cm3": 2.38,
+      "mm": 991.24,
+      "s": 1368.0
+    },
+    "orca|0.8n|Draft|SV Zero PETG - Steel|svzero-featurecube.stl": {
+      "cm3": 2.76,
+      "mm": 1146.87,
+      "s": 329.0
+    },
+    "orca|0.8n|Standard|SV Zero TPU|svzero-tower.stl": {
+      "cm3": 3.0,
+      "mm": 1248.13,
+      "s": 1295.0
+    },
+    "orca|1.0n|Strength|SV Zero PLA - Brass|svzero-overhang.stl": {
+      "cm3": 4.08,
+      "mm": 1696.49,
+      "s": 1020.0
+    },
+    "ps|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
+      "cm3": 0.9,
+      "mm": 374.37,
+      "s": 919.0
+    },
+    "ps|0.2n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
+      "cm3": 1.09,
+      "mm": 451.14,
+      "s": 2506.0
+    },
+    "ps|0.4n|Fine|SV Zero PLA Silk - Brass|svzero-featurecube.stl": {
+      "cm3": 1.44,
+      "mm": 600.52,
+      "s": 614.0
+    },
+    "ps|0.4n|Optimal|SV Zero PC|svzero-overhang.stl": {
+      "cm3": 1.78,
+      "mm": 739.98,
+      "s": 816.0
+    },
+    "ps|0.6n|Draft|SV Zero PLA Silk - Steel|svzero-overhang.stl": {
+      "cm3": 2.53,
+      "mm": 1050.06,
+      "s": 429.0
+    },
+    "ps|0.6n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+      "cm3": 2.45,
+      "mm": 1017.65,
+      "s": 1422.0
+    },
+    "ps|0.8n|Draft|SV Zero PETG - Steel|svzero-featurecube.stl": {
+      "cm3": 2.8,
+      "mm": 1162.72,
+      "s": 310.0
+    },
+    "ps|0.8n|Standard|SV Zero TPU|svzero-tower.stl": {
+      "cm3": 3.11,
+      "mm": 1293.11,
+      "s": 1141.0
+    },
+    "ps|1.0n|Strength|SV Zero PLA - Brass|svzero-overhang.stl": {
+      "cm3": 3.52,
+      "mm": 1463.15,
+      "s": 602.0
+    },
+    "ss|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
+      "cm3": 0.87,
+      "mm": 360.55,
+      "s": 939.0
+    },
+    "ss|0.2n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
+      "cm3": 0.96,
+      "mm": 398.29,
+      "s": 1977.0
+    },
+    "ss|0.4n|Fine|SV Zero PLA Silk - Brass|svzero-featurecube.stl": {
+      "cm3": 1.45,
+      "mm": 602.86,
+      "s": 608.0
+    },
+    "ss|0.4n|Optimal|SV Zero PC|svzero-overhang.stl": {
+      "cm3": 1.76,
+      "mm": 732.29,
+      "s": 621.0
+    },
+    "ss|0.6n|Draft|SV Zero PLA Silk - Steel|svzero-overhang.stl": {
+      "cm3": 2.39,
+      "mm": 991.8,
+      "s": 341.0
+    },
+    "ss|0.6n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+      "cm3": 2.1,
+      "mm": 874.55,
+      "s": 1321.0
+    },
+    "ss|0.8n|Draft|SV Zero PETG - Steel|svzero-featurecube.stl": {
+      "cm3": 2.62,
+      "mm": 1088.23,
+      "s": 315.0
+    },
+    "ss|0.8n|Standard|SV Zero TPU|svzero-tower.stl": {
+      "cm3": 2.6,
+      "mm": 1081.26,
+      "s": 963.0
+    },
+    "ss|1.0n|Strength|SV Zero PLA - Brass|svzero-overhang.stl": {
+      "cm3": 3.32,
+      "mm": 1382.02,
+      "s": 1049.0
+    }
+  }
+}

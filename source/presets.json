@@ -124,7 +124,7 @@
         "z_step": "0",
         "printer_technology": "FFF",
         "printer_notes": "SV Zero (Klipper). Place svzero_bed.stl and svzero_bed.svg where SuperSlicer can find them.",
-        "start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\\n;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per\\n;  job, one of which ran before the bed was at temperature.\\n;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\\n;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C\\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.\\n;  _PREFLIGHT is first so a rejected job costs no heating. It is inert\\n;  unless the optional spool_guard extra is installed.\\n_PREFLIGHT\\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\\nM140 S[first_layer_bed_temperature]\\n;>>>CLEAN_TEMP generated from source/filament-clean-temp.json -- do not hand-edit\\n;  PROPOSED curve, not a measurement. Keyed on filament_type only: the\\n;  curve's Brass/Steel split is not visible from any placeholder here and\\n;  both local nozzles are material-unverified, so PLA takes one value.\\n;  Fallback is Sovol's stock 200 -- vendor behaviour when we know nothing.\\n{if filament_type[0]==\"PLA\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=170\\nM104 S170 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"TPU\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=175\\nM104 S175 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"PETG\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=185\\nM104 S185 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"ABS\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=195\\nM104 S195 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"PC\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=200\\nM104 S200 ; head start to the cleaning temperature\\n{else}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=200\\nM104 S200 ; unknown material -- Sovol's stock cleaning temperature\\n{endif}\\n;<<<CLEAN_TEMP\\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\\n;  PROPOSED policy, not a measurement. Keyed on filament_type only; the\\n;  bed target and chamber ceiling are read live at END_PRINT, so nothing\\n;  here can go stale and a Klipper restart simply loses the override.\\n;  Rates are MAXIMA on the commanded descent. The slower of the two\\n;  governs and the other is slowed to match, so both reach the endpoint\\n;  together. Omitting this block is safe -- END_PRINT uses the same\\n;  default row that ABS, ASA, PA, PETG, PLA, TPU take here.\\n{if filament_type[0]==\"PC\"}COOLDOWN_ARM MATERIAL=PC FINAL=35 CHAMBER_RATE=1 BED_RATE=2.5\\n{else}COOLDOWN_ARM FINAL=35 CHAMBER_RATE=1.5 BED_RATE=5\\n{endif}\\n;<<<COOLDOWN\\nSKEW_PROFILE LOAD=calilatern_skew_profile\\n;  NO M190 here: it moved into START_PRINT behind CLEAN_NOZZLE, so the\\n;  nozzle is wiped while the plate is still falling from the preheat\\n;  ceiling. Calibration and mesh still run on a settled plate.\\nSTART_PRINT\\nG90\\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\\nG92 E0\\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\\nM104 S[first_layer_temperature]\\nM83\\n;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers\\n;  only it knows. The old inline math is retired: it collapsed algebraically to\\n;  nozzle_diameter/2, ignored the filament's volumetric ceiling (TPU was driven\\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\\n;  See notes/kb/purge-lines.md.\\nM109 S[first_layer_temperature]PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}",
+        "start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\\n;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per\\n;  job, one of which ran before the bed was at temperature.\\n;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\\n;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C\\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.\\n;  _PREFLIGHT is first so a rejected job costs no heating. It is inert\\n;  unless the optional spool_guard extra is installed.\\n_PREFLIGHT\\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\\nM140 S[first_layer_bed_temperature]\\n;>>>CLEAN_TEMP generated from source/filament-clean-temp.json -- do not hand-edit\\n;  PROPOSED curve, not a measurement. Keyed on filament_type only: the\\n;  curve's Brass/Steel split is not visible from any placeholder here and\\n;  both local nozzles are material-unverified, so PLA takes one value.\\n;  Fallback is Sovol's stock 200 -- vendor behaviour when we know nothing.\\n{if filament_type[0]==\"PLA\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=170\\nM104 S170 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"TPU\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=175\\nM104 S175 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"PETG\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=185\\nM104 S185 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"ABS\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=195\\nM104 S195 ; head start to the cleaning temperature\\n{elsif filament_type[0]==\"PC\"}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=200\\nM104 S200 ; head start to the cleaning temperature\\n{else}SET_GCODE_VARIABLE MACRO=_BRUSH VARIABLE=clean_temp VALUE=200\\nM104 S200 ; unknown material -- Sovol's stock cleaning temperature\\n{endif}\\n;<<<CLEAN_TEMP\\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\\n;  PROPOSED policy, not a measurement. Keyed on filament_type only; the\\n;  bed target and chamber ceiling are read live at END_PRINT, so nothing\\n;  here can go stale and a Klipper restart simply loses the override.\\n;  Rates are MAXIMA on the commanded descent. The slower of the two\\n;  governs and the other is slowed to match, so both reach the endpoint\\n;  together. Omitting this block is safe -- END_PRINT uses the same\\n;  default row that ABS, ASA, PA, PETG, PLA, TPU take here.\\n{if filament_type[0]==\"PC\"}COOLDOWN_ARM MATERIAL=PC FINAL=35 CHAMBER_RATE=1 BED_RATE=2.5\\n{else}COOLDOWN_ARM FINAL=35 CHAMBER_RATE=1.5 BED_RATE=5\\n{endif}\\n;<<<COOLDOWN\\n;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE\\n;  needs an empty skew_correction section in printer.cfg -- square\\n;  brackets are left off that name on purpose, the slicer reads them as a\\n;  template variable -- which NEITHER\\n;  firmware ships -- checked against Sovol's own 1.4.x tree, not against\\n;  a machine somebody had already modified -- and a profile YOU\\n;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.\\n;  Uncomment the line below with your own name once you have one.\\n;  Shipping somebody else's skew numbers would be worse than shipping\\n;  none, and naming a profile that does not exist logs a failed load on\\n;  every print -- skew_correction.py answers an unknown name with\\n;  respond_info, so it warns forever rather than failing once.\\n;SKEW_PROFILE LOAD=your_skew_profile\\n;  NO M190 here: it moved into START_PRINT behind CLEAN_NOZZLE, so the\\n;  nozzle is wiped while the plate is still falling from the preheat\\n;  ceiling. Calibration and mesh still run on a settled plate.\\nSTART_PRINT\\nG90\\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\\nG92 E0\\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\\nM104 S[first_layer_temperature]\\nM83\\n;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers\\n;  only it knows. The old inline math is retired: it collapsed algebraically to\\n;  nozzle_diameter/2, ignored the filament's volumetric ceiling (TPU was driven\\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\\n;  See notes/kb/purge-lines.md.\\nM109 S[first_layer_temperature]PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}",
         "printer_model": "SV Zero"
       },
       "variants": [
@@ -254,7 +254,9 @@
         "xy_size_compensation": "0",
         "support_material_auto": "1",
         "support_material_buildplate_only": "1",
-        "_why_supports": "ON by default from 2026-09-05, operator's call: supports are disliked but occasionally necessary, and anything used or published should have them configured properly rather than left at whatever the slicer defaults to. Tree/organic, automatic, build-plate-only. Orca also gets support_critical_regions_only, which has no PS equivalent -- see keymap.json process_forced."
+        "_why_supports": "ON by default from 2026-09-05, operator's call: supports are disliked but occasionally necessary, and anything used or published should have them configured properly rather than left at whatever the slicer defaults to. Tree/organic, automatic, build-plate-only. Orca also gets support_critical_regions_only, which has no PS equivalent -- see keymap.json process_forced.",
+        "solid_infill_below_area": "15",
+        "_why_solid_infill_below_area": "PINNED because the three slicers disagree by 17x and we had never set it: SuperSlicer defaults to 4 mm2, OrcaSlicer to 15, PrusaSlicer to 70. Found 2026-09-06 by the slice matrix's totals check -- the 10x10x40 tower has an infill region of about 58 mm2, which falls between SuperSlicer's default and PrusaSlicer's, so PrusaSlicer filled the whole tower SOLID and used 1.7x the filament for the same part and the same settings. That is not a test artefact: anyone slicing a small part would have got materially different results depending on which of our profiles they loaded. 15 is Orca's number and the middle of the three; 70 would make most small parts on a 152 mm bed fully solid. The exact value is a judgement, the pinning is not."
       },
       "variants": [
         {
@@ -344,6 +346,31 @@
             "travel_acceleration": "1500",
             "travel_speed": "1000"
           }
+        },
+        {
+          "id": "*SV Zero - Strength*",
+          "values": {
+            "bridge_acceleration": "50%",
+            "default_acceleration": "30246",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "756",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "internal_bridge_speed": "400%",
+            "max_print_speed": "60",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "perimeter_acceleration": "10434",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "1134",
+            "travel_speed": "756",
+            "fill_density": "25%",
+            "top_solid_layers": "5",
+            "bottom_solid_layers": "4"
+          }
         }
       ]
     },
@@ -362,7 +389,9 @@
                 "*SV Zero - Fine*"
               ],
               "values": {
-                "layer_height": "0.05"
+                "layer_height": "0.05",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -372,7 +401,9 @@
                 "*SV Zero - Optimal*"
               ],
               "values": {
-                "layer_height": "0.10"
+                "layer_height": "0.10",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -382,7 +413,9 @@
                 "*SV Zero - Standard*"
               ],
               "values": {
-                "layer_height": "0.15"
+                "layer_height": "0.15",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             }
           ]
@@ -398,7 +431,9 @@
                 "*SV Zero - Fine*"
               ],
               "values": {
-                "layer_height": "0.10"
+                "layer_height": "0.10",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -408,7 +443,9 @@
                 "*SV Zero - Optimal*"
               ],
               "values": {
-                "layer_height": "0.15"
+                "layer_height": "0.15",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -418,7 +455,9 @@
                 "*SV Zero - Standard*"
               ],
               "values": {
-                "layer_height": "0.2"
+                "layer_height": "0.2",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -428,7 +467,22 @@
                 "*SV Zero - Draft*"
               ],
               "values": {
-                "layer_height": "0.25"
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.20mm (Strength)",
+              "name": "SV Zero 0.4n - 0.20mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.2",
+                "perimeters": "6",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
               }
             }
           ]
@@ -444,7 +498,9 @@
                 "*SV Zero - Fine*"
               ],
               "values": {
-                "layer_height": "0.2"
+                "layer_height": "0.2",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -454,7 +510,9 @@
                 "*SV Zero - Optimal*"
               ],
               "values": {
-                "layer_height": "0.25"
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -464,7 +522,9 @@
                 "*SV Zero - Standard*"
               ],
               "values": {
-                "layer_height": "0.3"
+                "layer_height": "0.3",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
               }
             },
             {
@@ -474,7 +534,22 @@
                 "*SV Zero - Draft*"
               ],
               "values": {
-                "layer_height": "0.4"
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.6n - 0.3mm (Strength)",
+              "name": "SV Zero 0.6n - 0.3mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.3",
+                "perimeters": "4",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
               }
             }
           ]
@@ -490,7 +565,9 @@
                 "*SV Zero - Fine*"
               ],
               "values": {
-                "layer_height": "0.25"
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
               }
             },
             {
@@ -500,7 +577,9 @@
                 "*SV Zero - Optimal*"
               ],
               "values": {
-                "layer_height": "0.3"
+                "layer_height": "0.3",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
               }
             },
             {
@@ -510,7 +589,9 @@
                 "*SV Zero - Standard*"
               ],
               "values": {
-                "layer_height": "0.4"
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
               }
             },
             {
@@ -520,7 +601,22 @@
                 "*SV Zero - Draft*"
               ],
               "values": {
-                "layer_height": "0.6"
+                "layer_height": "0.6",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            },
+            {
+              "id": "SV Zero 0.8n - 0.4mm (Strength)",
+              "name": "SV Zero 0.8n - 0.4mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "perimeters": "3",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
               }
             }
           ]
@@ -536,7 +632,9 @@
                 "*SV Zero - Fine*"
               ],
               "values": {
-                "layer_height": "0.4"
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
               }
             },
             {
@@ -546,7 +644,9 @@
                 "*SV Zero - Optimal*"
               ],
               "values": {
-                "layer_height": "0.5"
+                "layer_height": "0.5",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
               }
             },
             {
@@ -556,7 +656,9 @@
                 "*SV Zero - Standard*"
               ],
               "values": {
-                "layer_height": "0.6"
+                "layer_height": "0.6",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
               }
             },
             {
@@ -566,7 +668,22 @@
                 "*SV Zero - Draft*"
               ],
               "values": {
-                "layer_height": "0.8"
+                "layer_height": "0.8",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            },
+            {
+              "id": "SV Zero 1.0n - 0.6mm (Strength)",
+              "name": "SV Zero 1.0n - 0.6mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.6",
+                "perimeters": "3",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
               }
             }
           ]
@@ -610,19 +727,9 @@
           "name": "SV Zero ABS",
           "values": {
             "filament_notes": "Imported from Orca JSON (SV Zero ABS).",
-            "filament_colour": "#018CA6",
-            "filament_max_volumetric_speed": "21",
-            "slowdown_below_layer_time": "5"
-          }
-        },
-        {
-          "id": "SV Zero ABS (8M)",
-          "name": "SV Zero ABS (8M)",
-          "values": {
-            "filament_notes": "Imported from Orca JSON (SV Zero ABS).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "20",
-            "slowdown_below_layer_time": "12"
+            "slowdown_below_layer_time": "5"
           }
         }
       ]
@@ -664,19 +771,9 @@
           "name": "SV Zero PC",
           "values": {
             "filament_notes": "Imported from Orca JSON (SV Zero PC).",
-            "filament_colour": "#018CA6",
-            "filament_max_volumetric_speed": "21",
-            "slowdown_below_layer_time": "5"
-          }
-        },
-        {
-          "id": "SV Zero PC (8M)",
-          "name": "SV Zero PC (8M)",
-          "values": {
-            "filament_notes": "Imported from Orca JSON (SV Zero PC).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "18",
-            "slowdown_below_layer_time": "12"
+            "slowdown_below_layer_time": "5"
           }
         }
       ]
@@ -716,46 +813,26 @@
           "name": "SV Zero PETG - Brass",
           "values": {
             "filament_notes": "Imported from Orca JSON (SV Zero PETG - Brass).",
-            "filament_colour": "#B08D57",
+            "filament_colour": "#C8AF89",
             "extrusion_multiplier": "1.0348",
             "temperature": "245",
             "slowdown_below_layer_time": "10",
             "filament_pressure_advance": "0.046"
           },
-          "variants": [
-            {
-              "id": "SV Zero PETG - Brass (8M)",
-              "name": "SV Zero PETG - Brass (8M)",
-              "values": {
-                "filament_notes": "Imported from Orca JSON (SV Zero PETG - Brass).",
-                "filament_colour": "#C8AF89",
-                "slowdown_below_layer_time": "8"
-              }
-            }
-          ]
+          "variants": []
         },
         {
           "id": "SV Zero PETG - Steel",
           "name": "SV Zero PETG - Steel",
           "values": {
             "filament_notes": "Imported from Orca JSON (SV Zero PETG - Steel).",
-            "filament_colour": "#8A8F98",
+            "filament_colour": "#ADB1B7",
             "extrusion_multiplier": "0.98",
             "temperature": "250",
             "slowdown_below_layer_time": "10",
             "filament_pressure_advance": "0.048"
           },
-          "variants": [
-            {
-              "id": "SV Zero PETG - Steel (8M)",
-              "name": "SV Zero PETG - Steel (8M)",
-              "values": {
-                "filament_notes": "Imported from Orca JSON (SV Zero PETG - Steel).",
-                "filament_colour": "#ADB1B7",
-                "slowdown_below_layer_time": "8"
-              }
-            }
-          ]
+          "variants": []
         }
       ]
     },
@@ -792,7 +869,7 @@
           "values": {
             "filament_cost": "20",
             "filament_notes": "Imported from Orca JSON (SV Zero PLA - Brass).",
-            "filament_colour": "#B08D57",
+            "filament_colour": "#C8AF89",
             "extrusion_multiplier": "0.98",
             "filament_max_volumetric_speed": "21",
             "temperature": "210",
@@ -802,44 +879,25 @@
           },
           "variants": [
             {
-              "id": "SV Zero PLA - Brass (8M)",
-              "name": "SV Zero PLA - Brass (8M)",
-              "values": {
-                "filament_notes": "Imported from Orca JSON (SV Zero PLA - Brass).",
-                "filament_colour": "#C8AF89",
-                "slowdown_below_layer_time": "6"
-              }
-            },
-            {
               "id": "SV Zero PLA - Steel",
               "name": "SV Zero PLA - Steel",
               "values": {
                 "filament_notes": "Imported from Orca JSON (SV Zero PLA - Steel).",
-                "filament_colour": "#8A8F98",
+                "filament_colour": "#ADB1B7",
                 "extrusion_multiplier": "1.0348",
                 "temperature": "230",
                 "first_layer_temperature": "245",
-                "filament_pressure_advance": "0.03"
+                "filament_pressure_advance": "0.03",
+                "filament_cost": "20"
               },
-              "variants": [
-                {
-                  "id": "SV Zero PLA - Steel (8M)",
-                  "name": "SV Zero PLA - Steel (8M)",
-                  "values": {
-                    "filament_cost": "20",
-                    "filament_notes": "Imported from Orca JSON (SV Zero PLA - Steel).",
-                    "filament_colour": "#ADB1B7",
-                    "slowdown_below_layer_time": "6"
-                  }
-                }
-              ]
+              "variants": []
             },
             {
               "id": "SV Zero PLA Silk - Brass",
               "name": "SV Zero PLA Silk - Brass",
               "values": {
                 "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Brass).",
-                "filament_colour": "#CD9847",
+                "filament_colour": "#DEBA84",
                 "filament_max_volumetric_speed": "15",
                 "temperature": "220",
                 "first_layer_temperature": "245",
@@ -848,33 +906,15 @@
               },
               "variants": [
                 {
-                  "id": "SV Zero PLA Silk - Brass (8M)",
-                  "name": "SV Zero PLA Silk - Brass (8M)",
-                  "values": {
-                    "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Brass).",
-                    "filament_colour": "#DEBA84"
-                  }
-                },
-                {
                   "id": "SV Zero PLA Silk - Steel",
                   "name": "SV Zero PLA Silk - Steel",
                   "values": {
                     "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Steel).",
-                    "filament_colour": "#8A94A7",
+                    "filament_colour": "#B1B9C5",
                     "slowdown_below_layer_time": "5",
                     "filament_pressure_advance": "0.027"
                   },
-                  "variants": [
-                    {
-                      "id": "SV Zero PLA Silk - Steel (8M)",
-                      "name": "SV Zero PLA Silk - Steel (8M)",
-                      "values": {
-                        "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Steel).",
-                        "filament_colour": "#B1B9C5",
-                        "slowdown_below_layer_time": "6"
-                      }
-                    }
-                  ]
+                  "variants": []
                 }
               ]
             }
@@ -919,19 +959,9 @@
           "name": "SV Zero TPU",
           "values": {
             "filament_notes": "Imported from Orca JSON (SV Zero TPU).",
-            "filament_colour": "#018CA6",
-            "filament_max_volumetric_speed": "3.2",
-            "slowdown_below_layer_time": "5"
-          }
-        },
-        {
-          "id": "SV Zero TPU (8M)",
-          "name": "SV Zero TPU (8M)",
-          "values": {
-            "filament_notes": "Imported from Orca JSON (SV Zero TPU).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "3",
-            "slowdown_below_layer_time": "8"
+            "slowdown_below_layer_time": "5"
           }
         }
       ]

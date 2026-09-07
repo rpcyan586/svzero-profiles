@@ -28,6 +28,31 @@ import struct
 
 OUT = "svzero-featurecube.stl"
 
+# Three shapes, because one cannot force three different code paths.
+#
+# The cube alone carried the harness until 2026-09-06, and on that day the slice
+# matrix found that no 0.8 or 1.0 nozzle profile could be sliced by anything --
+# the organic support tip and branch diameters were below the support extrusion
+# width. The cube DID catch it, but only because the slicer validates support
+# settings when it loads them, whether or not the object needs support. Nothing
+# here had ever asked a slicer to actually BUILD a support. That is luck, not
+# coverage.
+#
+#   featurecube  perimeters, solid infill, top surface, a real bridge over a
+#                void, first layer. What the per-feature speed and width table
+#                is measured from.
+#   overhang     an L that cantilevers 18 mm over nothing, so support material
+#                must be generated and its geometry exercised rather than only
+#                validated.
+#   tower        10 x 10 x 40, ~200 layers at 0.2. Layer time falls below
+#                slowdown_below_layer_time, so the cooling path runs -- which is
+#                the one value the (8M) merge deliberately did NOT take from the
+#                SV08 MAX, and therefore the one worth exercising.
+SHAPES = ("featurecube", "overhang", "tower")
+STL_NAME = {"featurecube": OUT,
+            "overhang": "svzero-overhang.stl",
+            "tower": "svzero-tower.stl"}
+
 
 def box(x0, y0, z0, x1, y1, z1, inward=False):
     """12 triangles. `inward` reverses the winding, making the box a void."""
@@ -47,6 +72,40 @@ def box(x0, y0, z0, x1, y1, z1, inward=False):
     return tris
 
 
+def prism_xz(poly, faces, y0, y1):
+    """Extrude a 2-D profile in the XZ plane along Y into a closed solid.
+
+    `poly` is the outline in order; `faces` indexes it into triangles, supplied
+    rather than computed because the only profile here is a non-convex L and a
+    fan triangulation would fold over its notch.
+    """
+    lo = [(x, y0, z) for x, z in poly]
+    hi = [(x, y1, z) for x, z in poly]
+    tris = []
+    for a, b, c in faces:
+        tris.append((lo[a], lo[b], lo[c]))     # -Y cap
+        tris.append((hi[a], hi[c], hi[b]))     # +Y cap
+    n = len(poly)
+    for i in range(n):                          # the skirt
+        j = (i + 1) % n
+        tris.append((lo[i], hi[j], lo[j]))
+        tris.append((lo[i], hi[i], hi[j]))
+    return tris
+
+
+def overhang(width=24.0, depth=24.0, leg=6.0, shelf_z=8.0, height=10.0):
+    """An L on its side: a leg, and a shelf cantilevered over nothing."""
+    poly = [(0.0, 0.0), (leg, 0.0), (leg, shelf_z),
+            (width, shelf_z), (width, height), (0.0, height)]
+    faces = [(0, 1, 2), (0, 2, 5), (2, 3, 4), (2, 4, 5)]
+    return prism_xz(poly, faces, 0.0, depth)
+
+
+def tower(side=10.0, height=40.0):
+    """Small footprint, many layers -- short layer times, so cooling engages."""
+    return box(0, 0, 0, side, side, height)
+
+
 def normal(t):
     (ax, ay, az), (bx, by, bz), (cx, cy, cz) = t
     ux, uy, uz = bx - ax, by - ay, bz - az
@@ -58,7 +117,7 @@ def normal(t):
 
 def write_stl(path, tris):
     with open(path, "wb") as fh:
-        fh.write(b"SV Zero slicer harness feature cube".ljust(80, b" "))
+        fh.write(b"SV Zero slicer harness synthetic test object".ljust(80, b" "))
         fh.write(struct.pack("<I", len(tris)))
         for t in tris:
             fh.write(struct.pack("<3f", *normal(t)))
@@ -71,6 +130,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("outdir", nargs="?", default=".")
+    ap.add_argument("--shape", default="featurecube",
+                    choices=SHAPES + ("all",))
     ap.add_argument("--size", type=float, default=24.0, help="outer XY, mm")
     ap.add_argument("--height", type=float, default=6.0)
     ap.add_argument("--void", type=float, default=12.0, help="inner XY, mm")
@@ -78,14 +139,23 @@ def main():
     ap.add_argument("--void-z1", type=float, default=3.0)
     args = ap.parse_args()
 
-    s, h, w = args.size, args.height, args.void
-    off = (s - w) / 2.0
-    tris = box(0, 0, 0, s, s, h)
-    tris += box(off, off, args.void_z0, off + w, off + w, args.void_z1, inward=True)
-    path = os.path.join(args.outdir, OUT)
-    write_stl(path, tris)
-    print("%s  %d triangles  %.0fx%.0fx%.0f mm, void %.0fx%.0f from z%.1f to z%.1f"
-          % (path, len(tris), s, s, h, w, w, args.void_z0, args.void_z1))
+    def build(shape):
+        if shape == "featurecube":
+            s, h, w = args.size, args.height, args.void
+            off = (s - w) / 2.0
+            t = box(0, 0, 0, s, s, h)
+            t += box(off, off, args.void_z0, off + w, off + w, args.void_z1, inward=True)
+            return t, "%.0fx%.0fx%.0f mm, void %.0fx%.0f from z%.1f to z%.1f" % (
+                s, s, h, w, w, args.void_z0, args.void_z1)
+        if shape == "overhang":
+            return overhang(), "L, 18 mm cantilever at z8 -- forces support"
+        return tower(), "10x10x40 mm tower -- ~200 layers, short layer times"
+
+    for shape in (SHAPES if args.shape == "all" else (args.shape,)):
+        tris, note = build(shape)
+        path = os.path.join(args.outdir, STL_NAME[shape])
+        write_stl(path, tris)
+        print("%s  %d triangles  %s" % (path, len(tris), note))
 
 
 if __name__ == "__main__":

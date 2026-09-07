@@ -22,6 +22,14 @@ OVR = json.load(open(os.path.join(ROOT, "source", "nozzle-overrides.json")))
 # in check().
 PS_OPTS = set(json.load(open(os.path.join(
     ROOT, "source", "ps-known-options.json")))["options"])
+# Deliberate tier omissions, READ FROM THE MODEL rather than restated here. The
+# hardcoded set below it is history: old tier names, kept so a stale bundle from
+# before the rename still validates. Everything current comes from model.json,
+# which is where the reason for each gap is written down.
+MODEL = json.load(open(os.path.join(ROOT, "source", "model.json")))
+MODEL_GAPS = {"%sn" % noz: set(t)
+              for noz, t in MODEL["tier_gaps"].items()
+              if not noz.startswith("_")}
 
 
 def parse(path):
@@ -88,7 +96,56 @@ def check(path):
                 pass
     # Deliberate omissions. A 0.2 mm nozzle has no business with a Speed tier;
     # tier coverage is a design choice per nozzle, not proportional scaling.
-    EXPECTED_GAPS = {"0.2n": {"Draft", "Speed", "ExtraDraft"}}   # old names kept: a stale bundle must still validate
+    # A value that split across lines. The parser here reads exactly like the
+    # slicer's, so a G-code line that became its own `key = value` shows up as a
+    # key no slicer defines -- which is precisely how SuperSlicer reported it:
+    # "Unknow setting: SET_GCODE_OFFSET Z_ADJUST (value: 0.000 MOVE=1)".
+    # Multi-line values must carry a backslash-n escape; see ini_value().
+    for n, sec in secs.items():
+        for k in sec:
+            if " " in k or k.startswith(("G0", "G1", "M1", "SET_", "; ")):
+                problems.append(
+                    "%s: %r parsed as a KEY -- a multi-line value was written "
+                    "with a real newline instead of a \\n escape, and the "
+                    "remainder became its own setting" % (n, k[:48]))
+
+    # Annotation keys. Authored commentary belongs in the master, never in an
+    # artefact -- every slicer reports them as unknown settings on load.
+    for n, sec in secs.items():
+        for k in sec:
+            if k.startswith("_"):
+                problems.append("%s: annotation key %s leaked into the artefact" % (n, k))
+
+    # Square brackets in custom G-code are the legacy Slic3r VARIABLE syntax, and
+    # both PrusaSlicer and SuperSlicer refuse to export when one does not
+    # resolve:
+    #
+    #   G-code export failed due to invalid custom G-code sections: start_gcode
+    #   Parsing error at line 32: Variable does not exist
+    #
+    # Caught 2026-09-06 by a headless slice, after the token had already been
+    # committed and emitted into all nine artefacts. It was a COMMENT -- the word
+    # skew_correction in square brackets, written in prose inside a `;` line --
+    # and the templater does not care that the line is a comment. Every real
+    # placeholder here is a config option name, so the option list is the oracle.
+    CUSTOM_GCODE = ("start_gcode", "end_gcode", "before_layer_gcode",
+                    "layer_gcode", "toolchange_gcode", "between_objects_gcode",
+                    "start_filament_gcode", "end_filament_gcode",
+                    "color_change_gcode", "pause_print_gcode",
+                    "template_custom_gcode")
+    for n, sec in secs.items():
+        for key in CUSTOM_GCODE:
+            for tok in sorted(set(re.findall(r"\[([A-Za-z_][A-Za-z_0-9]*)\]",
+                                             sec.get(key, "")))):
+                if tok not in PS_OPTS:
+                    problems.append(
+                        "%s: %s references [%s], which is not a slicer option -- "
+                        "square brackets are the variable syntax even inside a "
+                        "comment, and the export fails" % (n, key, tok))
+
+    EXPECTED_GAPS = collections.defaultdict(set, {
+        k: set(v) for k, v in MODEL_GAPS.items()})
+    EXPECTED_GAPS["0.2n"] |= {"Speed", "ExtraDraft"}   # old names: a stale bundle must still validate
 
     tiers = sorted({m.group(1) for m in
                     (re.match(r"print:SV Zero \d\.\dn - [\d.]+mm \((\w+)\)", x) for x in names) if m})
@@ -101,6 +158,54 @@ def check(path):
         missing = set(tiers) - have - EXPECTED_GAPS.get(noz, set())
         if missing:
             problems.append("%s missing tier(s): %s" % (noz, ", ".join(sorted(missing))))
+
+    # THE BUNDLE IS THE FORM A HUMAN IMPORTS, and it is the only artefact the
+    # slice harness never executes -- there is no CLI path that loads a config
+    # bundle, so it cannot be sliced the way the flattened presets can.
+    #
+    # What CAN be proved is equivalence. The SuperSlicer bundle keeps the
+    # inheritance tree; bundles/ss-presets is the same tree flattened with no
+    # translation applied. Resolve one and it must equal the other, key for key.
+    # If it does, then slicing ss-presets IS a test of the bundle, and the gap
+    # closes without ever loading a bundle.
+    #
+    # PrusaSlicer gets no such check and cannot: its per-preset files are
+    # flattened AND translated -- widths to mm, speeds absolutised, pressure
+    # advance rewritten as filament G-code -- so the two are meant to differ.
+    if os.path.basename(path) == "SVZero_SuperSlicer.ini":
+        flat_dir = os.path.join(ROOT, "bundles", "ss-presets")
+        checked = mismatched = 0
+        for n, sec in secs.items():
+            kind, _, preset = n.partition(":")
+            if kind not in ("print", "filament", "printer") or preset.startswith("*"):
+                continue
+            loose = os.path.join(flat_dir, kind, "%s.ini" % preset)
+            if not os.path.exists(loose):
+                problems.append("bundle has %s but ss-presets does not" % n)
+                continue
+            chain, cur, seen = {}, n, set()
+            while cur and cur in secs and cur not in seen:
+                seen.add(cur)
+                for k, v in secs[cur].items():
+                    chain.setdefault(k, v)
+                par = (secs[cur].get("inherits") or "").strip()
+                cur = "%s:%s" % (kind, par) if par else None
+            chain.pop("inherits", None)
+            want = {}
+            for line in open(loose, encoding="utf-8"):
+                if "=" in line and not line.lstrip().startswith("#"):
+                    k, _, v = line.partition("=")
+                    want[k.strip()] = v.strip()
+            diff = sorted(k for k in set(chain) | set(want)
+                          if chain.get(k) != want.get(k))
+            checked += 1
+            if diff:
+                mismatched += 1
+                problems.append(
+                    "%s: bundle resolves differently from ss-presets on %s"
+                    % (n, ", ".join(diff[:6]) + (" ..." if len(diff) > 6 else "")))
+        if checked and not mismatched:
+            print("   bundle == ss-presets on all %d concrete preset(s), resolved" % checked)
 
     print("== %s ==" % os.path.basename(path))
     print("   %d sections, %d with inherits, tiers seen: %s"

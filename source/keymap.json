@@ -1,6 +1,6 @@
 {
   "_why": "OrcaSlicer descends from Bambu Studio; PrusaSlicer and SuperSlicer share a lineage. Measured against the real files, Orca and SuperSlicer share only 13 exact parameter names out of ~90, while SuperSlicer and PrusaSlicer share all 90. So generating PS from SS is close to a copy, and generating Orca needs this table. The tier anchors in source/tier-anchors.json are in ORCA names because they came from a forum table comparing two Orca profiles; this is what lets them drive PS/SS output too.",
-  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer \u2014 a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
+  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer — a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
   "_scope_note": "Some Orca process keys correspond to PS/SS settings that are NOT process-level. retraction and z-hop are printer-level in PS/SS; pressure advance and volumetric caps are filament-level. Those are listed in `scope_differs` and must be emitted into the right section, not the print preset.",
   "mapped": {
     "layer_height": "layer_height",
@@ -52,7 +52,10 @@
     "support_bottom_z_distance": "support_material_bottom_contact_distance",
     "support_interface_top_layers": "support_material_interface_layers",
     "enable_support": "support_material",
-    "support_on_build_plate_only": "support_material_buildplate_only"
+    "support_on_build_plate_only": "support_material_buildplate_only",
+    "tree_support_tip_diameter": "support_tree_tip_diameter",
+    "tree_support_branch_diameter": "support_tree_branch_diameter",
+    "minimum_sparse_infill_area": "solid_infill_below_area"
   },
   "scope_differs": {
     "retraction_length": {
@@ -165,7 +168,7 @@
     "wall_direction",
     "wall_sequence"
   ],
-  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting \u2014 see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
+  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting — see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
   "_value_vocabularies_differ_too": "Mapping key NAMES is not enough: the same key can carry different enum values per slicer. PrusaSlicer 2.9.6 rejected brim_type=auto_brim from the Orca-derived Stock tier and substituted outer_only, with a warning dialog on every launch. Checked the rest of the Stock tier's non-numeric values: seam_position=aligned and fill_pattern=grid are valid in both.",
   "value_map": {
     "brim_type": {
