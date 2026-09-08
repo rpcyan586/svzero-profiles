@@ -56,7 +56,7 @@ That is the whole install. The include order inside those files is deliberate an
 
 Import the bundle for whichever slicer you use. Orca gets a vendor bundle, PrusaSlicer and SuperSlicer get config bundles.
 
-The profiles do not carry a printer address. Add your own physical printer once, in the dialog built for it.
+The profiles do not carry a printer address. Add your own physical printer once, in the dialog built for it - PrusaSlicer and SuperSlicer both have a native `moonraker` host type; Orca has none and wants `octoprint`, which points at the same Moonraker endpoint.
 
 ## What runs without what
 
@@ -85,6 +85,28 @@ Exhaust duty on the temperature chart. Uncomment `[include exhaust_duty.cfg]` in
 `START_PRINT` checks for `[probe_pressure]` and forces the load-cell overlay only where there is one. Without it the eddy path decides for itself whether it has work to do, which lets it skip when it already has good data.
 
 This matters more than it looks. Passing `METHOD=force_overlay` on 1.4.7 does not fail - their `z_offset_calibration.py` skips the routine only when `METHOD` is exactly `default`, so any other value bypasses the skip and runs a full heat-up and a contact probe on every print. That is the split 0dysseusRex settled on in [Rex-Sovol-Zero-Mainline](https://github.com/0dysseusRex/Rex-Sovol-Zero-Mainline): eddy for homing and mesh, load cell for fine Z offset where it exists, eddy-only where it does not.
+
+## What shows up in Mainsail
+
+Twenty-five macros, not seventy-seven. Everything the pack defines that you would
+not click is prefixed with an underscore, which hides it from Mainsail's macro
+list while leaving it **fully callable from the console** — so nothing is lost,
+it is just not in your way.
+
+What stays visible, and why:
+
+| | |
+|---|---|
+| `START_PRINT` `END_PRINT` `CANCEL_PRINT` `CLEAN_NOZZLE` `LOAD_FILAMENT` `UNLOAD_FILAMENT` | Sovol's own; the firmware and the touchscreen call them by name |
+| `M104` `M141` `M191` `T0` `SET_HEATER_TEMPERATURE` | G-code commands, not really macros |
+| `PURGE_LINE` `COOLDOWN_ARM` `SET_CLEAN_TEMP` `SVZERO_REQUIRE` | the slicer emits these; renaming them would break every sliced file |
+| `CHAMBER_ON` `CHAMBER_OFF` `COOLDOWN_STATUS` `COOLDOWN_ABORT` `COOLDOWN_CONFIG` | things you actually reach for |
+| `BRUSH_TEACH` `BRUSH_STATUS` `PURGE_STATUS` | commissioning and diagnosis |
+| `CHAMBER_ORBIT_SWEEP` `ORBIT_WHINE_SWEEP` | manual test tools |
+
+The rest — the config setters, the orbit internals, the brush prime, the chamber
+autostart — are still there under a leading underscore. `_COOLDOWN_START` works
+exactly as `COOLDOWN_START` did if you type it.
 
 ## Removing it
 

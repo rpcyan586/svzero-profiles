@@ -131,6 +131,61 @@ def ini_writable(kv, reject=None):
         if not k.startswith(ANNOTATION_PREFIX) and k not in bad)
 
 
+def chamber_block(target):
+    """The chamber lines, in each slicer's own dialect, for the same behaviour.
+
+    All three must do the same two things: BLOCK until the chamber reaches the
+    material's minimum, then leave a non-blocking ceiling at its target. They
+    cannot be told to in the same words.
+
+      orca  emits M191 and M141 itself from activate_chamber_temp_control, so
+            this block is a comment. See tools/start_gcode.py.
+      ps    has chamber_minimal_temperature AND chamber_temperature natively.
+      ss    has chamber_temperature but NO chamber_minimal_temperature -- the
+            option does not exist, which is why ss-rejected-keys.json drops it.
+            The minimum travels in filament_custom_variables instead, which is
+            SuperSlicer's own mechanism for carrying a value into custom G-code.
+            Seeded on every filament base, so the name can never be undefined.
+
+    Until 2026-09-07 this was one line, `M141 S...`, and NO M191 on any slicer
+    but Orca. A PrusaSlicer job therefore started heating immediately, never
+    waited for the chamber and never got the bed boost -- observed on a live
+    print, and the reason this function exists.
+    """
+    if target == "orca":
+        return ";  chamber: Orca emits M191/M141 itself from its filament fields"
+    if target == "ps":
+        return "\n".join([
+            ";  M191 blocks until the chamber reaches the material's minimum;",
+            ";  M141 then leaves a non-blocking ceiling at its target.",
+            "{if chamber_minimal_temperature[0] > 0}M191 S{chamber_minimal_temperature[0]}",
+            "{endif}{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}"
+            "{else}M141 S32{endif}",
+        ])
+    return "\n".join([
+        ";  SuperSlicer has no chamber_minimal_temperature. The minimum comes",
+        ";  from filament_custom_variables, seeded on every filament base.",
+        "{if chamber_temperature[0] > 0}M191 S{chamber_min}",
+        "M141 S{chamber_temperature[0]}{else}M141 S32{endif}",
+    ])
+
+
+def inject_chamber(secs, target):
+    n = 0
+    body = chamber_block(target)
+    for sec in secs:
+        g = secs[sec].get("start_gcode")
+        if not g or ";>>>CHAMBER" not in g:
+            continue
+        new = re.sub(r";>>>CHAMBER.*?;<<<CHAMBER",
+                     lambda m: ";>>>CHAMBER emitted per slicer -- do not hand-edit\\n"
+                               + body + "\\n;<<<CHAMBER", g)
+        if new != g:
+            secs[sec]["start_gcode"] = new
+            n += 1
+    return n
+
+
 def strip_hidden(model, secs):
     """Drop tiers the model marks `hidden` from an OUTGOING artefact.
 
@@ -769,6 +824,21 @@ PS_SPEED_FROM_DEFAULT_PCT = ()
 # the external perimeter the FASTEST thing on the layer instead of the slowest.
 # Measured both ways on 2026-09-01; as a percentage PrusaSlicer and SuperSlicer
 # emit an identical first layer.
+# first_layer_speed stays a percentage, deliberately.
+#
+# PrusaSlicer and SuperSlicer both read it as a per-feature MULTIPLIER, which
+# gives a GRADED first layer: every feature keeps its ratio to the others, so
+# the external perimeter stays slower than the internal one exactly as it does
+# on every other layer. Orca has one absolute field and cannot express that.
+#
+# Absolutising it to a flat 24.5 mm/s was tried on 2026-09-07 to make all three
+# identical, and reverted the same day: matching the weakest dialect throws away
+# a control the other two have, which is lowest-common-denominator rather than
+# consistency. Orca instead approximates the curve with the two fields it does
+# have -- see ORCA_FIRST_LAYER.
+#
+# The 1.575 mm/s that started all this was never this key's fault. It was an
+# unpinned small_perimeter_speed handing the multiplier a 15 mm/s base.
 PS_KEEP_PERCENT = ("first_layer_speed",)
 
 # The baseline fan speed has three names and every one of the three slicers uses
@@ -975,6 +1045,8 @@ def emit_ss_presets(model, ss, out_dir):
     """
     kinds = ("print", "filament", "printer", "physical_printer")
     pub, _ = strip_hidden(model, ss)
+    pub = collections.OrderedDict((k, collections.OrderedDict(v)) for k, v in pub.items())
+    inject_chamber(pub, "ss")
     for d in kinds:
         sub = os.path.join(out_dir, d)
         os.makedirs(sub, exist_ok=True)
@@ -1209,6 +1281,8 @@ def emit_ps(model, ss, out_path):
     ps_bundle_resolve.
     """
     pub, _ = strip_hidden(model, ss)
+    pub = collections.OrderedDict((k, collections.OrderedDict(v)) for k, v in pub.items())
+    inject_chamber(pub, "ps")
     out, dropped = ps_bundle_resolve(pub)
     write_ini(out_path, out, "PrusaSlicer bundle, derived from the SuperSlicer master",
               target=("PrusaSlicer", PS_TARGET))
@@ -1257,6 +1331,13 @@ PCT_REFERENCE = {
     "infill_speed": "solid_infill_speed",
     "top_solid_infill_speed": "solid_infill_speed",
     "first_layer_infill_speed": "infill_speed",
+    # Added 2026-09-07. Unset, PrusaSlicer defaults small perimeters to 15 mm/s
+    # ABSOLUTE against our 158.6 mm/s perimeters -- and then first_layer_speed,
+    # which PrusaSlicer treats as a MULTIPLIER, stacked on top: 10.5% x 15 =
+    # 1.575 mm/s = F94.5, which is what a live print was actually running at.
+    # SuperSlicer and Orca both express this as a percentage of the internal
+    # perimeter speed, so that is the reference.
+    "small_perimeter_speed": "perimeter_speed",
 }
 
 
@@ -1293,6 +1374,27 @@ ORCA_PCT_OK = ("sparse_infill_density", "infill_wall_overlap",
                "retract_before_wipe", "overhang_fan_threshold")
 
 
+def orca_percent_to_ratio(doc, keymap):
+    """Orca states flow ratios as 0-2; PS/SS state them as a percentage.
+
+    Same quantity, different scale, and Orca refuses out of range rather than
+    coercing: `bottom_solid_infill_flow_ratio: 100 not in range [0,2]`. The
+    upstream validator accepted the identical file -- 100 is a valid number and
+    only the slicer knows the bound -- so this class is invisible to everything
+    except an actual slice.
+    """
+    n = 0
+    for key in keymap.get("_percent_to_ratio", {}).get("orca_keys", []):
+        v = str(doc.get(key, "")).strip()
+        if v.endswith("%"):
+            try:
+                doc[key] = "%g" % (float(v[:-1]) / 100.0)
+                n += 1
+            except ValueError:
+                pass
+    return n
+
+
 def orca_absolutise(doc, flat, nozzle):
     """Resolve the percentages Orca will not accept, each against its own base.
 
@@ -1310,12 +1412,17 @@ def orca_absolutise(doc, flat, nozzle):
         except ValueError:
             return default
     accel, speed = num("default_acceleration"), num("default_speed")
-    # first_layer_speed scales each feature's own speed in PS/SS. Orca has one
-    # absolute number for the whole first layer plus one for its infill, so the
-    # per-feature scaling cannot survive -- but resolving it against
-    # default_speed, as the generic rule below would, is the worst available
-    # answer: it makes Orca's first layer 24.5 mm/s where the other two run
-    # 13.8-16.7. Resolve against the features Orca's two fields actually govern.
+    # ORCA APPROXIMATES A CURVE IT CANNOT EXPRESS.
+    #
+    # first_layer_speed is a per-feature multiplier in PS/SS, so their first
+    # layer is GRADED -- each feature keeps its ratio to the others. Orca has two
+    # absolute fields and no multiplier, so it cannot do that. The answer is to
+    # match the multiplier's OUTPUT on the features Orca's two fields actually
+    # govern, not to flatten the other two down to Orca's limit: resolving
+    # against default_speed would put Orca at 24.5 where PS/SS run 13.8-16.7.
+    #
+    # Briefly flattened all three on 2026-09-07 and reverted the same day.
+    # Matching the weakest dialect is lowest-common-denominator, not consistency.
     ORCA_FIRST_LAYER = {"initial_layer_speed": num("perimeter_speed"),
                         "initial_layer_infill_speed": num("solid_infill_speed")}
     n = 0
@@ -1395,6 +1502,10 @@ def emit_orca(model, ss, keymap, out_dir):
     # from, or ones whose scope differs, so nothing upstream can carry them.
     forced_process = {k: v for k, v in keymap.get("process_forced", {}).items()
                       if not k.startswith("_")}
+    # ...and its counterpart: PS/SS keys withheld from Orca on purpose. See
+    # keymap.json process_omit for why each one is there.
+    omit_process = {k for k in keymap.get("process_omit", {})
+                    if not k.startswith("_")}
     written, unmapped, unresolved = 0, collections.Counter(), []
     written_names = []
     for name, kv in ss.items():
@@ -1421,6 +1532,8 @@ def emit_orca(model, ss, keymap, out_dir):
         for k, v in flat.items():
             if k in ("inherits", "compatible_printers"):
                 continue
+            if k in omit_process:
+                continue
             if k in rev:
                 if isinstance(v, str) and v.strip().endswith("%") and k in PCT_REFERENCE:
                     unresolved.append("%s: %s = %s" % (doc["name"], k, v))
@@ -1441,11 +1554,12 @@ def emit_orca(model, ss, keymap, out_dir):
         # `mapped` and two Orca keys pointing at one PS/SS key silently drops
         # the first. Written here instead, from the same percentage.
         # Without it Orca falls back to its own 60 mm/s default and prints a
-        # first layer 3.6x faster than the other two slicers.
+        # first layer 2.4x faster than the other two slicers.
         fls = str(flat.get("first_layer_speed", "")).strip()
         if fls.endswith("%") and not flat.get("first_layer_infill_speed", "0").strip("0. "):
             doc["initial_layer_infill_speed"] = fls
         widths_to_mm(doc, noz)
+        orca_percent_to_ratio(doc, keymap)
         orca_absolutise(doc, flat, noz)
         # NOTE: no _sqv here. It was emitted as an int and Orca rejected the whole
         # profile with "invalid json type for _sqv" -- Orca requires every value to
@@ -1662,6 +1776,15 @@ def emit_orca_filament(model, ss, keymap, out_dir):
     simple, fan_out = fs["simple"], fs["_fan_out"]
     paired, forced, roots = fs["_paired"], fs["_forced"], fs["_roots"]
     os.makedirs(out_dir, exist_ok=True)
+    # CLEAR FIRST. Every other emitter does; this one did not, and the (8M)
+    # merge on 2026-09-06 left nine deleted filaments on disk -- which
+    # emit_orca_vendor then packaged and INDEXED, so the Orca vendor offered
+    # eighteen filaments where the master has nine. The upstream validator
+    # passed it: an orphan is a perfectly valid profile, just not one anybody
+    # asked for. Same failure the tier rename caused in emit_ps_presets.
+    for old_file in os.listdir(out_dir):
+        if old_file.endswith(".json"):
+            os.remove(os.path.join(out_dir, old_file))
     machines = ["SV Zero %s nozzle" % n for n in model["machine"]["nozzles"]]
     written, unmapped = [], collections.Counter()
 
@@ -1816,6 +1939,18 @@ def emit_orca_vendor(model, ss, out_dir):
     # which is what tipped this off -- fdm_process_common is the first entry in
     # its process_list. So the roots are seeded into the lists here, ahead of
     # everything that inherits from them.
+    # Ship the assets beside the profiles. Unlike PrusaSlicer, where a user
+    # preset cannot resolve a bare filename and install-presets.py has to write
+    # an absolute path, an Orca VENDOR bundle resolves against its own
+    # directory -- so a downloader gets the plate too, not just the sandbox.
+    # The credits file travels with the assets. CC BY-SA attribution has to
+    # accompany the work, and a downloader who unpacks only the Orca vendor
+    # directory must still find out whose model it is.
+    for asset in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+        src = os.path.join(ROOT, asset)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(vend, asset))
+
     machine_list, process_list, filament_list = [], [], []
     roots = [("fdm_process_common", "process", process_list),
              ("fdm_machine_common", "machine", machine_list)]
@@ -1917,6 +2052,23 @@ def emit_orca_vendor(model, ss, out_dir):
             m["default_print_profile"] = "%smm " + dflt + " @SV Zero %s nozzle"
             m["default_print_profile"] = ("%smm %s @SV Zero %s nozzle") % (
                 format(lh, ".2f"), dflt, noz)
+        # THE BED MODEL AND TEXTURE. Orca resolves these as bare filenames
+        # against the VENDOR directory -- the same convention Anker, Anycubic
+        # and SeeMeCNC use, and SVG is accepted alongside PNG. Without them Orca
+        # draws a plain rectangle, which is what both `sandbox.sh orca` and
+        # `orca-shadow` were doing: shadow only rewrites machine_start_gcode, so
+        # anything missing from the machine profile is missing from both.
+        #
+        # MODEL ONLY, NO TEXTURE. Both were set until 2026-09-07, when the
+        # operator reported the texture "largely buried beneath the top surface
+        # of the model". That is inherent, not a z-fight: the texture is painted
+        # on the flat build rectangle at z=0, and dukinarow's model is a real
+        # solid whose plate surface sits ABOVE z=0, so the model occludes it
+        # everywhere the two overlap. A texture is what you show INSTEAD of a
+        # model, not underneath one. The SVG still ships -- it is the fallback
+        # for anyone who removes the model, and the credits cover both.
+        if os.path.exists(os.path.join(ROOT, "svzero_bed.stl")):
+            m["bed_custom_model"] = "svzero_bed.stl"
         fn = "SV Zero %s nozzle.json" % noz
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
         machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})
@@ -2068,6 +2220,9 @@ def main():
     SS_REJECT.update(load("ss-rejected-keys.json")["keys"])
     if "ss" in emit:
         pub_ss, n_hidden = strip_hidden(model, ss)
+        pub_ss = collections.OrderedDict(
+            (k, collections.OrderedDict(v)) for k, v in pub_ss.items())
+        inject_chamber(pub_ss, "ss")
         if n_hidden:
             print("  withheld %d hidden tier base(s) from the published bundles"
                   % n_hidden)
@@ -2086,6 +2241,9 @@ def main():
         print("  wrote %d SuperSlicer per-preset .ini files" % n)
     if "ps-presets" in emit:
         pub_pp, _ = strip_hidden(model, ss)
+        pub_pp = collections.OrderedDict(
+            (k, collections.OrderedDict(v)) for k, v in pub_pp.items())
+        inject_chamber(pub_pp, "ps")
         n = emit_ps_presets(pub_pp, os.path.join(ROOT, "bundles", "ps-presets"))
         print("  wrote %d PrusaSlicer per-preset .ini files" % n)
     if "orca" in emit:

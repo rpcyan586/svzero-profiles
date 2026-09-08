@@ -168,6 +168,19 @@ class FakeConfig:
             raise ValueError("%s: %r not in %s" % (name, key, sorted(choices)))
         return choices[key]
 
+    def getboolean(self, name, default=None):
+        """Klipper's ConfigWrapper coerces "true"/"false" strings; so does this.
+
+        Added 2026-09-08. chamber_preheat gained a getboolean option and this
+        fake did not follow, so 36 of the 56 tests had been erroring out on
+        AttributeError rather than running. A test suite that cannot construct
+        the object under test is not a passing suite.
+        """
+        value = self.values.get(name, default)
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on")
+        return bool(value)
+
     def get(self, name, default=None):
         return self.values.get(name, default)
 
@@ -1118,6 +1131,82 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertIn(field, state.state)
                 self.assertIsNotNone(state.state[field])
+
+    def test_bed_wait_false_hands_the_coast_to_m190(self):
+        # 2026-09-07, measured: M191 crossed the chamber minimum and then spent
+        # a further 90 s waiting for the boosted plate to coast down, with
+        # nothing else running. START_PRINT's next act is CLEAN_NOZZLE, which
+        # needs no plate. With bed_wait off, M191 must return on the chamber
+        # alone so the wipe fills that window.
+        # A RISING nozzle, so the boost actually qualifies -- bed_ready is
+        # `not bed_gated`, and an unboosted plate is never gated at all, so a
+        # flat curve would exercise nothing.
+        ctl, unused_reactor, bed, state, unused_fan = controller(
+            lambda seconds: 25.0 + 0.5 * seconds / 60.0,
+            config_values={"history_seconds": 0.0, "bed_wait": False},
+        )
+        # A plate that never reaches its target, so bed_ready can never be the
+        # thing that ends the wait. With bed_wait on, this would spin forever --
+        # which is exactly the serialisation being removed.
+        bed.curve = lambda seconds: 118.0
+        gcmd = FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+
+        # It returned at all -- the assertion this test exists for.
+        self.assertIsNotNone(state.state.get("print_ready_eventtime"))
+        # And it left the plate commanded to the CARRIED target, not to the
+        # boost, so the M190 that follows waits on the right number.
+        self.assertTrue(bed.commands, "the bed was never commanded")
+        final = bed.commands[-1][1]
+        self.assertLessEqual(final, 66.0, "M191 left the boost in place")
+        self.assertGreaterEqual(final, 65.0)
+        self.assertTrue(
+            any("handing" in r for r in gcmd.responses),
+            "the handoff was not announced: %r" % (gcmd.responses,),
+        )
+
+    def test_wipe_lead_returns_before_the_chamber_arrives(self):
+        # The operator's ask, 2026-09-08: the nozzle heat, wipe and cool should
+        # IMMEDIATELY PRECEDE readiness rather than be triggered by it. That
+        # means returning while the chamber is still short of its minimum and
+        # committing to the ETA -- the nozzle proxy cannot survive the wipe, so
+        # there is no confirming afterwards.
+        ctl, unused_reactor, bed, state, unused_fan = controller(
+            lambda seconds: 25.0 + 0.5 * seconds / 60.0,
+            config_values={"history_seconds": 0.0, "bed_wait": False,
+                           "wipe_lead_seconds": 200.0},
+        )
+        gcmd = FakeGcmd(MINIMUM=30.0, BED_TARGET=65.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+
+        committed = state.state.get("wipe_lead_committed")
+        self.assertIsNotNone(committed, "never took the early-commit path")
+        self.assertLessEqual(committed, 200.0)
+        # It must have left BEFORE the minimum, or it bought nothing.
+        self.assertLess(
+            state.state["wipe_lead_noz"], 30.0,
+            "returned only once the chamber had already arrived",
+        )
+        # And it must say the quiet part out loud.
+        self.assertTrue(
+            any("NOT confirmed" in r for r in gcmd.responses),
+            "the commit was not announced as unconfirmed: %r" % (gcmd.responses,),
+        )
+        # The plate is still handed over at its carried target.
+        self.assertAlmostEqual(bed.commands[-1][1], 65.0 + ctl.bed_carry,
+                               places=3)
+
+    def test_wipe_lead_defaults_to_off(self):
+        ctl, unused_reactor, unused_bed, unused_state, unused_fan = controller(
+            lambda seconds: 25.0
+        )
+        self.assertEqual(ctl.wipe_lead_seconds, 0.0)
+
+    def test_bed_wait_defaults_to_the_old_serialised_behaviour(self):
+        ctl, unused_reactor, unused_bed, unused_state, unused_fan = controller(
+            lambda seconds: 25.0
+        )
+        self.assertTrue(ctl.bed_wait)
 
     def test_handoff_uses_reactor_clock_domain(self):
         ctl, reactor, unused_bed, state, unused_fan = controller(

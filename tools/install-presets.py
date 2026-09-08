@@ -42,7 +42,7 @@ presets were dropped silently. A preset with an unresolvable parent produces no
 error; it simply never appears. Orca also needs the printer model listed in
 `models` in OrcaSlicer.conf, which is what the setup wizard normally writes.
 """
-import json, os, shutil, sys
+import collections, json, os, shutil, sys
 
 # The Orca start G-code lives in start_gcode.py so generate.py and
 # install-presets.py cannot drift apart again. Tests load these scripts by path
@@ -195,6 +195,174 @@ def cap_acceleration(datadir, cap, kinds=("print",)):
     return n
 
 
+def install_orca_hosts(datadir):
+    """Put the operator's machines back after the user-preset wipe. PERSONAL ONLY.
+
+    install_orca clears user/default/{process,machine,filament} because those
+    were the pre-vendor mechanism and would otherwise shadow the vendor presets
+    under the same names. But Orca keeps a PHYSICAL PRINTER as a user machine
+    preset -- host and all -- so that clear also deleted the operator's own
+    printer, every single launch. Reported 2026-09-07: "my actual zero2 printer
+    is no longer present" in both orca and orca-shadow, while PrusaSlicer and
+    SuperSlicer still had theirs.
+
+    Preserving it across the clear is the wrong fix: it would depend on the
+    printer having been added by hand once, on this datadir, and a reset would
+    lose it again. Writing it from source/model.json makes it reproducible, the
+    same way the PrusaSlicer and SuperSlicer physical printers are.
+
+    Orca has no separate physical-printer object: host_type and print_host live
+    ON the machine preset. So the default printer is stamped onto every
+    installed system machine, and each additional printer gets one user preset
+    inheriting the 0.4 nozzle machine.
+    """
+    hosts = json.load(open(os.path.join(ROOT, "source", "model.json"),
+                           encoding="utf-8")).get("hosts")
+    if not hosts:
+        return 0, 0
+    htype = hosts.get("orcaslicer_host_type", "octoprint")
+    printers = hosts.get("printers", [])
+    default = next((p for p in printers if p.get("default")), printers[0] if printers else None)
+    if not default:
+        return 0, 0
+    sysm = os.path.join(datadir, "system", "SVZero", "machine")
+    stamped = 0
+    for f in sorted(os.listdir(sysm)) if os.path.isdir(sysm) else []:
+        if not f.endswith(".json") or f.startswith("fdm_"):
+            continue
+        path = os.path.join(sysm, f)
+        doc = json.load(open(path, encoding="utf-8"))
+        if "nozzle" not in doc.get("name", ""):
+            continue
+        doc["host_type"] = htype
+        doc["print_host"] = default["host"]
+        json.dump(doc, open(path, "w", encoding="utf-8"), indent=2)
+        stamped += 1
+    # Every printer that is not the default gets its own user machine preset.
+    userm = os.path.join(datadir, "user", "default", "machine")
+    os.makedirs(userm, exist_ok=True)
+    extra = 0
+    for pr in printers:
+        if pr is default:
+            continue
+        doc = {
+            "type": "machine", "name": pr["name"], "from": "User",
+            "inherits": "SV Zero 0.4 nozzle", "instantiation": "true",
+            "host_type": htype, "print_host": pr["host"],
+            "printhost_apikey": "", "version": "2.4.2.0",
+        }
+        json.dump(doc, open(os.path.join(userm, "%s.json" % pr["name"]), "w",
+                            encoding="utf-8"), indent=2)
+        extra += 1
+    return stamped, extra
+
+
+def install_bed_assets(datadir):
+    """Copy the bed model and texture in, and point the presets at them.
+
+    `bed_custom_model = svzero_bed.stl` is a bare filename. A vendor bundle
+    resolves that against its own resource directory; a USER preset has no such
+    directory, so both slicers silently show a plain rectangle -- which is what
+    SuperSlicer was doing on 2026-09-07 and PrusaSlicer had been doing all along
+    without anyone noticing, because the plate is the same size either way.
+
+    Copied beside the presets and rewritten to an absolute path, which is what
+    the slicers' own file dialog would have written.
+    """
+    n = 0
+    for name in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+        src = os.path.join(ROOT, name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(datadir, name))
+            n += 1
+    if not n:
+        return 0
+    d = os.path.join(datadir, "printer")
+    patched = 0
+    for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        path, out, hit = os.path.join(d, f), [], False
+        for line in open(path, encoding="utf-8"):
+            k, _, v = line.partition("=")
+            if k.strip() in ("bed_custom_model", "bed_custom_texture"):
+                base = os.path.basename(v.strip())
+                if base:
+                    out.append("%s = %s\n" % (k.strip(),
+                                              os.path.join(datadir, base)))
+                    hit = True
+                    continue
+            out.append(line)
+        if hit:
+            open(path, "w", encoding="utf-8").writelines(out)
+            patched += 1
+    return patched
+
+
+def install_physical_printers(datadir, slicer):
+    """Write the operator's own machines into a sandbox datadir. PERSONAL ONLY.
+
+    A [physical_printer:] section exists solely to carry an address, so there is
+    nothing to publish -- a blank one would just be a broken entry in a
+    stranger's printer list, and a filled one is a map of this house.
+
+    DELIBERATELY NOT ROUTED THROUGH bundles/. generate.py has a --personal flag
+    that puts these into the emitted preset tree, and that is one careless
+    `--emit ps-presets` away from committing 10.11.11.x into an artefact
+    directory that gets published. Injecting at INSTALL time means the addresses
+    live in exactly two places -- source/model.json and a sandbox datadir --
+    and bundles/ is address-free by construction rather than by discipline.
+
+    PrusaSlicer and SuperSlicer both have a native `moonraker` host_type;
+    SuperSlicer's binary carries the string, checked rather than assumed. Orca
+    has none and uses octoprint against the same endpoint, which is why the
+    model states the two separately.
+    """
+    hosts = json.load(open(os.path.join(ROOT, "source", "model.json"),
+                           encoding="utf-8")).get("hosts")
+    if not hosts:
+        return 0, None
+    d = os.path.join(datadir, "physical_printer")
+    os.makedirs(d, exist_ok=True)
+    for old in os.listdir(d):
+        if old.endswith(".ini"):
+            os.remove(os.path.join(d, old))
+    # Every printer preset actually installed, so the machine offers all five
+    # nozzles rather than only the one that happened to be default.
+    pdir = os.path.join(datadir, "printer")
+    names = sorted(os.path.splitext(f)[0] for f in os.listdir(pdir)
+                   if f.endswith(".ini")) if os.path.isdir(pdir) else []
+    default_preset = next((n for n in names if "0.4n" in n),
+                          names[0] if names else "SV Zero 0.4n")
+    default_printer = None
+    n = 0
+    for pr in hosts["printers"]:
+        # Key set and quoting taken from a real PrusaSlicer export -- Tom's
+        # Print Garden's bundle -- not from what seemed sufficient. Four keys
+        # were missing on the first attempt (cafile, password,
+        # ssl_ignore_revoke, user), and that export quotes a preset name
+        # containing a space, which all of ours do.
+        kv = collections.OrderedDict([
+            ("host_type", hosts["prusaslicer_host_type"]),
+            ("preset_name", default_preset),
+            ("preset_names", ";".join('"%s"' % x for x in names)),
+            ("print_host", pr["host"]),
+            ("printer_technology", "FFF"),
+            ("printhost_apikey", ""),
+            ("printhost_authorization_type", "key"),
+            ("printhost_cafile", ""),
+            ("printhost_password", ""),
+            ("printhost_port", ""),
+            ("printhost_ssl_ignore_revoke", "0"),
+            ("printhost_user", ""),
+        ])
+        with open(os.path.join(d, "%s.ini" % pr["name"]), "w", encoding="utf-8") as fh:
+            for k, v in kv.items():
+                fh.write("%s = %s\n" % (k, v))
+        if pr.get("default") or default_printer is None:
+            default_printer = "%s * %s" % (pr["name"], default_preset)
+        n += 1
+    return n, default_printer
+
+
 def install_superslicer(datadir):
     """Install flattened SuperSlicer presets, in SuperSlicer's own dialect.
 
@@ -243,6 +411,9 @@ def install_superslicer(datadir):
         # no matter how many presets are on disk. Stamped with the version the
         # model says the emitters target.
         "version": SS_VERSION,
+        # Expert mode. The sandbox exists to look at settings; simple mode
+        # hides most of them, including every speed field this pack tunes.
+        "view_mode": "expert",
     })
     set_ini_keys(ini, "presets", {
         "printer": "SV Zero 0.4n",
@@ -318,6 +489,9 @@ def install_prusa(datadir):
         "show_splash_screen": "0",
         "show_hints": "0",
         "wifi_config_dialog_declined": "1",
+        # Expert mode. The sandbox exists to look at settings; simple mode
+        # hides most of them, including every speed field this pack tunes.
+        "view_mode": "expert",
 
         # Telemetry and phone-home, off.
         #   notify_release  = none  -- "Don't notify about new releases any more".
@@ -338,7 +512,10 @@ def install_prusa(datadir):
         "print": "SV Zero 0.4n - 0.20mm (Standard)",
         # PLA, not the ABS that alphabetical order was selecting.
         "filament": "SV Zero PLA - Brass",
-        "physical_printer": "Zero2 * SV Zero 0.4n",
+        # physical_printer is NOT set here. It used to name "Zero2 * SV Zero
+        # 0.4n" unconditionally, which pointed at a printer that only exists
+        # when --personal wrote one -- a dangling selection otherwise.
+        # install_physical_printers sets it, and only when it made one.
     })
     return n
 
@@ -467,6 +644,7 @@ if __name__ == "__main__":
     args = [a for i, a in enumerate(argv)
             if not a.startswith("--") and not (i and argv[i-1].startswith("--accel-cap"))]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    personal = "--personal" in flags
     if len(args) != 2 or args[0] not in ("prusa", "orca", "superslicer"):
         sys.exit(__doc__)
     which, datadir = args
@@ -474,6 +652,21 @@ if __name__ == "__main__":
     n = {"prusa": install_prusa, "orca": install_orca,
          "superslicer": install_superslicer}[which](datadir)
     print("installed %d presets into %s" % (n, datadir))
+    if which in ("prusa", "superslicer"):
+        nb = install_bed_assets(datadir)
+        print("pointed %d printer preset(s) at the bed model and texture" % nb)
+    if personal and which == "orca":
+        st, ex = install_orca_hosts(datadir)
+        print("stamped %d Orca machine(s) with the default host, %d extra printer(s)"
+              % (st, ex))
+    if personal and which in ("prusa", "superslicer"):
+        # PERSONAL ONLY, and never written into bundles/. See the function.
+        npp, default_printer = install_physical_printers(datadir, which)
+        ini = "PrusaSlicer.ini" if which == "prusa" else "SuperSlicer.ini"
+        if npp and default_printer:
+            set_ini_keys(os.path.join(datadir, ini), "presets",
+                         {"physical_printer": default_printer})
+        print("installed %d physical printer(s); default %s" % (npp, default_printer))
     if which == "orca" and "--chamber-shadow-test" in flags:
         c = enable_orca_chamber_shadow_test(datadir)
         print("enabled chamber shadow test in %d Orca machine presets" % c)

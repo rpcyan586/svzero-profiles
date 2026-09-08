@@ -6,6 +6,8 @@
   "_note": "Annotation keys (_why_*) are refused too but are handled by prefix in ini_writable(), so they are not repeated here.",
   "keys": [
     "activate_chamber_temp_control",
+    "brim_type",
     "chamber_minimal_temperature"
-  ]
+  ],
+  "_note_brim_type": "SuperSlicer has no brim_type. It expresses the same choice as brim_width + brim_width_interior + brim_ears, so the PrusaSlicer key has no counterpart and SuperSlicer warns 'Unknow setting' on it. Confirmed against superslicer --help-fff 2026-09-07."
 }

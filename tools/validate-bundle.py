@@ -12,7 +12,7 @@ Catches the two failure modes this project has actually hit:
 
     ./validate-bundle.py [bundle.ini ...]      # defaults to ../bundles/*.ini
 """
-import collections, glob, json, os, re, sys
+import collections, glob, json, os, re, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -41,6 +41,113 @@ def parse(path):
         if cur is not None and "=" in line and not line.lstrip().startswith("#"):
             k, v = line.split("=", 1); secs[cur][k.strip()] = v.strip()
     return secs
+
+
+def orca_upstream_validate(vendor_dir):
+    """Run OrcaSlicer's OWN validator, the one its CI runs on every PR.
+
+    Everything else here is our reading of what a slicer will accept. This is
+    the loader Orca itself uses, so it answers the only question that finally
+    matters: would Orca load this? Vendored at tools/vendor/ with provenance;
+    skipped with a note if absent, because it is a binary and not everyone
+    checking out this tree will have it.
+
+    Found by reading .github/workflows/check_profiles.yml in the OrcaSlicer
+    checkout mirrored under Sovol3d/. on GitHub
+    """
+    exe = os.path.join(HERE, "vendor", "OrcaSlicer_profile_validator")
+    if not os.path.exists(exe):
+        return None, "not present -- see tools/vendor/README.md"
+    try:
+        p = subprocess.run([exe, "-p", vendor_dir, "-v", "SVZero", "-l", "2"],
+                           capture_output=True, text=True, timeout=180)
+    except (OSError, subprocess.SubprocessError) as e:
+        return None, "could not run: %s" % e
+    tail = [l for l in (p.stdout + p.stderr).splitlines() if l.strip()]
+    return p.returncode == 0, "; ".join(tail[-2:])[:200]
+
+
+def orca_orphans(vendor_dir):
+    """Emitted Orca filaments must be exactly the master's filaments.
+
+    The index is rebuilt FROM the directory, so a file left behind by a rename
+    or a deletion is indexed as readily as a live one and the vendor offers it.
+    That is what happened when the (8M) presets were merged away on 2026-09-06:
+    nine deleted filaments stayed on disk, got packaged, got indexed, and Orca
+    would have shown eighteen filaments where the master has nine. Upstream's
+    validator passed it -- an orphan is a valid profile, just not one anybody
+    asked for -- so this is ours to check.
+
+    The `fdm_filament_*` roots are inheritance parents, not presets, and are
+    expected on disk without a master counterpart.
+    """
+    fdir = os.path.join(vendor_dir, "SVZero", "filament")
+    if not os.path.isdir(fdir):
+        return []
+    on_disk = {os.path.splitext(f)[0] for f in os.listdir(fdir)
+               if f.endswith(".json") and not f.startswith("fdm_filament")}
+    master = set()
+    doc = json.load(open(os.path.join(ROOT, "source", "presets.json"),
+                         encoding="utf-8"))
+    def walk(node):
+        nm = node.get("name")
+        if nm and not nm.startswith("*"):
+            master.add(nm)
+        for c in node.get("variants", []):
+            walk(c)
+    for frag in doc["fragments"]:
+        if frag.get("kind") == "filament":
+            walk(frag)
+    out = []
+    for name in sorted(on_disk - master):
+        out.append("orca-vendor filament %r has no master preset -- stale output"
+                   % name)
+    for name in sorted(master - on_disk):
+        out.append("master filament %r missing from orca-vendor" % name)
+    return out
+
+
+def orca_json_hygiene(vendor_dir):
+    """Two checks reimplemented from OrcaSlicer's scripts/orca_extra_profile_check.py.
+
+    Reimplemented rather than invoked: that script resolves `resources/profiles`
+    relative to ITSELF, so pointing it at our tree runs it against whatever
+    checkout it lives in -- which is exactly what happened on the first attempt,
+    validating Sovol's fork instead of ours and reporting 55 unrelated errors.
+
+      * duplicate keys in a profile JSON. json.load keeps the last silently.
+      * a profile with `instantiation: true` and no `compatible_printers`,
+        which Orca offers in the UI and then cannot apply.
+    """
+    problems = []
+    for path in sorted(glob.glob(os.path.join(vendor_dir, "**", "*.json"),
+                                 recursive=True)):
+        def dupes(pairs, _p=path):
+            seen = {}
+            for k, v in pairs:
+                if k in seen:
+                    problems.append("%s: duplicate key %r"
+                                    % (os.path.relpath(_p, vendor_dir), k))
+                seen[k] = v
+            return seen
+        try:
+            doc = json.load(open(path, encoding="utf-8"), object_pairs_hook=dupes)
+        except ValueError as e:
+            problems.append("%s: not valid JSON (%s)"
+                            % (os.path.relpath(path, vendor_dir), e))
+            continue
+        # FILAMENT PROFILES ONLY. Upstream scopes this to <vendor>/filament and
+        # so must we: a machine profile IS a printer and has no business
+        # declaring compatible_printers. Applied to every JSON it failed all
+        # five of our machine profiles on the first run -- a rule copied
+        # without its scope is a rule that invents work.
+        if os.path.basename(os.path.dirname(path)) != "filament":
+            continue
+        if str(doc.get("instantiation", "")).lower() == "true" \
+                and not doc.get("compatible_printers"):
+            problems.append("%s: instantiation true with no compatible_printers"
+                            % os.path.relpath(path, vendor_dir))
+    return problems
 
 
 def check(path):
@@ -267,8 +374,19 @@ def check_orca_vendor(vend_root):
             if f.endswith(".json") and "%s/%s" % (sub, f) not in referenced:
                 problems.append("orphan on disk, not in the index: %s/%s"
                                 % (sub, f))
+    vendor_dir = os.path.join(ROOT, "bundles", "orca-vendor")
+    problems += orca_json_hygiene(vendor_dir)
+    problems += orca_orphans(vendor_dir)
+    ok, note = orca_upstream_validate(vendor_dir)
+
     print("== orca vendor bundle ==")
     print("   %d indexed profile(s)" % len(referenced))
+    if ok is None:
+        print("   note: upstream validator %s" % note)
+    elif ok:
+        print("   upstream OrcaSlicer validator: PASS")
+    else:
+        problems.append("upstream OrcaSlicer validator rejected the bundle: %s" % note)
     for p in problems:
         print("   FAIL  %s" % p)
     if not problems:

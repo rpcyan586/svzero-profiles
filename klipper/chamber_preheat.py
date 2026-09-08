@@ -636,6 +636,67 @@ class ChamberPreheat:
         # It costs sampling cadence, which is why this is a flag and not yet the
         # default.
         self.orbit = config.getboolean("orbit", False)
+        # WAIT FOR THE BED, OR HAND IT TO THE M190 THAT ALREADY FOLLOWS?
+        #
+        # M191 has two phases. It waits for the chamber minimum, and then it
+        # keeps waiting for the boosted plate to coast back down to the
+        # printing target. Measured on the 2026-09-07 ABS jobs, the second
+        # phase ran 90 s AFTER the chamber minimum was crossed, with nothing
+        # else happening:
+        #
+        #   +2s  M191 bed released to 100.5 -- chamber minimum crossed
+        #   +72s M191 noz=45.6 eta=0.0 bed=102.8>100.5
+        #   +92s M191 done bed=100.8
+        #
+        # That is 90 s of dead time on the critical path, and START_PRINT's
+        # very next act is CLEAN_NOZZLE -- a wipe that needs no plate at all.
+        # The documented reason the wipe cannot start earlier is that heating
+        # the nozzle corrupts the chamber measurement M191 is waiting on; that
+        # reason expires the moment the chamber minimum is crossed. Phase two
+        # is a BED wait, and the nozzle cannot disturb it.
+        #
+        # With this false, M191 returns on the chamber alone, having already
+        # commanded the plate to its carried target. The wipe then runs while
+        # the plate coasts, and START_PRINT's existing `M190 S{target}` --
+        # today a no-op, because the plate has always arrived long before it --
+        # absorbs whatever coast is left. The probe and the mesh still get a
+        # settled plate, because that M190 is what guards them.
+        self.bed_wait = config.getboolean("bed_wait", True)
+        # FINISH THE WIPE AS THE CHAMBER ARRIVES, rather than starting it then.
+        #
+        # bed_wait above stops the wipe being serialised behind the plate's
+        # coast. This goes further and stops it being serialised behind the
+        # CHAMBER: M191 returns while the chamber is still `wipe_lead_seconds`
+        # short of its minimum, so the heat/wipe/cool finishes just as the
+        # chamber gets there instead of beginning there.
+        #
+        # THIS COMMITS TO A PREDICTION, and that is not a small thing. The
+        # chamber minimum is measured through the NOZZLE -- the stock chamber
+        # sensor is corrupted by bed proximity, so a nozzle sitting in chamber
+        # air is the better proxy -- and heating that nozzle for the wipe ends
+        # the measurement. There is no way to run the wipe early AND confirm
+        # arrival afterwards; the proxy is gone the moment the heater turns on.
+        # So past this point the chamber minimum is asserted from the ETA, not
+        # observed, and the run must be audited afterwards against the
+        # independent chamber_temp sensor rather than trusted.
+        #
+        # A second, subtler cost: releasing the plate from its boost is what
+        # today marks the crossing, and returning early moves that release
+        # earlier by the same lead. The plate is still 110-120 C through the
+        # coast, so the chamber keeps climbing, but the ETA it was predicted
+        # from assumed the boost stayed on.
+        #
+        # THE ERROR IS ONE-SIDED. With L the lead and W the real wipe time, the
+        # wipe ends L - W relative to arrival: W > L is safe and merely
+        # reclaims less, W < L starts the first layer before the chamber got
+        # there and nothing re-checks, because the proxy is gone. So L must sit
+        # UNDER the shortest observed W, never over the longest.
+        #
+        # Default 0.0 -- OFF. Turn it on only with a MEASURED wipe duration;
+        # CLEAN_NOZZLE reports its own elapsed time for exactly that purpose.
+        self.wipe_lead_seconds = config.getfloat(
+            "wipe_lead_seconds", 0.0, minval=0.0
+        )
         # No arcs-per-tick knob. A fixed count was the wrong shape: the queue
         # tops out at BUFFER_TIME_HIGH regardless of how many are handed over,
         # so the number never controlled anything useful. _pause feeds until the
@@ -722,7 +783,7 @@ class ChamberPreheat:
         # between the last one's. It is cheap, and the only motion it adds is a
         # few millimetres of radial hop at the hub.
         self.gcode.run_script_from_command(
-            "CHAMBER_ORBIT_BEGIN\nCHAMBER_ORBIT_CYCLE")
+            "_CHAMBER_ORBIT_BEGIN\nCHAMBER_ORBIT_CYCLE")
         now = self.reactor.monotonic()
         deadline = eventtime + seconds
         return now if now >= deadline else self.reactor.pause(deadline)
@@ -877,6 +938,11 @@ class ChamberPreheat:
         coast_rate = gcmd.get_float(
             "COAST_RATE", self.default_coast_rate, above=0.0
         )
+        bed_wait = bool(gcmd.get_int("BED_WAIT", 1 if self.bed_wait else 0,
+                                     minval=0, maxval=1))
+        wipe_lead = gcmd.get_float(
+            "WIPE_LEAD", self.wipe_lead_seconds, minval=0.0
+        )
         initial_boost = gcmd.get_float(
             "INITIAL_BOOST", self.default_initial_boost, minval=0.0
         )
@@ -924,7 +990,7 @@ class ChamberPreheat:
                 # the spiral starts from where the toolhead already is. BEGIN
                 # only computes the arc list and steps to the first radius; the
                 # sweeping is done one arc at a time by the loop below.
-                self.gcode.run_script_from_command("CHAMBER_ORBIT_BEGIN")
+                self.gcode.run_script_from_command("_CHAMBER_ORBIT_BEGIN")
             if policy == 1 and start_temp >= minimum and not boost_requested:
                 # The compatibility floor is room temperature and there is no
                 # boost to schedule, so there is no decision the slope could
@@ -1400,6 +1466,47 @@ class ChamberPreheat:
                     chamber_time_remaining=self.chamber_eta,
                     bed_time_remaining=self.bed_eta,
                 )
+                if (not chamber_ready and wipe_lead > 0.0
+                        and self.chamber_eta is not None
+                        and self.chamber_eta * 60.0 <= wipe_lead):
+                    # Hand over early so the wipe lands on the minimum instead
+                    # of starting from it. The plate goes to its carried target
+                    # so the following M190 waits on the right number, and the
+                    # chamber reading is stamped so the prediction can be
+                    # checked against what actually happened.
+                    completed = True
+                    self._set_bed(bed, quantize_target(carried))
+                    self._set_state(
+                        print_ready_eventtime=eventtime,
+                        wipe_lead_committed=round(self.chamber_eta * 60.0, 1),
+                        wipe_lead_noz=round(nozzle_temp, 2),
+                    )
+                    gcmd.respond_info(
+                        "%s committing %.0fs early on ETA -- wipe should land "
+                        "on the minimum. noz=%.1f target>=%.1f, NOT confirmed"
+                        % (
+                            self._stamp(eventtime),
+                            self.chamber_eta * 60.0, nozzle_temp, minimum,
+                        )
+                    )
+                    return
+                if chamber_ready and not bed_ready and not bed_wait:
+                    # Hand the remaining coast to the M190 that follows. The
+                    # plate is commanded to its carried target FIRST, so that
+                    # M190 waits on the right number rather than on the boost.
+                    completed = True
+                    self._set_bed(bed, quantize_target(carried))
+                    self._set_state(print_ready_eventtime=eventtime)
+                    gcmd.respond_info(
+                        "%s chamber met, handing %.1fC of bed coast to M190 "
+                        "(eta %s) -- wipe runs now"
+                        % (
+                            self._stamp(eventtime),
+                            max(bed_temp - carried, 0.0),
+                            self._num(self.bed_eta, "%.1fmin"),
+                        )
+                    )
+                    return
                 if chamber_ready and bed_ready:
                     completed = True
                     self._set_bed(bed, quantize_target(carried))
@@ -1449,7 +1556,7 @@ class ChamberPreheat:
             self._set_stir(fan, 0.0)
             if self.orbit:
                 # Back to centre before the print's own start G-code moves.
-                self.gcode.run_script_from_command("CHAMBER_ORBIT_END")
+                self.gcode.run_script_from_command("_CHAMBER_ORBIT_END")
             self._set_bed(
                 bed,
                 quantize_target(bed_target + self.bed_carry) if completed

@@ -525,7 +525,7 @@ def run_matrix(args, model, work, obj, want):
         for f in os.listdir(os.path.join(ROOT, "bundles", "ss-presets", "filament"))
         if f.endswith(".ini"))
     objects = [f for f in ("svzero-featurecube.stl", "svzero-overhang.stl",
-                           "svzero-tower.stl")
+                           "svzero-tower.stl", "svzero-smallpins.stl")
                if os.path.exists(os.path.join(work, f))]
     rows, nozzles, tiers = covering_plan(model, filaments, objects)
     print("covering plan: %d row(s) -- %d nozzle(s), %d tier(s), %d filament(s), %d object(s)"

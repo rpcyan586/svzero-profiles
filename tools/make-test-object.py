@@ -48,10 +48,11 @@ OUT = "svzero-featurecube.stl"
 #                slowdown_below_layer_time, so the cooling path runs -- which is
 #                the one value the (8M) merge deliberately did NOT take from the
 #                SV08 MAX, and therefore the one worth exercising.
-SHAPES = ("featurecube", "overhang", "tower")
+SHAPES = ("featurecube", "overhang", "tower", "smallpins")
 STL_NAME = {"featurecube": OUT,
             "overhang": "svzero-overhang.stl",
-            "tower": "svzero-tower.stl"}
+            "tower": "svzero-tower.stl",
+            "smallpins": "svzero-smallpins.stl"}
 
 
 def box(x0, y0, z0, x1, y1, z1, inward=False):
@@ -99,6 +100,44 @@ def overhang(width=24.0, depth=24.0, leg=6.0, shelf_z=8.0, height=10.0):
             (width, shelf_z), (width, height), (0.0, height)]
     faces = [(0, 1, 2), (0, 2, 5), (2, 3, 4), (2, 4, 5)]
     return prism_xz(poly, faces, 0.0, depth)
+
+
+def cylinder(cx, cy, r, z0, z1, seg=32):
+    """A closed vertical cylinder: wall, plus a fan cap at each end."""
+    import math
+    ring = [(cx + r * math.cos(2 * math.pi * i / seg),
+             cy + r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+    tris = []
+    for i in range(seg):
+        (ax, ay), (bx, by) = ring[i], ring[(i + 1) % seg]
+        lo_a, lo_b, hi_a, hi_b = (ax, ay, z0), (bx, by, z0), (ax, ay, z1), (bx, by, z1)
+        tris += [(lo_a, lo_b, hi_b), (lo_a, hi_b, hi_a)]           # wall, outward
+        tris += [((cx, cy, z0), lo_b, lo_a)]                        # bottom
+        tris += [((cx, cy, z1), hi_a, hi_b)]                        # top
+    return tris
+
+
+def smallpins(radii=(1.0, 1.5, 2.5, 4.0, 8.0), height=4.0, pitch=22.0):
+    """Free-standing pins, sized to straddle the small-perimeter threshold.
+
+    The one feature none of the other three objects has, and the one that broke
+    a real print on 2026-09-07: PrusaSlicer applies `small_perimeter_speed` to
+    any loop of radius <= 6.5 mm, and its unset default of 15 mm/s ran half of
+    every layer at a tenth of the intended speed. The feature cube, the overhang
+    and the tower contain no loop small enough to reach that path at all, so 27
+    green slices said nothing about it.
+
+    PINS RATHER THAN A PLATE WITH HOLES. Holes need the top and bottom faces
+    triangulated as annuli; the first attempt skipped that and shipped a mesh
+    with 240 unpaired edges that PrusaSlicer silently auto-repaired -- a fixture
+    whose behaviour depends on a repair heuristic is not a fixture. Each pin is
+    a closed cylinder, manifold by construction, and four of the five radii are
+    under the threshold while 8.0 is over it.
+    """
+    tris = []
+    for i, r in enumerate(radii):
+        tris += cylinder(pitch * (i + 1), pitch, r, 0.0, height)
+    return tris
 
 
 def tower(side=10.0, height=40.0):
@@ -149,6 +188,9 @@ def main():
                 s, s, h, w, w, args.void_z0, args.void_z1)
         if shape == "overhang":
             return overhang(), "L, 18 mm cantilever at z8 -- forces support"
+        if shape == "smallpins":
+            return smallpins(), ("pins r=1.0/1.5/2.5/4.0/8.0 x 4 mm -- straddles "
+                                 "the 6.5 mm small-perimeter threshold")
         return tower(), "10x10x40 mm tower -- ~200 layers, short layer times"
 
     for shape in (SHAPES if args.shape == "all" else (args.shape,)):

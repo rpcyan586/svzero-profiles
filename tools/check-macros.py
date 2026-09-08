@@ -139,8 +139,14 @@ def check(path):
     # PURGE_LINE reads _BRUSH to absorb the scrub retract and end-of-print debt.
     # _BRUSH is defined in nozzle_brush.cfg; when purge_line.cfg is checked
     # standalone the mock must supply the variables PURGE_LINE touches.
+    # START_PRINT also reads it, for the pad centre it parks over during the
+    # final heat-up, so the pad geometry belongs in the same mock. A second
+    # setdefault for the same key is silently ignored -- which is how the pad
+    # values went missing on the first attempt.
     settings.setdefault("gcode_macro _BRUSH",
-                        Mock(retracted=3.0, owed_max=10.0, retract_f=2700))
+                        Mock(retracted=3.0, owed_max=10.0, retract_f=2700,
+                             pad_x_min=-10.0, pad_x_max=-7.3,
+                             pad_y_min=5.5, pad_y_max=39.0))
     # cooldown.cfg is optional, so chamber_fan.cfg, end_print.cfg and
     # cancel_print.cfg all reach it through `'gcode_macro _COOL_STATE' in
     # printer`. Supply it here so those three render their ramp-aware branch
@@ -166,8 +172,13 @@ def check(path):
                              ramp_tick=15, report_seconds=60))
     # cooldown.cfg reads the chamber loop's own state -- `running` to decide
     # whether it must restart the loop, `chamber_slope` to gate the settle.
+    # print_bed_target defaults to the STRING "None" on the real machine -- the
+    # reset path writes that literal -- so the fixture uses it too. START_PRINT
+    # has to survive it without a |float, which is the whole reason its guard
+    # tests the string rather than relying on a numeric default.
     settings.setdefault("gcode_macro _CH_STATE",
-                        Mock(running=1, chamber_slope=0.1))
+                        Mock(running=1, chamber_slope=0.1,
+                             print_bed_target="None"))
     printer = Mock(settings)
     printer.update({
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),
@@ -182,7 +193,7 @@ def check(path):
                                               end_retract=0.0)),
         "filament_switch_sensor filament_sensor": Mock(enabled=True,
                                                        filament_detected=True),
-        # COOLDOWN_START reads idle_timeout.timeout to know what to restore.
+        # _COOLDOWN_START reads idle_timeout.timeout to know what to restore.
         "configfile": Mock(settings=Mock(extruder=Mock(min_extrude_temp=150),
                                          idle_timeout=Mock(timeout=1800.0))),
         "gcode_move": Mock(absolute_extrude=False, absolute_coordinates=True,
@@ -193,7 +204,10 @@ def check(path):
         "temperature_sensor chamber_temp": Mock(temperature=30.0),
         "temperature_sensor Toolhead_Temp": Mock(temperature=30.0),
         "fan_generic exhaust_fan": Mock(speed=0.0, rpm=1500.0),
+        # total_duration: _BRUSH_MARK_DONE subtracts it from the stamp
+        # CLEAN_NOZZLE took at its start, to report how long the wipe ran.
         "print_stats": Mock(state="standby", filename="job.gcode",
+                            total_duration=900.0,
                             info=Mock(current_layer=None)),
     })
     params = Mock(
@@ -218,6 +232,16 @@ def check(path):
         scenarios = [("", params, "S40", {}, {})]
         if s == "gcode_macro CHAMBER_ORBIT_SWEEP":
             scenarios = [("default", Mock(CYCLES="1"), "CYCLES=1", {}, {})]
+        elif s == "gcode_macro _BRUSH_MARK_DONE":
+            # Both branches. The shipped default for t_start is -1.0, so
+            # WITHOUT a patch only the "not measurable" path ever renders and
+            # the arithmetic that matters is never executed. total_duration is
+            # 900 in the fixture, so a stamp of 800 must report 100.0s.
+            scenarios = [
+                ("measured", params, "", {}, {},
+                 {"gcode_macro _BRUSH": Mock(t_start=800.0)}),
+                ("outside-print", params, "", {}, {}, {}),
+            ]
         elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
             # lookup is now ours to get right rather than the emitter's.
@@ -248,7 +272,7 @@ def check(path):
                 ("over-accel", Mock(R="10", VMIN="300", VMAX="300"),
                  "R=10 VMIN=300 VMAX=300", {}, {}),
             ]
-        elif s == "gcode_macro CHAMBER_ORBIT_CYCLE":
+        elif s == "gcode_macro _CHAMBER_ORBIT_CYCLE":
             scenarios = [
                 ("full", params, "", {}, {},
                  {"gcode_macro _CHAMBER_ORBIT_STATE": Mock(dict(
@@ -260,7 +284,7 @@ def check(path):
                      arcs=[[-14.0, -18.0, 2, 101]], cx=100.0, cy=100.0, feed=6000,
                      active=0, index=0))}),
             ]
-        elif s == "gcode_macro CHAMBER_ORBIT_STEP":
+        elif s == "gcode_macro _CHAMBER_ORBIT_STEP":
             # A PRINTER PATCH, not a state override: the 4th element patches the
             # macro's OWN variables and this macro has none -- it reads
             # _CHAMBER_ORBIT_STATE. Same trap as _SVZERO_CHECK_PROFILE.
@@ -379,7 +403,7 @@ def check(path):
             and never render the ramp. Pass `ch` to test the mismatch on
             purpose.
             """
-            # Rates and total, as COOLDOWN_START would derive them for this
+            # Rates and total, as _COOLDOWN_START would derive them for this
             # policy: cd 25 and bd 75 over t_total = max(25/1.0, 75/2.5) = 30
             # min, so rc = 0.8333 and rb = 2.5 and both axes land together.
             base = dict(active=1, phase=2, policy_set=1, p_final=35.0,
@@ -392,7 +416,10 @@ def check(path):
                         idle_restore=1800.0, coast_warned=0,
                         material="pc", rates_set=0, assist=0,
                         assist_curtain=0.0, assist_exhaust=0.0,
-                        curtain_latched=0, ch_written=0.0)
+                        curtain_latched=0, idle_set=0.0,
+                        assist_latched=0, prev_err=0.0, overrun_s=0.0,
+                        eta_bed=0.0, eta_at=0.0,
+                        ch_written=0.0)
             # `b_at` places the scenario on the tick that commands this bed
             # setpoint, by solving the schedule for elapsed. Assist cases care
             # about where the bed is RELATIVE to its commanded value, and since
@@ -436,7 +463,7 @@ def check(path):
                 target=base["b_cmd"])
             return patch
 
-        if s == "gcode_macro COOLDOWN_START":
+        if s == "gcode_macro _COOLDOWN_START":
             scenarios = [
                 ("heaterless", params, "", {}, {}, hot_bed),
                 ("heater", params, "", {}, {}, dict(hot_bed, **heater)),
@@ -504,7 +531,15 @@ def check(path):
                  dict(cool(has_heater=1), **heater)),
                 # The endpoint is reached by ELAPSED now: settle 180 plus the
                 # full 1800 s schedule, so both axes snap to final together.
-                ("ramp-last-step", params, "", {}, {}, cool(elapsed=1980)),
+                # The schedule ending is no longer enough: the ramp completes
+                # when the PLATE arrives. This is the arrival case.
+                ("ramp-last-step", params, "", {}, {},
+                 cool(elapsed=1980, bed_temp=35.0)),
+                # And this is the case that used to finish early and abandon the
+                # last few degrees -- schedule spent, plate still 5 C high. It
+                # must HOLD, not finish.
+                ("ramp-overrun", params, "", {}, {},
+                 cool(elapsed=1980, bed_temp=40.0)),
                 ("abort-bed-override", params, "", {}, {},
                  dict(cool(), **{"heater_bed": Mock(temperature=108.0,
                                                     target=42.0)})),
@@ -540,7 +575,9 @@ def check(path):
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
                                   curtain_latch=0.80, curtain_unlatch=0.05,
-                                  curtain_min=0.20)})),
+                                  curtain_min=0.20, assist_latch=1,
+                                  assist_lookahead=30.0,
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # Same error, bed ABOVE the ceiling. Must NOT engage: this is
                 # the gate that keeps forced air off a part that is still hot.
                 ("assist-ceiling", params, "", {}, {},
@@ -553,7 +590,9 @@ def check(path):
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
                                   curtain_latch=0.80, curtain_unlatch=0.05,
-                                  curtain_min=0.20)})),
+                                  curtain_min=0.20, assist_latch=1,
+                                  assist_lookahead=30.0,
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # Latched on, error now inside the release band. Must release
                 # rather than hold, or the fans never stop.
                 ("assist-release", params, "", {}, {},
@@ -570,7 +609,9 @@ def check(path):
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
                                   curtain_latch=0.80, curtain_unlatch=0.05,
-                                  curtain_min=0.20)})),
+                                  curtain_min=0.20, assist_latch=1,
+                                  assist_lookahead=30.0,
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # THE HANDOVER. err 6.0, over 5.0, so demand lands exactly on
                 # curtain_latch. The exhaust must STEP DOWN to
                 # latch - k * curtain_min = 0.60 in the same tick the curtain
@@ -586,7 +627,9 @@ def check(path):
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
                                   curtain_latch=0.80, curtain_unlatch=0.05,
-                                  curtain_min=0.20)})),
+                                  curtain_min=0.20, assist_latch=1,
+                                  assist_lookahead=30.0,
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # PHASE B. err 7.0, over 6.0, demand 1.04. The exhaust stays
                 # pinned at 0.60 while the curtain alone takes the increment:
                 # (1.04 - 0.60) / 1.0 = 0.44. This is the branch that exists to
@@ -601,7 +644,9 @@ def check(path):
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
                                   curtain_latch=0.80, curtain_unlatch=0.05,
-                                  curtain_min=0.20)})),
+                                  curtain_min=0.20, assist_latch=1,
+                                  assist_lookahead=30.0,
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # Bed-only ramp -- c_step 0, no chamber ceiling to lower. The
                 # assist must claim one outright rather than min() against the
                 # zero that means "no chamber control".
@@ -638,7 +683,7 @@ def check(path):
                                    "gcode_macro _COOLDOWN_CFG": None})),
             ]
         elif s in ("gcode_macro END_PRINT", "gcode_macro CANCEL_PRINT",
-                   "gcode_macro CHAMBER_AUTOSTART"):
+                   "gcode_macro _CHAMBER_AUTOSTART"):
             # These three reach cooldown.cfg through `in printer`, so both
             # sides of that guard have to render.
             scenarios = [
@@ -648,7 +693,7 @@ def check(path):
                  {"gcode_macro _COOL_STATE": None,
                   "gcode_macro _COOLDOWN_CFG": None}),
             ]
-            if s == "gcode_macro CHAMBER_AUTOSTART":
+            if s == "gcode_macro _CHAMBER_AUTOSTART":
                 # The three ways a print can arrive here, which differ only in
                 # _CH_STATE and previously all ended in the same CHAMBER_ON.
                 scenarios += [
@@ -712,31 +757,31 @@ def check(path):
         # branch it was written for is still unrendered. Naming the expected
         # output turns "it rendered" into "it rendered THIS".
         expect = {
-            ("gcode_macro COOLDOWN_START", "heaterless"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
-            ("gcode_macro COOLDOWN_START", "heater"): "HEATER=chamber_heater",
-            ("gcode_macro COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
-            ("gcode_macro COOLDOWN_START", "nothing-to-do"): "nothing to ramp",
+            ("gcode_macro _COOLDOWN_START", "heaterless"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
+            ("gcode_macro _COOLDOWN_START", "heater"): "HEATER=chamber_heater",
+            ("gcode_macro _COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
+            ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to ramp",
             ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "DURATION=15",
             ("gcode_macro _COOLDOWN_TICK", "settle-flat"): "starting ramp",
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
-            ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "CHAMBER_ORBIT_CYCLE",
+            ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
             # M400 before each announcement, or the console races the motion.
             ("gcode_macro ORBIT_WHINE_SWEEP", "default"): "M400",
             ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
             # Every arc in ONE script: that is what makes the lookahead blend
             # them instead of stopping at each junction.
-            ("gcode_macro CHAMBER_ORBIT_CYCLE", "full"): "G2 X42.0 Y100.0 I-58.0 J0 F141",
+            ("gcode_macro _CHAMBER_ORBIT_CYCLE", "full"): "G2 X42.0 Y100.0 I-58.0 J0 F141",
             # Pins the whole construction: 6 outbound arcs, the rim semicircle,
             # 6 interleaved inbound arcs, the hub semicircle.
             # 18 arcs now that the rim reaches the centreline edge, and the
             # feed climbs with radius so dwell tracks the bed's excess heat.
-            ("gcode_macro CHAMBER_ORBIT_BEGIN", ""): "arcs (out and back)",
-            ("gcode_macro CHAMBER_ORBIT_STEP", "mid-sweep"): "G2 X126.0 Y100.0 I22.0 J0 F104",
+            ("gcode_macro _CHAMBER_ORBIT_BEGIN", ""): "arcs (out and back)",
+            ("gcode_macro _CHAMBER_ORBIT_STEP", "mid-sweep"): "G2 X126.0 Y100.0 I22.0 J0 F104",
             # Index past the end wraps straight onto the first arc, which is
             # where the last inbound arc already left the toolhead.
-            ("gcode_macro CHAMBER_ORBIT_STEP", "wraps"): "G2 X82.0 Y100.0 I-14.0 J0 F101",
+            ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G2 X82.0 Y100.0 I-14.0 J0 F101",
             # Out and back in one armed cycle.
             # 26 rings from 10 to 60 mm at a 2 mm step, the largest sweep that
             # fits 60 s at 6000 mm/min.
@@ -756,6 +801,12 @@ def check(path):
             # commanded as 90 and not as 90.21.
             ("gcode_macro _COOLDOWN_TICK", "ramp-integer"): "M140 S90",
             ("gcode_macro _COOLDOWN_TICK", "ramp-progress"): "cooling to 35C",
+            # The plate arrived: finish.
+            ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
+            # The plate did not: hold the assist and say so, rather than
+            # declaring victory 5 C short the way it did on 2026-09-07.
+            ("gcode_macro _COOLDOWN_TICK", "ramp-overrun"):
+                ["still above 35", "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "SAVE_VARIABLE VARIABLE=ch_target",
             ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "HEATER=chamber_heater",
             ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
@@ -774,14 +825,14 @@ def check(path):
             # Phase C: demand 1.76 split evenly, so both fans land on 0.88.
             ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2 SPEED=0.88",
             ("gcode_macro _COOLDOWN_TICK", "assist-latch-handover"):
-                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "_CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
             ("gcode_macro _COOLDOWN_TICK", "assist-phase-b"):
-                ["SET_FAN_SPEED FAN=fan2 SPEED=0.44", "CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
-            ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "CHAMBER_ASSIST_FLOOR FLOOR=0.217",
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.44", "_CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "_CHAMBER_ASSIST_FLOOR FLOOR=0.217",
             # 0.197, not the 0.217 the same error gives with the curtain
             # disabled: with a second fan available the exhaust's solo band
             # runs to curtain_latch rather than to exhaust_max.
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "CHAMBER_ASSIST_FLOOR FLOOR=0.197",
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "_CHAMBER_ASSIST_FLOOR FLOOR=0.197",
             # A bed-only ramp claims a NEUTRAL ceiling -- the chamber's own
             # 30 C -- so the PI asks for nothing and the assist floor alone
             # drives the fan. It used to claim chamber-6 = 24, which saturates.
@@ -790,13 +841,13 @@ def check(path):
             # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
             # than that the macro took some other branch entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-bed-only-releases-ceiling"): "SAVE_VARIABLE VARIABLE=ch_target VALUE=0.0",
-            ("gcode_macro END_PRINT", "cooldown-installed"): "COOLDOWN_START",
+            ("gcode_macro END_PRINT", "cooldown-installed"): "_COOLDOWN_START",
             ("gcode_macro END_PRINT", "cooldown-absent"): "TURN_OFF_HEATERS",
             ("gcode_macro CANCEL_PRINT", "cooldown-installed"): "COOLDOWN_ABORT",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"): "CHAMBER_OFF",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
             ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "CHAMBER_OFF",
-            ("gcode_macro CHAMBER_AUTOSTART", "cooldown-installed"): "COOLDOWN_ABORT",
+            ("gcode_macro _CHAMBER_AUTOSTART", "cooldown-installed"): "COOLDOWN_ABORT",
             # M141 S0 is a decision and must be recorded as one; any positive
             # target must clear that record rather than inherit it.
             ("gcode_macro M141", "ramp-owns-it"): "deferred",
@@ -804,11 +855,11 @@ def check(path):
                 "VARIABLE=control_declined VALUE=1",
             ("gcode_macro M141", "standalone"):
                 "VARIABLE=control_declined VALUE=0",
-            ("gcode_macro CHAMBER_AUTOSTART", "declined"):
+            ("gcode_macro _CHAMBER_AUTOSTART", "declined"):
                 "chamber control off",
-            ("gcode_macro CHAMBER_AUTOSTART", "slicer-target"):
+            ("gcode_macro _CHAMBER_AUTOSTART", "slicer-target"):
                 "as requested by the slicer",
-            ("gcode_macro CHAMBER_AUTOSTART", "inferred"): "inferred",
+            ("gcode_macro _CHAMBER_AUTOSTART", "inferred"): "inferred",
             # The budget branches. A whole-chain 0.05 fits, a single pixel at
             # full fits and must carry its INDEX through, and the whole chain at
             # full white cannot fit and must come back scaled.
@@ -831,6 +882,15 @@ def check(path):
             ("gcode_macro SET_LED", "chain"): "INDEX=20",
             ("gcode_macro SET_LED", "index-masked"): "INDEX=20",
             ("gcode_macro SET_LED", "index-clear"): "WHITE=1.0",
+            # D1 must descend ONTO the bristles before heating. pad_top 0.2 +
+            # heat_air 0.0, formatted to 3 dp. Naming the number is the point:
+            # until 2026-09-08 this heated at park_z (5.0), and that rendered
+            # perfectly well while capturing no ooze at all.
+            ("gcode_macro CLEAN_NOZZLE", ""): "G1 Z0.200",
+            # Name the number: 900 - 800 = 100.0s, and the saved variable too.
+            ("gcode_macro _BRUSH_MARK_DONE", "measured"):
+                ["wipe took 100.0s", "SAVE_VARIABLE VARIABLE=wipe_seconds VALUE=100.0"],
+            ("gcode_macro _BRUSH_MARK_DONE", "outside-print"): "not measurable",
             # Renormalization: scaled down, and never silent about it.
             ("gcode_macro SET_LED", "chain-over"): "renormalized",
             ("gcode_macro SET_LED", "index-over"): "renormalized",
@@ -839,12 +899,12 @@ def check(path):
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
                   # A step that cannot be held must emit no arc at all.
                   ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
-                  ("gcode_macro CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
-                  ("gcode_macro CHAMBER_ORBIT_STEP", "inactive"): "G3 ",
+                  ("gcode_macro _CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
+                  ("gcode_macro _CHAMBER_ORBIT_STEP", "inactive"): "G3 ",
                   # The clamp must bite: axis_maximum is 200 in the fixture, so
                   # a ring at 500 mm would be off the machine entirely.
                   # No straight dash home: the inbound leg retraces the arcs.
-                  ("gcode_macro CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
+                  ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
                   # On a machine with no load cell, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
                   ("gcode_macro START_PRINT", "eddy-only"): "METHOD=force_overlay",
@@ -870,7 +930,7 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
                   # A ramp with no chamber leg must never start the loop against
                   # the zero it carries -- that is a full-speed exhaust draft.
-                  ("gcode_macro COOLDOWN_START", "bed-only"): "CHAMBER_ON",
+                  ("gcode_macro _COOLDOWN_START", "bed-only"): "CHAMBER_ON",
                   # The new-print abort must not erase the policy that print
                   # armed for itself behind the same blocking wait.
                   ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "VARIABLE=policy_set VALUE=0",
@@ -899,13 +959,13 @@ def check(path):
                   ("gcode_macro LIGHT_PATTERN", "over-budget"): "SET_LED",
                   ("gcode_macro _COOLDOWN_TICK", "inactive"): "SET_GCODE_VARIABLE",
                   ("gcode_macro END_PRINT", "cooldown-installed"): "TURN_OFF_HEATERS",
-                  ("gcode_macro END_PRINT", "cooldown-absent"): "COOLDOWN_START",
+                  ("gcode_macro END_PRINT", "cooldown-absent"): "_COOLDOWN_START",
                   ("gcode_macro CANCEL_PRINT", "cooldown-absent"): "COOLDOWN_ABORT",
-                  ("gcode_macro CHAMBER_AUTOSTART", "cooldown-absent"): "COOLDOWN_ABORT",
+                  ("gcode_macro _CHAMBER_AUTOSTART", "cooldown-absent"): "COOLDOWN_ABORT",
                   # The whole point of the declined branch: the loop must not
                   # start, and no ceiling may be inferred behind the request.
-                  ("gcode_macro CHAMBER_AUTOSTART", "declined"): "CHAMBER_ON",
-                  ("gcode_macro CHAMBER_AUTOSTART", "inferred"):
+                  ("gcode_macro _CHAMBER_AUTOSTART", "declined"): "CHAMBER_ON",
+                  ("gcode_macro _CHAMBER_AUTOSTART", "inferred"):
                       "as requested by the slicer",
                   ("gcode_macro M141", "declined"):
                       "VARIABLE=control_declined VALUE=0",
