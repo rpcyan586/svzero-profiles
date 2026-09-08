@@ -54,7 +54,7 @@ Missing printer state resolves to Undefined rather than raising, matching how
 Klipper behaves with `|default(...)`. Anything else is StrictUndefined, so a
 genuine typo fails loudly.
 """
-import ast, configparser, re, shlex, sys, jinja2
+import ast, configparser, os, re, shlex, sys, jinja2
 
 
 class Mock(dict):
@@ -241,6 +241,12 @@ def check(path):
                 ("measured", params, "", {}, {},
                  {"gcode_macro _BRUSH": Mock(t_start=800.0)}),
                 ("outside-print", params, "", {}, {}, {}),
+                # A wipe SLOWER than the running minimum must not move it. The
+                # lead is bounded by the shortest wipe, so a ratchet that ever
+                # rose would license a lead the machine cannot honour.
+                ("not-shortest", params, "", {}, {},
+                 {"gcode_macro _BRUSH": Mock(t_start=800.0),
+                  "save_variables": Mock(variables=Mock(wipe_seconds_min=60.0))}),
             ]
         elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
@@ -574,7 +580,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -589,7 +595,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -608,15 +614,15 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
                 # THE HANDOVER. err 6.0, over 5.0, so demand lands exactly on
-                # curtain_latch. The exhaust must STEP DOWN to
-                # latch - k * curtain_min = 0.60 in the same tick the curtain
-                # appears at its floor, and total cooling must be unchanged:
-                # 0.80 alone before, 0.60 + 1.0 * 0.20 after.
+                # the derived knee, e_min + k * c_min = 0.13 + 0.20 = 0.33.
+                # BOTH fans arrive on their own floors in the same tick and
+                # total cooling is unchanged across it: 0.33 from the exhaust
+                # alone before, 0.13 + 1.0 * 0.20 after.
                 ("assist-latch-handover", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=51.0),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
@@ -626,15 +632,18 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
-                # PHASE B. err 7.0, over 6.0, demand 1.04. The exhaust stays
-                # pinned at 0.60 while the curtain alone takes the increment:
-                # (1.04 - 0.60) / 1.0 = 0.44. This is the branch that exists to
-                # keep the loud fan out of its top fifth.
-                ("assist-phase-b", params, "", {}, {},
+                # SHARED CLIMB. err 7.0, over 6.0, demand 0.66. Above the knee
+                # both fans take the SAME increment d = (0.66 - 0.33) / 2 =
+                # 0.165, so the exhaust sits at 0.13 + 0.165 = 0.297 and the
+                # curtain at 0.20 + 0.165 = 0.367 -- still 0.07 apart, each on
+                # its own floor plus d. Replaced the old phase B, which pinned
+                # the exhaust at 0.60 and made the curtain climb alone to meet
+                # it.
+                ("assist-shared-climb", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=52.0),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
                              Mock(exhaust_enable=1, curtain_enable=1,
@@ -643,7 +652,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0.80, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -821,18 +830,24 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "assist engaged",
             ("gcode_macro _COOLDOWN_TICK", "assist-release"): "assist released",
             # err 10, over 9: the exhaust saturates at 5 C and the curtain
-            # takes the remaining 4 of its own 5 C band -> 0.45 * 0.8 = 0.36.
-            # Phase C: demand 1.76 split evenly, so both fans land on 0.88.
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"): "SET_FAN_SPEED FAN=fan2 SPEED=0.88",
+            # demand 1.67, d = (1.67 - 0.33) / 2 = 0.668, so exhaust 0.798 and
+            # curtain 0.868 -- the constant 0.07 offset between the two floors
+            # is preserved all the way up, which is the point of the rule.
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.868", "_CHAMBER_ASSIST_FLOOR FLOOR=0.798"],
+            # BOTH floors in the same tick, and nothing else. This is the whole
+            # claim of the 2026-09-08 revision.
             ("gcode_macro _COOLDOWN_TICK", "assist-latch-handover"):
-                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "_CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
-            ("gcode_macro _COOLDOWN_TICK", "assist-phase-b"):
-                ["SET_FAN_SPEED FAN=fan2 SPEED=0.44", "_CHAMBER_ASSIST_FLOOR FLOOR=0.6"],
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "_CHAMBER_ASSIST_FLOOR FLOOR=0.13"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-shared-climb"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.367", "_CHAMBER_ASSIST_FLOOR FLOOR=0.297"],
             ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "_CHAMBER_ASSIST_FLOOR FLOOR=0.217",
-            # 0.197, not the 0.217 the same error gives with the curtain
+            # 0.15, not the 0.217 the same error gives with the curtain
             # disabled: with a second fan available the exhaust's solo band
-            # runs to curtain_latch rather than to exhaust_max.
-            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "_CHAMBER_ASSIST_FLOOR FLOOR=0.197",
+            # runs only to the knee rather than to exhaust_max. It fell from
+            # 0.197 when the knee moved 0.80 -> 0.33, which is exactly the
+            # intent -- the exhaust alone now covers a much shorter stretch.
+            ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "_CHAMBER_ASSIST_FLOOR FLOOR=0.15",
             # A bed-only ramp claims a NEUTRAL ceiling -- the chamber's own
             # 30 C -- so the PI asks for nothing and the assist floor alone
             # drives the fan. It used to claim chamber-6 = 24, which saturates.
@@ -891,6 +906,7 @@ def check(path):
             ("gcode_macro _BRUSH_MARK_DONE", "measured"):
                 ["wipe took 100.0s", "SAVE_VARIABLE VARIABLE=wipe_seconds VALUE=100.0"],
             ("gcode_macro _BRUSH_MARK_DONE", "outside-print"): "not measurable",
+            ("gcode_macro _BRUSH_MARK_DONE", "not-shortest"): "shortest still 60.0s",
             # Renormalization: scaled down, and never silent about it.
             ("gcode_macro SET_LED", "chain-over"): "renormalized",
             ("gcode_macro SET_LED", "index-over"): "renormalized",
@@ -924,6 +940,9 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"): "SET_FAN_SPEED FAN=fan2",
                   # Engaging must never mean slamming to full duty.
                   ("gcode_macro _COOLDOWN_TICK", "assist-min-fan"): "FLOOR=1.0",
+                  # The ratchet must not rise: no write of the minimum at all.
+                  ("gcode_macro _BRUSH_MARK_DONE", "not-shortest"):
+                      "VARIABLE=wipe_seconds_min",
                   ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "SET_FAN_SPEED FAN=fan2",
                   # Curtain is off by default, so the default assist scenario
                   # must never reach for fan2.
@@ -981,6 +1000,7 @@ def check(path):
             # Not every checked file is a chamber file; only the chamber
             # scenarios patch this object.
             state = printer.get("gcode_macro _CH_STATE", Mock())
+            dump = os.environ.get("DUMP")
             old_state = {key: state.get(key) for key in state_patch}
             old_extruder = {key: printer.extruder.get(key) for key in extruder_patch}
             # A printer patch may ADD an object the base mock lacks (the
@@ -1001,10 +1021,19 @@ def check(path):
                     effective = klipper_params(
                         s.split()[1].upper(), scenario_rawparams
                     )
+                # DUMP=<label> prints the rendered G-code for one scenario.
+                # Added because the expect table names exact duties, and
+                # deriving those by hand and guessing at the rounding is how
+                # wrong numbers get enshrined as expectations.
                 out = env.from_string(cp.get(s, 'gcode')).render(
                     printer=printer, params=effective,
                     rawparams=scenario_rawparams
                 )
+                if dump and dump in (label, s, "all"):
+                    print("   --- %s%s ---" % (s, suffix))
+                    for ln in out.splitlines():
+                        if ln.strip():
+                            print("   | %s" % ln.rstrip())
                 bad_chars = [(ln.strip()[:70], c)
                              for ln in out.splitlines() if "MSG=" in ln
                              for c in ";#*" if c in ln.split("MSG=", 1)[1]]

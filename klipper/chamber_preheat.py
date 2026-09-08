@@ -661,7 +661,14 @@ class ChamberPreheat:
         # today a no-op, because the plate has always arrived long before it --
         # absorbs whatever coast is left. The probe and the mesh still get a
         # settled plate, because that M190 is what guards them.
-        self.bed_wait = config.getboolean("bed_wait", True)
+        # DEFAULT FALSE as of 2026-09-08: the published stance is that the
+        # plate's coast belongs to the M190 that follows, not to M191. It was
+        # True while this was an operator-only setting; the measurement that
+        # moved it is in kb/chamber-soak.md, and the precondition -- a start
+        # sequence with an M190 after the wipe and before the probe -- is
+        # documented in notes/personal-tuning-register.md. Set True to restore
+        # the serialised behaviour for a start sequence that lacks one.
+        self.bed_wait = config.getboolean("bed_wait", False)
         # FINISH THE WIPE AS THE CHAMBER ARRIVES, rather than starting it then.
         #
         # bed_wait above stops the wipe being serialised behind the plate's
@@ -694,8 +701,18 @@ class ChamberPreheat:
         #
         # Default 0.0 -- OFF. Turn it on only with a MEASURED wipe duration;
         # CLEAN_NOZZLE reports its own elapsed time for exactly that purpose.
+        # DEFAULT 45 s as of 2026-09-08, up from 0 (off). The measured wipe on
+        # this machine was 97.0 s and its heat phase alone 35-37 s, so 45 sits
+        # under the shortest wipe anyone is likely to see while still reclaiming
+        # most of the window. It is a PUBLISHED number, chosen to be safe on a
+        # machine nobody has measured; the operator's own is higher and lives in
+        # svzero-personal.cfg.
+        #
+        # 0 still disables the early handover entirely, and remains the right
+        # value for a machine whose wipe is unusually short or whose chamber ETA
+        # is not trusted.
         self.wipe_lead_seconds = config.getfloat(
-            "wipe_lead_seconds", 0.0, minval=0.0
+            "wipe_lead_seconds", 45.0, minval=0.0
         )
         # No arcs-per-tick knob. A fixed count was the wrong shape: the queue
         # tops out at BUFFER_TIME_HIGH regardless of how many are handed over,

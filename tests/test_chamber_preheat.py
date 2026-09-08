@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Unit tests for the host-side chamber preheat boost planner."""
 
+import ast
 import importlib.util
+import re
 import pathlib
 import unittest
 
@@ -227,7 +229,19 @@ def controller(nozzle_curve, bed_max=120.0, config_values=None):
     # tests it; the shipped default moved to "hold" on 2026-09-03 and is
     # asserted separately, so this line keeps the two questions apart instead of
     # silently retargeting nine tests at a policy they were not written for.
-    values = {"history_seconds": 0.0, "boost_policy": "eta"}
+    #
+    # wipe_lead_seconds is pinned OFF here for the same reason, and it became
+    # necessary on 2026-09-08 when the published default moved 0 -> 45. Every
+    # planner test below was written against a wait that runs until the chamber
+    # actually arrives; with a lead in force the wait returns early on the ETA
+    # and those runs are truncated mid-schedule, which is a different question.
+    # The tests that DO exercise the early handover set it explicitly.
+    # bed_wait is pinned ON for the same reason again: with it off the wait
+    # returns before bed_ready is ever reached, so bed_ready_eventtime is never
+    # written and the tests that measure the bed's arrival have nothing to read.
+    # That is the handoff working, not the planner failing.
+    values = {"history_seconds": 0.0, "boost_policy": "eta",
+              "wipe_lead_seconds": 0.0, "bed_wait": True}
     values.update(config_values or {})
     config_values = values
     reactor = FakeReactor()
@@ -1196,17 +1210,69 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertAlmostEqual(bed.commands[-1][1], 65.0 + ctl.bed_carry,
                                places=3)
 
-    def test_wipe_lead_defaults_to_off(self):
-        ctl, unused_reactor, unused_bed, unused_state, unused_fan = controller(
-            lambda seconds: 25.0
-        )
-        self.assertEqual(ctl.wipe_lead_seconds, 0.0)
+    def test_published_defaults_are_the_unserialised_ones(self):
+        """These are the PUBLISHED values, and moving them is a decision.
 
-    def test_bed_wait_defaults_to_the_old_serialised_behaviour(self):
-        ctl, unused_reactor, unused_bed, unused_state, unused_fan = controller(
-            lambda seconds: 25.0
+        Both were operator-only overrides until 2026-09-08. They are defaults
+        now, so anyone installing the pack gets the wipe overlapping the plate's
+        coast and landing on the chamber minimum, without editing anything.
+
+        45 s is chosen to be safe on a machine nobody has measured: the wipe
+        here took 97.0 s and its heat phase alone 35-37 s. The operator's own
+        70 is an override in svzero-personal.cfg, and the learned bound can
+        only ever pull either of them down. See
+        notes/personal-tuning-register.md.
+        """
+        # Built WITHOUT controller(), deliberately: that helper pins
+        # wipe_lead_seconds off so the planner tests are not truncated, which
+        # would mask exactly the value this test exists to check.
+        reactor = FakeReactor()
+        printer = FakePrinter(
+            reactor,
+            FakeHeaters(FakeHeater(reactor, curve=lambda s: 25.0),
+                        FakeHeater(reactor, max_temp=120.0, initial_target=65.0)),
+            FakeGcode(), FakeFan(reactor),
         )
-        self.assertTrue(ctl.bed_wait)
+        ctl = MODULE.ChamberPreheat(FakeConfig(printer, {"history_seconds": 0.0}))
+        self.assertEqual(ctl.wipe_lead_seconds, 45.0)
+        self.assertFalse(ctl.bed_wait)
+
+    def test_every_state_key_is_declared_on_CH_STATE(self):
+        """A state key the macro does not declare KILLS THE JOB.
+
+        SET_GCODE_VARIABLE raises on an unknown name, so _set_state writing a
+        key that [gcode_macro _CH_STATE] never declared aborts whatever called
+        it. On 2026-09-08 the first job after the wipe_lead deploy cancelled at
+        the end of its preheat for exactly this: M191 committed early, wrote
+        wipe_lead_committed, and the print died with the nozzle still at 45 C.
+
+        Nothing in the unit tests could see it -- the fake gcode object accepts
+        any key -- and nothing in check-macros.py could either, because the
+        writer is Python and the declaration is in a different file. This is
+        the seam, so the check belongs here.
+        """
+        cfg = KLIPPER.parent / "chamber_fan.cfg"
+        if not cfg.exists():                       # pragma: no cover
+            self.skipTest("chamber_fan.cfg not beside the module")
+        text = cfg.read_text(encoding="utf-8")
+        section = text.split("[gcode_macro _CH_STATE]", 1)[1].split("\n[", 1)[0]
+        declared = set(re.findall(r"^variable_([a-z_0-9]+)\s*:", section, re.M))
+
+        source = (KLIPPER / "chamber_preheat.py").read_text(encoding="utf-8")
+        written = set()
+        for node in ast.walk(ast.parse(source)):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if isinstance(fn, ast.Attribute) and fn.attr == "_set_state":
+                written.update(kw.arg for kw in node.keywords if kw.arg)
+        self.assertTrue(written, "found no _set_state calls to check")
+        missing = sorted(written - declared)
+        self.assertEqual(
+            missing, [],
+            "chamber_preheat writes state keys that [gcode_macro _CH_STATE] "
+            "does not declare, which raises and aborts the caller: %s" % missing,
+        )
 
     def test_handoff_uses_reactor_clock_domain(self):
         ctl, reactor, unused_bed, state, unused_fan = controller(
