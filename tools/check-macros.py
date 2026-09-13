@@ -723,10 +723,23 @@ def check(path):
         starved = {"gcode_macro _LIGHT_CAL": Mock(
             ma_red=7.70, ma_green=7.76, ma_blue=7.76, ma_white=16.10,
             ma_quiescent=8.8, ma_budget=20.0, masked=[20])}
+        # A lit strip to split away from. The masked pixels are dark in both,
+        # because the wrapper put them there; the quad is LIGHT_PATTERN's
+        # unhomed look, the case that forces the pixel-by-pixel midpoint.
+        def strip(fn):
+            return {"neopixel nozzle_light": Mock(color_data=[
+                [0.0, 0.0, 0.0, 0.0] if i in (1, 20, 21) else fn(i)
+                for i in range(1, 34)])}
+        lit_white = strip(lambda i: [0.0, 0.0, 0.0, 1.0])
+        quad = strip(lambda i: [0.15 if (i - 1) % 4 == c else 0.0 for c in range(4)])
         if s == "gcode_macro SET_LED":
             scenarios = [
                 ("other-led", None, "LED=Screen_Colour RED=1", {}, {}, {}),
                 ("chain", None, "LED=nozzle_light WHITE=0.2", {}, {}, {}),
+                ("split-down", None, "LED=nozzle_light WHITE=0", {}, {}, lit_white),
+                ("split-mixed", None, "LED=nozzle_light WHITE=0.5", {}, {}, quad),
+                ("no-transmit", None, "LED=nozzle_light WHITE=0.2 TRANSMIT=0",
+                 {}, {}, {}),
                 ("index-masked", None, "LED=nozzle_light WHITE=1 INDEX=20",
                  {}, {}, {}),
                 ("index-clear", None, "LED=nozzle_light WHITE=1 INDEX=7",
@@ -894,9 +907,22 @@ def check(path):
             # whole-chain call is followed by a zeroing of the masked index,
             # a masked INDEX is zeroed, and an unmasked INDEX is not.
             ("gcode_macro SET_LED", "other-led"): "LED=Screen_Colour",
-            ("gcode_macro SET_LED", "chain"): "INDEX=20",
+            # Every transmitting change goes out as two frames, halfway then
+            # the target. Name both numbers: a midpoint that silently equals
+            # the target renders fine and softens nothing.
+            ("gcode_macro SET_LED", "chain"): ["INDEX=20", "WHITE=0.1 ", "WHITE=0.2 "],
             ("gcode_macro SET_LED", "index-masked"): "INDEX=20",
-            ("gcode_macro SET_LED", "index-clear"): "WHITE=1.0",
+            ("gcode_macro SET_LED", "index-clear"):
+                ["WHITE=0.5 INDEX=7 TRANSMIT=1", "WHITE=1.0 INDEX=7"],
+            # Off is a step too: full white down to dark passes through 0.5.
+            ("gcode_macro SET_LED", "split-down"): ["WHITE=0.5 ", "WHITE=0.0 "],
+            # A mixed chain is split pixel by pixel. Pixel 2 is green 0.15 in
+            # the quad, so its midpoint toward white 0.5 is green 0.075 and
+            # white 0.25, and only the last pixel transmits.
+            ("gcode_macro SET_LED", "split-mixed"):
+                ["GREEN=0.075 BLUE=0.0 WHITE=0.25 INDEX=2 TRANSMIT=0",
+                 "INDEX=33 TRANSMIT=1"],
+            ("gcode_macro SET_LED", "no-transmit"): "WHITE=0.2 ",
             # D1 must descend ONTO the bristles before heating. pad_top 0.2 +
             # heat_air 0.0, formatted to 3 dp. Naming the number is the point:
             # until 2026-09-08 this heated at park_z (5.0), and that rendered
@@ -962,7 +988,11 @@ def check(path):
                   # what puts the tach guard on a fan that is off on purpose.
                   ("gcode_macro _CHAMBER_VENT", "floor-zero-is-off"): "vent_active VALUE=1",
                   ("gcode_macro _CHAMBER_VENT", "floor-rounds-to-off"): "vent_active VALUE=1",
-                  ("gcode_macro SET_LED", "index-masked"): "WHITE=1.0",
+                  ("gcode_macro SET_LED", "index-masked"): ["WHITE=1.0", "WHITE=0.5"],
+                  # A uniform chain gets ONE midpoint frame, not 33 index writes.
+                  ("gcode_macro SET_LED", "split-down"): "INDEX=33",
+                  # Staging only: no transmit, so there is nothing to split.
+                  ("gcode_macro SET_LED", "no-transmit"): "WHITE=0.1 ",
                   ("gcode_macro SET_LED", "index-clear"): "INDEX=20",
                   # A renormalized call must not pass the raw value through.
                   ("gcode_macro SET_LED", "chain-over"): "WHITE=1.0",
