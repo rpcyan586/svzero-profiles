@@ -482,7 +482,9 @@
     "gcode_label_objects": "1",
     "support_type": "tree(auto)",
     "support_critical_regions_only": "1",
-    "seam_slope_type": "external"
+    "seam_slope_type": "external",
+    "_skirt_start_angle": "Front-right, requested 2026-09-13 to shorten travel from the purge. Orca accepts -180..180 degrees; -45 is equivalent to 315. Dormant when skirt_loops is zero. This sets skirt entry, not model seam placement.",
+    "skirt_start_angle": "-45"
   },
   "_mapping_provenance_2026_09_07": "Sixteen mappings added by DIFFING our keymap against the published PrusaSlicer/SuperSlicer -> OrcaSlicer converters: theophile/SuperSlicer_to_Orca_scripts (328 pairs) and bwees/orca_prusa (211). Their tables and ours DISAGREED ON NOTHING -- every key we already mapped, we mapped the same way -- but they cover keys we simply never reached, because ours grew one bug at a time. The consequences were real: support_material_style=organic never reached Orca, so it used its own `default` support style while PS/SS used organic; top/bottom_fill_pattern=monotonic never reached it either; and skirts=0 did not, so Orca printed a skirt the other two did not. See notes/kb/multi-slicer-prior-art.md.",
   "_expanded_2026_09_07": "Grown from 71 to 280 pairs. Sourced by majority vote across three published PrusaSlicer/SuperSlicer -> OrcaSlicer converters (theophile 328 pairs, bwees 211, robertoSreis 22), then filtered on BOTH sides: the PS/SS name must be a real option in ps-known-options.json or ss-known-options.json, and the Orca name must appear in OrcaSlicer's own shipped profiles -- 887 distinct keys harvested from 8,827 files in the installed 2.4.2. The second filter is not optional: the Perl table interleaves conversion-TYPE markers with key names, so an unfiltered import would have added `array`, `single` and `nearest` as Orca options. Pairs where the sources disagree outright are in _ambiguous and deliberately NOT added.\\n\\nMost of these the Zero does not set today. They are here so the NEXT setting added to the master reaches Orca instead of being silently dropped -- which is how support_material_style=organic went missing for months.",
