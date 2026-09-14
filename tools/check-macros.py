@@ -424,7 +424,7 @@ def check(path):
                         assist_curtain=0.0, assist_exhaust=0.0,
                         curtain_latched=0, idle_set=0.0,
                         assist_latched=0, prev_err=0.0, overrun_s=0.0,
-                        assist_i=0.0, settle_chamber=0.0, settle_slope=0.0,
+                        assist_i=0.0,
                         eta_bed=0.0, eta_at=0.0,
                         ch_written=0.0)
             # `b_at` places the scenario on the tick that commands this bed
@@ -538,17 +538,23 @@ def check(path):
         elif s == "gcode_macro _COOLDOWN_TICK":
             scenarios = [
                 ("inactive", params, "", {}, {}, cool(active=0)),
-                ("settle-hold", params, "", {}, {},
+                # SETTLE ENDS WHEN THE NOZZLE HAS COOLED TO THE BED (2026-09-14).
+                # The bed sits at b_cmd + 8 = 118 C in these fixtures, and the
+                # extruder patch sets the nozzle -- the base mock's 25 C would
+                # end every settle on its first tick.
+                ("settle-hold", params, "", {}, {"temperature": 250.0},
                  cool(phase=1, settle_elapsed=0, elapsed=0)),
-                ("settle-flat", params, "", {}, {},
-                 cool(phase=1, settle_elapsed=180, elapsed=180)),
+                ("settle-nozzle-cooled", params, "", {}, {"temperature": 95.0},
+                 cool(phase=1, settle_elapsed=60, elapsed=60)),
                 # The settle phase used to say NOTHING for up to ten minutes,
-                # which read as a hung cooldown. A still-moving chamber holds
-                # the phase open, so this must report rather than fall silent.
-                # The slope is the ramp's own now, filtered from the sensor, not
-                # the chamber loop's -- which reads 0 with the loop off.
-                ("settle-progress", params, "", {}, {},
-                 cool(phase=1, settle_elapsed=300, elapsed=300, settle_slope=-1.2)),
+                # which read as a hung cooldown. A nozzle still hotter than the
+                # bed holds it open, so this must report rather than fall silent.
+                ("settle-progress", params, "", {}, {"temperature": 180.0},
+                 cool(phase=1, settle_elapsed=300, elapsed=300)),
+                # The backstop: still hot at the cap, the ramp starts anyway and
+                # names the temperature it stopped on.
+                ("settle-cap", params, "", {}, {"temperature": 250.0},
+                 cool(phase=1, settle_elapsed=600, elapsed=600)),
                 ("ramp-heaterless", params, "", {}, {}, cool()),
                 # Whole-degree commands, and a progress line with an ETA.
                 ("ramp-integer", params, "", {}, {}, cool()),
@@ -898,7 +904,10 @@ def check(path):
             ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to ramp",
             ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "DURATION=15",
             # The ramp begins by switching every chamber controller off.
-            ("gcode_macro _COOLDOWN_TICK", "settle-flat"): ["starting ramp", "_COOLDOWN_TAKE_OVER"],
+            ("gcode_macro _COOLDOWN_TICK", "settle-nozzle-cooled"):
+                ["nozzle 95.0C at or below bed", "_COOLDOWN_TAKE_OVER"],
+            ("gcode_macro _COOLDOWN_TICK", "settle-cap"):
+                ["settle cap 600s reached with the nozzle still at 250.0C", "_COOLDOWN_TAKE_OVER"],
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
@@ -1123,6 +1132,9 @@ def check(path):
                   # projection -- the 2026-09-13 early latch.
                   ("gcode_macro _COOLDOWN_TICK", "assist-lookahead-held"): "assist engaged",
                   ("gcode_macro _COOLDOWN_TICK", "assist-step-held"): "assist engaged",
+                  # A nozzle hotter than the bed holds the settle: no ramp start.
+                  ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "_COOLDOWN_TAKE_OVER",
+                  ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "_COOLDOWN_TAKE_OVER",
                   ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): "assist engaged",
                   ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "curtain released",
                   # Anti-windup: a saturated tick banks nothing, so writes nothing.
