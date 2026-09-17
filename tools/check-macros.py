@@ -269,6 +269,9 @@ def check(path):
                 # extra's own "already calibrated" skip can fire.
                 ("eddy-only", params, "", {}, {},
                  {"probe_pressure": None}),
+                ("camera-tuner", params, "", {}, {},
+                 {"probe_pressure": Mock(last_z_result=0.0),
+                  "camera_tune": Mock(active=False)}),
             ]
         elif s == "gcode_macro ORBIT_WHINE_SWEEP":
             scenarios = [
@@ -847,7 +850,18 @@ def check(path):
         lit_white = strip(lambda i: [0.0, 0.0, 0.0, 1.0])
         quad = strip(lambda i: [0.15 if (i - 1) % 4 == c else 0.0 for c in range(4)])
         if s == "gcode_macro SET_LED":
+            def observer_state(state='complete',homed='',target=40,active=False):
+                return {'print_stats':Mock(state=state),'toolhead':Mock(homed_axes=homed),
+                        'heater_bed':Mock(temperature=65,target=target),
+                        'camera_tune':Mock(active=active)}
             scenarios = [
+                ('observer-idle',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state()),
+                ('observer-printing',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(state='printing')),
+                ('observer-paused',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(state='paused')),
+                ('observer-unknown',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(state='unknown')),
+                ('observer-homed',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(homed='xyz')),
+                ('observer-preheat',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(target=100)),
+                ('observer-tuning',None,'LED=nozzle_light WHITE=0.2 OBSERVER=1',{}, {},observer_state(active=True)),
                 ("other-led", None, "LED=Screen_Colour RED=1", {}, {}, {}),
                 ("chain", None, "LED=nozzle_light WHITE=0.2", {}, {}, {}),
                 ("split-down", None, "LED=nozzle_light WHITE=0", {}, {}, lit_white),
@@ -861,6 +875,21 @@ def check(path):
                 ("chain-over", None, "LED=nozzle_light WHITE=1", {}, {}, starved),
                 ("index-over", None, "LED=nozzle_light WHITE=1 INDEX=7",
                  {}, {}, starved),
+            ]
+        elif s == "gcode_macro _LIGHT_APPLY_STATE":
+            def light_state(homed="xyz", last="unhomed", active=False, result=None):
+                return {"toolhead": Mock(homed_axes=homed),
+                        "gcode_macro _LIGHT_STATE": Mock(last=last),
+                        "camera_tune": (Mock(active=active, last_result=Mock(result))
+                                        if result is not None else None)}
+            scenarios = [
+                ("homed-default", params, "", {}, {}, light_state()),
+                ("homed-selected", params, "", {}, {}, light_state(result=dict(status="selected",white=0.6))),
+                ("tuning", params, "", {}, {}, light_state(active=True,result=dict(status="not-run"))),
+                ("failed-retains", params, "", {}, {}, light_state(result=dict(status="interrupted-current-settings-retained"))),
+                ("not-run", params, "", {}, {}, light_state(result=dict(status="not-run"))),
+                ("unhomed", params, "", {}, {}, light_state(homed="",last="homed",result=dict(status="selected",white=0.6))),
+                ("unchanged", params, "", {}, {}, light_state(last="homed",result=dict(status="selected",white=0.6))),
             ]
         elif s == "gcode_macro LIGHT_PATTERN":
             scenarios = [
@@ -909,6 +938,7 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "settle-cap"):
                 ["settle cap 600s reached with the nozzle still at 250.0C", "_COOLDOWN_TAKE_OVER"],
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
+            ("gcode_macro START_PRINT", "camera-tuner"): "CAMERA_TUNE STARTUP=1",
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
             ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
@@ -1041,6 +1071,11 @@ def check(path):
             ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "LIGHT_STATUS",
             ("gcode_macro NOZZLE_LIGHT", "spotlight"): "INDEX=7",
             ("gcode_macro LIGHT_PATTERN", "counting"): "INDEX=20",
+            ("gcode_macro _LIGHT_APPLY_STATE", "homed-default"): "NOZZLE_LIGHT W=0.5",
+            ("gcode_macro _LIGHT_APPLY_STATE", "homed-selected"): "NOZZLE_LIGHT W=0.6",
+            ("gcode_macro _LIGHT_APPLY_STATE", "not-run"): "NOZZLE_LIGHT W=0.5",
+            ("gcode_macro _LIGHT_APPLY_STATE", "unhomed"): "LIGHT_PATTERN COUNT=33 VALUE=0.15",
+            ("gcode_macro _LIGHT_APPLY_STATE", "failed-retains"): "SET_GCODE_VARIABLE MACRO=_LIGHT_STATE",
             # Name the numbers, not just "it rendered". These are the whole
             # claim MAX makes, and an arithmetic slip that still renders is
             # exactly the failure this file exists to catch.
@@ -1053,6 +1088,7 @@ def check(path):
             # whole-chain call is followed by a zeroing of the masked index,
             # a masked INDEX is zeroed, and an unmasked INDEX is not.
             ("gcode_macro SET_LED", "other-led"): "LED=Screen_Colour",
+            ("gcode_macro SET_LED", "observer-idle"): "SET_LED_BASE LED=nozzle_light",
             # Every transmitting change goes out as two frames, halfway then
             # the target. Name both numbers: a midpoint that silently equals
             # the target renders fine and softens nothing.
@@ -1095,7 +1131,8 @@ def check(path):
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
                   # On a machine with no load cell, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
-                  ("gcode_macro START_PRINT", "eddy-only"): "METHOD=force_overlay",
+                  ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE"],
+                  ("gcode_macro START_PRINT", "load-cell"): "CAMERA_TUNE",
                   # A matching version must say nothing at all.
                   ("gcode_macro SVZERO_REQUIRE", "version-match"): "profile expects",
                   ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen"): "not sliced by",
@@ -1168,6 +1205,16 @@ def check(path):
                   ("gcode_macro SET_LED", "index-over"): "WHITE=1.0",
                   ("gcode_macro SET_LED", "chain"): "renormalized",
                   ("gcode_macro NOZZLE_LIGHT", "whole-chain"): "renormalized",
+                  ("gcode_macro _LIGHT_APPLY_STATE", "tuning"): ["NOZZLE_LIGHT", "LIGHT_PATTERN", "SET_GCODE_VARIABLE"],
+                  ("gcode_macro _LIGHT_APPLY_STATE", "unchanged"): ["NOZZLE_LIGHT", "LIGHT_PATTERN", "SET_GCODE_VARIABLE"],
+                  ("gcode_macro _LIGHT_APPLY_STATE", "failed-retains"): ["NOZZLE_LIGHT", "LIGHT_PATTERN"],
+                  ("gcode_macro _LIGHT_APPLY_STATE", "homed-selected"): "W=0.5",
+                  ("gcode_macro SET_LED", "observer-printing"): "SET_LED_BASE",
+                  ("gcode_macro SET_LED", "observer-paused"): "SET_LED_BASE",
+                  ("gcode_macro SET_LED", "observer-unknown"): "SET_LED_BASE",
+                  ("gcode_macro SET_LED", "observer-homed"): "SET_LED_BASE",
+                  ("gcode_macro SET_LED", "observer-preheat"): "SET_LED_BASE",
+                  ("gcode_macro SET_LED", "observer-tuning"): "SET_LED_BASE",
                   # The independent check on the solver. SET_LED costs the
                   # answer with the same constants and refuses to scale it, so
                   # a solve that overspends says so here without a meter.
