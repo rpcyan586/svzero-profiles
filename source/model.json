@@ -10,9 +10,12 @@
     "nozzles": [
       "0.2",
       "0.4",
+      "0.5",
       "0.6",
       "0.8",
-      "1.0"
+      "1.0",
+      "1.2",
+      "1.4"
     ],
     "max_volumetric_speed": 50,
     "_max_volumetric_note": "Sovol's published rating, 85W/24V ceramic hotend. Emitted into *SV Zero General* as `max_volumetric_speed`, which in PrusaSlicer/SuperSlicer is the HOTEND capability limit (Print settings -> Speed). The material limit is filament_max_volumetric_speed. Per Prusa's docs the effective cap is the LOWER of the two, so machine and material stay separable and no tier needs hand-capping. Orca has no process-level equivalent -- only the filament one -- so for Orca the machine ceiling has to be folded into each filament profile.",
@@ -122,6 +125,27 @@
       "Standard": 0.6,
       "Draft": 0.8,
       "Strength": 0.6
+    },
+    "0.5": {
+      "Fine": 0.125,
+      "Optimal": 0.175,
+      "Standard": 0.25,
+      "Draft": 0.325,
+      "Strength": 0.25
+    },
+    "1.2": {
+      "Fine": 0.3,
+      "Optimal": 0.4,
+      "Standard": 0.5,
+      "Draft": 0.8,
+      "Strength": 0.5
+    },
+    "1.4": {
+      "Fine": 0.35,
+      "Optimal": 0.5,
+      "Standard": 0.7,
+      "Draft": 1.05,
+      "Strength": 0.7
     }
   },
   "tier_gaps": {

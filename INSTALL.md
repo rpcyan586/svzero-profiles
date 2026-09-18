@@ -1,113 +1,209 @@
-# Installing
+# Installation and optional upgrades
 
-Two steps on the printer, one in the slicer. On 1.3.7 nothing needs editing. On 1.4.x there is one edit, and it is a deletion - see below.
+**Start with the slicer profiles. No printer changes or Python modules are
+required for basic printing on stock Sovol Zero 1.3.7 or 1.4.x.** Here “stock”
+means Sovol's shipped Klipper configuration and macros, including `START_PRINT`
+and `END_PRINT`; this is not a universal profile for a bare upstream Klipper
+installation or another printer.
 
-I have two Sovol Zeros - one on 1.4.7 and one still factory-original on 1.3.7 - and the pack runs on both from the same files. Where they differ the macros check at runtime rather than asking you which you have; the one thing they cannot check for you is the 1.4.x deletion below, because Klipper refuses to start before any macro exists to look.
+## What each installation gives you
 
-## Printer
+The same slicer profiles serve all three levels. There is no separate Stock or
+Macro pack preset to maintain.
 
-Copy the pack into its own directory beside `printer.cfg`, so `~/printer_data/config/svzero/` holds the `.cfg` files and the `klipper/` folder that came with them.
+| Install | What you gain | What happens without it |
+|---|---|---|
+| Slicer profiles only | Nozzle-scaled widths and tiers, material settings, configured supports, bed/nozzle waits and a priming skirt | Stock Sovol cleaning, calibration, mesh and end-of-print behavior. No pack chamber soak, spool check, positioned purge or controlled cooldown |
+| Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation and a bed cooldown ramp | The profiles still print using the stock path above |
+| `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover |
+| `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
+| `fan_duty.py` + `exhaust_duty.cfg` | Adds commanded exhaust duty and normalized measured RPM traces to the temperature chart | Fan regulation and tachometer checks still work; only the extra chart traces are absent |
+| `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
 
-Copy the host extras and restart the service:
+The macro pack changes printer behavior, not MCU firmware. None of these
+steps require a firmware flash, OTA or Klipper update.
 
-```
-cp ~/printer_data/config/svzero/klipper/*.py ~/klipper/klippy/extras/
-sudo systemctl restart klipper
-```
+## 1. Import the slicer profiles
 
-That has to be a service restart. `RESTART` and `FIRMWARE_RESTART` reuse the running Python process and keep the old modules, so a fresh copy of an extra will not be picked up by either.
+- **OrcaSlicer:** install the generated vendor bundle under `bundles/orca-vendor`.
+- **PrusaSlicer / SuperSlicer:** File → Import → Import Config Bundle, choosing
+  the corresponding generated INI under `bundles/`.
+- Select the nozzle that is physically installed. The pack covers
+  0.2/0.4/0.5/0.6/0.8/1.0/1.2/1.4 mm; a preset does not establish that a
+  particular replacement nozzle fits or has been calibrated.
+- Add your own printer connection. PrusaSlicer/SuperSlicer use `moonraker`;
+  Orca uses `octoprint` against Moonraker. Public profiles contain no host address.
+- If needed, select `svzero_bed.stl` and `svzero_bed.svg` for the bed preview.
 
-Copy all four even if you do not want all of them. The `.cfg` files declare sections that need them, and Klipper refuses to start when a section names an extra that is not installed.
+Public startup sets the bed target, makes the optional pack calls, waits for the
+bed with `M190` **before** `START_PRINT`, then waits for nozzle temperature before
+purging/printing. The early bed wait is deliberate: stock `START_PRINT` does not
+promise the replacement macro's settle-before-calibration sequence. It also
+means public profiles do not depend on overlapping the nozzle wipe with the
+bed's final settling time.
 
-Then add one line to `printer.cfg`, near the bottom, after Sovol's `[include Macro.cfg]`:
+**Public profiles retain `PURGE_LINE`.** On stock Klipper an unknown ordinary
+command produces a console warning and execution continues. A minimum one-loop
+skirt, extended to extrude at least **8 mm of filament** (not 8 mm of path),
+provides baseline priming when that macro is absent. With the pack installed,
+you get the positioned purge **and** the skirt. Skirts occupy build-plate space;
+leave room in the arrangement and inspect the preview. Disabling them on stock
+firmware removes this fallback unless you provide another priming sequence.
 
-```
+The other optional calls (`SVZERO_REQUIRE`, `_PREFLIGHT`, `M141`/`M191`,
+`SET_CLEAN_TEMP`, `COOLDOWN_ARM`) likewise do not require stub macros on stock
+Sovol firmware. Expect several unknown-command messages, not one combined
+warning. Unknown commands being harmless does **not** make errors in an
+installed macro harmless; nor does it apply to commands such as
+`SET_GCODE_VARIABLE` naming a nonexistent target.
+
+## 2. Optional macro pack, without Python
+
+Back up the current configuration. Copy the pack's `.cfg` files to
+`~/printer_data/config/svzero/`, retaining their relative paths. Do not copy
+someone else's `svzero-personal.cfg`; personal overrides are no longer loaded
+automatically.
+
+Near the bottom of `printer.cfg`, after Sovol's `[include Macro.cfg]` **and after
+all stock fan/sensor definitions**, add exactly one firmware-matched include:
+
+```ini
+# Stock firmware 1.3.7:
 [include svzero/svzero-1.3.7.cfg]
 ```
 
-or, on 1.4.x:
+or:
 
-```
+```ini
+# Stock firmware 1.4.x (checked against 1.4.7):
 [include svzero/svzero-1.4.x.cfg]
 ```
 
-Pick the one that matches your firmware and include only that one. They differ solely in which hardware file they pull in - the exhaust fan is a different pin and a different object between the two, and the name `fan3` means different hardware on each.
+These include the native macros and hardware configuration only. No added
+Python modules are required. The 1.3.7-only pressure-probe sampling override
+lives in `probe_pressure_1.3.7.cfg`; the 1.4.x include must not load it.
+The 1.4.x include instead selects `RUN_PROBE_VIR_CONTACT` at Sovol's stock
+X30/Y30 plate-contact location; 1.3.7 keeps its load-cell command/location.
 
-### One deletion, 1.4.x only
+### Required 1.4.x edit
 
-Stock 1.4.x printer.cfg carries this, around line 259:
+Back up and comment out the **entire** stock `[temperature_fan exhaust_fan]`
+section, including all its options. The pack replaces it with a generic exhaust
+fan on PB0 and a chamber sensor on PC4. Keeping both definitions prevents
+Klipper from starting because the pins are claimed twice. Do not remove
+`[fan_generic fan3]`: on 1.4.x that is different hardware.
 
+No such removal is needed on 1.3.7: the pack merges overrides into the existing
+`fan_generic fan3` and uses the existing `temperature_sensor chamber_temp`.
+
+Restart only while the printer is idle; restarting aborts a print. In this
+repository, use `scripts/deploy-macro.sh` for deployment and its idle-state
+checks rather than chaining a file copy and a restart. Validate changed macros
+with `tools/check-macros.py` in the target's Jinja environment before deployment.
+
+Review the brush geometry before using the replacement wipe. `nozzle_brush.cfg`
+contains pad bounds measured on the author's machine; use `BRUSH_STATUS` and the
+file's documented `BRUSH_TEACH` / dry-run procedure to check your own machine.
+Adding the pack is not a substitute for checking physical clearances.
+
+### Native fallback and its limits
+
+Without `[chamber_preheat]`, `M191` parks/stirs and waits for the requested
+minimum on the **rear chamber thermistor**. The fan command is flushed before
+the blocking wait. The bed stays at the print target; there is no boost or early
+handover and the macro does not label the nozzle as a qualified air sensor.
+The rear sensor is a less representative observation of air at the part than
+the qualified nozzle method. An unattainable chamber minimum still needs to be
+changed or the job cancelled; missing Python is not permission to ignore the
+requested minimum.
+
+The native cooldown ramps the **bed target** down; the public chamber-rate
+settings are zero on a heaterless Zero. Exhaust assist is available; curtain-fan
+cooldown assist is **off by default**. These policies and rates are starting
+points, not measured guarantees against warping. `COOLDOWN_CONFIG ENABLE=0`
+disables the ramp; `COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp
+without turning heaters off; use `CANCEL_PRINT` for shutdown and cancellation.
+
+With another slicer's profile, missing material information falls back to the
+spool, remembered temperature or configured default where supported. That is
+not a guarantee that arbitrary start G-code is compatible: it still needs bed
+and nozzle waits and sufficient priming, especially with the pack's wipe and
+end-retract bookkeeping.
+
+## 3. Optional Python enhancements
+
+Install only the helpers you want. For adaptive preheat **and** Spoolman:
+
+```sh
+cp ~/printer_data/config/svzero/klipper/chamber_preheat.py ~/klipper/klippy/extras/
+cp ~/printer_data/config/svzero/klipper/spool_guard.py ~/klipper/klippy/extras/
+cp ~/printer_data/config/svzero/klipper/moonraker.py ~/klipper/klippy/extras/
 ```
-[temperature_fan exhaust_fan]
-pin: PB0
-sensor_type: EPCOS 100K B57560G104F
-sensor_pin: PC4
+
+Then add, **after** the firmware-matched include:
+
+```ini
+[include svzero/svzero-python.cfg]
 ```
 
-Comment it out or delete it before you restart. That one section is both halves of what this replaces - it is the watermark controller responsible for the banding and the noise, and it also holds the chamber thermistor - and it claims `PB0` and `PC4`, which the pack needs. Leave it in and Klipper will not start at all: `pin PB0 used multiple times in config`, at config parse, before anything else happens.
+For just one feature, include `svzero/chamber_preheat.cfg` or
+`svzero/spool_guard.cfg` instead, and copy that feature's module plus
+`moonraker.py`. Do not also include `svzero-python.cfg`. Apply your own personal
+settings last, after any sections they override.
 
-There is no way to keep it and override it from an include. A `temperature_fan` cannot be driven by `SET_FAN_SPEED`, and it cannot be turned into a `fan_generic` in place - duplicate sections only merge when they are the same type.
+Once the files and includes are ready and the printer is demonstrably idle,
+restart the **Klipper service** to load new Python code. `RESTART` and
+`FIRMWARE_RESTART` do not reload an already-imported module. The repository's
+deployment script supports a guarded service restart; see its help/runbook.
 
-1.3.7 needs none of this. Its exhaust fan is already a plain `[fan_generic fan3]` with no controller on it at all, and its chamber thermistor is already `[temperature_sensor chamber_temp]` on the pin the macros expect, so the pack is purely additive there.
+**Klipper cannot conditionally ignore a missing configured Python module.**
+If you enable `[chamber_preheat]` or `[spool_guard]` without installing its
+module/dependencies, configuration fails before macros can run. The fallback
+works by leaving those optional includes disabled, not by disguising a broken
+installation. To remove Python, remove its include first and restart while idle.
+The native macro path then takes over.
 
-That is the whole install. The include order inside those files is deliberate and load-bearing, which is why they are an explicit list rather than a wildcard: Klipper applies includes linearly and a later duplicate section wins, which is how this overrides Sovol's macros without editing `Macro.cfg`. Their `factory_resets.sh` can overwrite their file without taking these with it.
+### What Python improves, and what still fails deliberately
 
-## Slicer
+- **Adaptive preheat:** qualifies a previously hot nozzle before trusting it as
+  an air sensor. Moonraker temperature history can shorten that qualification;
+  if history is absent or unavailable it takes fresh samples instead. Bed boost
+  is enabled explicitly with `M191 ... BOOST=1`, bounded by the configured bed
+  ceiling (120 °C in the public config). Standard generated calls do not enable
+  boost. Timeouts, invalid parameters or a failed qualification remain errors;
+  the macro must not pretend the requested chamber condition was reached.
+- **Spool guard:** a 404 specifically on Moonraker's Spoolman endpoint means
+  “not configured” and skips the check with one notice per session. A configured
+  integration with no active spool, missing metadata, insufficient filament or
+  a material mismatch refuses before heating. Server failures/timeouts also
+  refuse. The configured one-shot retry override is described in
+  `spool_guard.cfg`; it is an explicit override, not automatic success.
+- **Fan charts:** copy `fan_duty.py` before including `exhaust_duty.cfg`. Select
+  the correct fan name for your firmware in that file. The module only adds
+  telemetry; it is not required for chamber control.
+- **Camera tuning:** the local camera service and lighting macros are separate
+  dependencies, not included by the basic macro pack. Service failure is caught
+  and printing continues with current/default camera settings. Configure this
+  only if that camera/lighting setup exists on your machine.
 
-Import the bundle for whichever slicer you use. Orca gets a vendor bundle, PrusaSlicer and SuperSlicer get config bundles.
+## Removing or downgrading
 
-The profiles do not carry a printer address. Add your own physical printer once, in the dialog built for it - PrusaSlicer and SuperSlicer both have a native `moonraker` host type; Orca has none and wants `octoprint`, which points at the same Moonraker endpoint.
+- **Python → macros only:** remove `svzero-python.cfg` (or the individual
+  feature includes) and any personal sections that declare those extras.
+- **Macros → stock:** remove the firmware-matched include and all optional
+  feature/personal includes. On **1.4.x restore the complete original
+  `[temperature_fan exhaust_fan]` section** from the backup. Merely deleting the
+  include would leave stock exhaust control missing.
+- Restart only while idle. Copied files can remain unused on disk. Restore any
+  pre-existing extras you replaced from your backup if they were used elsewhere.
+- Keep the public skirt settings when returning to stock. Re-slice old projects
+  that retained earlier startup or skirt settings.
 
-## What runs without what
+## Validation boundary
 
-The profiles and the macros are two downloads and they can drift apart. Neither direction aborts a print.
-
-A profile on a printer without the pack: every command the start G-code adds is an ordinary macro call, and Klipper answers an unknown one with a console warning and carries on. You lose the chamber wait, the pre-flight and the cooldown ramp. Nothing stops.
-
-The pack on a printer running somebody else's profile: `END_PRINT` and `CLEAN_NOZZLE` override Sovol's own and close the retract cycle with no slicer involvement at all, chamber control infers a target from the bed temperature when nothing was declared, and the cooldown falls back to its material table. `START_PRINT` says so once when a job arrives without identifying itself.
-
-Version drift between the two prints one line naming both versions. It is a warning, not a refusal. A pack newer than the profile is the normal state and is almost always fine.
-
-## Optional pieces
-
-Curtain fan. Included and configured, not optional - `curtain_fan.cfg` replaces the stock `[fan_generic fan2]` with a 30 ms PWM period so low duties are actually honoured, a kick to start it from rest, and the PE13 tachometer so a stall is visible. Same pin on both firmwares. The cooldown ramp uses it as the second stage of a blended throttle: the exhaust runs alone until it reaches 80%, then the curtain latches on at its floor and the exhaust steps back to 60% to pay for it, which keeps the total airflow the same and takes the loud fan out of its top fifth. Beyond that the curtain climbs alone until the two match, and then they rise together. It never runs while the bed is above 60 C - extraction is safe on a hot part, a draft across one is what warps it.
-
-Spoolman. If Moonraker has `[spoolman]` configured, jobs are checked for enough filament and the right material before any heater is commanded. If it does not, the check is skipped and says so once per session. You do not have to run Spoolman and you do not have to turn anything off.
-
-Skew compensation. The start G-code carries a commented `SKEW_PROFILE LOAD=` line and no profile name, because a skew profile is a measurement of one machine's geometry and mine is no use on yours. Print a calibration object, save yours with `SKEW_PROFILE SAVE=<name>` and `SAVE_CONFIG`, then uncomment that line with your own name. Both firmwares need an empty `[skew_correction]` section added to `printer.cfg` first - neither ships one. If you have seen a Zero with that section already present, somebody put it there.
-
-Exhaust duty on the temperature chart. Uncomment `[include exhaust_duty.cfg]` in the file you included above. It puts the exhaust fan's commanded duty and its measured RPM on Mainsail's chart as two traces, normalised to the same 0-100 scale. They do not track each other - at 10% duty the rotor is turning at about 29% of full speed - and the gap is widest at the bottom of the range, which is where the cooling assist works.
-
-## Probing
-
-1.3.7 has a bed load cell and an eddy sensor. 1.4.0 dropped the load cell, so a 1.4.x machine ships the file but never configures it.
-
-`START_PRINT` checks for `[probe_pressure]` and forces the load-cell overlay only where there is one. Without it the eddy path decides for itself whether it has work to do, which lets it skip when it already has good data.
-
-This matters more than it looks. Passing `METHOD=force_overlay` on 1.4.7 does not fail - their `z_offset_calibration.py` skips the routine only when `METHOD` is exactly `default`, so any other value bypasses the skip and runs a full heat-up and a contact probe on every print. That is the split 0dysseusRex settled on in [Rex-Sovol-Zero-Mainline](https://github.com/0dysseusRex/Rex-Sovol-Zero-Mainline): eddy for homing and mesh, load cell for fine Z offset where it exists, eddy-only where it does not.
-
-## What shows up in Mainsail
-
-Twenty-five macros, not seventy-seven. Everything the pack defines that you would
-not click is prefixed with an underscore, which hides it from Mainsail's macro
-list while leaving it **fully callable from the console** — so nothing is lost,
-it is just not in your way.
-
-What stays visible, and why:
-
-| | |
-|---|---|
-| `START_PRINT` `END_PRINT` `CANCEL_PRINT` `CLEAN_NOZZLE` `LOAD_FILAMENT` `UNLOAD_FILAMENT` | Sovol's own; the firmware and the touchscreen call them by name |
-| `M104` `M141` `M191` `T0` `SET_HEATER_TEMPERATURE` | G-code commands, not really macros |
-| `PURGE_LINE` `COOLDOWN_ARM` `SET_CLEAN_TEMP` `SVZERO_REQUIRE` | the slicer emits these; renaming them would break every sliced file |
-| `CHAMBER_ON` `CHAMBER_OFF` `COOLDOWN_STATUS` `COOLDOWN_ABORT` `COOLDOWN_CONFIG` | things you actually reach for |
-| `BRUSH_TEACH` `BRUSH_STATUS` `PURGE_STATUS` | commissioning and diagnosis |
-| `CHAMBER_ORBIT_SWEEP` `ORBIT_WHINE_SWEEP` | manual test tools |
-
-The rest — the config setters, the orbit internals, the brush prime, the chamber
-autostart — are still there under a leading underscore. `_COOLDOWN_START` works
-exactly as `COOLDOWN_START` did if you type it.
-
-## Removing it
-
-Delete the one include line. The `.cfg` files and the extras can stay where they are; nothing outside that directory was modified.
+The 2026-09-18 compatibility repair was checked offline against preserved Sovol
+1.3.7 and 1.4.7 sources: unknown-command dispatch, include dependencies, macro
+rendering with Jinja 2.11.3, generated bundles, actual slicing, and optional
+service failure tests. This is not a fresh physical print test on untouched
+stock hardware. No live printer configuration or Python module was changed by
+that review.

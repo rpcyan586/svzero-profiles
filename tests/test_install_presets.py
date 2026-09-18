@@ -74,23 +74,25 @@ class InstallPresetsTest(unittest.TestCase):
     def test_generated_orca_zero_profiles_are_single_filament(self):
         machine_dir = PATH.parents[1] / "bundles/orca-vendor/SVZero/machine"
         paths = [machine_dir / "fdm_machine_common.json"]
-        paths.extend(machine_dir / f"SV Zero {nozzle} nozzle.json"
-                     for nozzle in ("0.2", "0.4", "0.6", "0.8", "1.0"))
+        nozzles = json.loads((PATH.parents[1] / "source/model.json").read_text())["machine"]["nozzles"]
+        paths.extend(machine_dir / f"SV Zero {nozzle} nozzle.json" for nozzle in nozzles)
         for path in paths:
             with self.subTest(path=path.name):
                 profile = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(profile["single_extruder_multi_material"], "0")
 
-    def test_generated_pla_profiles_use_exact_33_degree_chamber_control(self):
+    def test_generated_pla_profiles_use_20_minimum_and_33_ceiling(self):
         directory = PATH.parents[1] / "bundles/orca-vendor/SVZero/filament"
         paths = sorted(directory.glob("SV Zero PLA*.json"))
-        self.assertEqual(len(paths), 8)
+        self.assertEqual({p.stem for p in paths}, {
+            "SV Zero PLA - Brass", "SV Zero PLA - Steel",
+            "SV Zero PLA Silk - Brass", "SV Zero PLA Silk - Steel"})
         for path in paths:
             with self.subTest(path=path.name):
                 profile = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(profile["activate_chamber_temp_control"], ["1"])
                 self.assertEqual(profile["chamber_temperature"], ["33"])
-                self.assertEqual(profile["chamber_minimal_temperature"], ["33"])
+                self.assertEqual(profile["chamber_minimal_temperature"], ["20"])
                 self.assertNotIn("chamber_temperatures", profile)
 
     def test_neither_tool_keeps_its_own_copy_of_the_start_block(self):
@@ -135,8 +137,9 @@ class InstallPresetsTest(unittest.TestCase):
             with self.subTest(block=name):
                 lines = [line for line in block.split("\n")
                          if line and not line.startswith(";")]
-                self.assertEqual(lines[0], "_PREFLIGHT")
-                self.assertTrue(lines[1].startswith("M140 "))
+                self.assertEqual(lines[0], "SVZERO_REQUIRE VERSION=" + start_gcode.SVZERO_PACK_VERSION)
+                self.assertEqual(lines[1], "_PREFLIGHT")
+                self.assertTrue(lines[2].startswith("M140 "))
 
     def test_normal_orca_start_honors_activation(self):
         start = MODULE.ORCA_NORMAL_CHAMBER_START
@@ -231,6 +234,31 @@ class InstallPresetsTest(unittest.TestCase):
             )
             self.assertNotIn("X145", result)
             self.assertIn("sandbox-only, not publication policy", result)
+
+    def test_personal_skirts_are_disabled_only_in_installed_presets(self):
+        public = PATH.parents[1] / "bundles/orca-vendor/SVZero/process/0.20mm Standard @SV Zero 0.4 nozzle.json"
+        original = public.read_bytes()
+        self.assertEqual(json.loads(original)["skirt_loops"], "1")
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "system/SVZero/process"
+            dest.mkdir(parents=True)
+            (dest / public.name).write_bytes(original)
+            (dest / "unrelated.json").write_text('{"name": "unrelated", "skirt_loops": "2"}')
+            self.assertEqual(MODULE.disable_personal_skirts(directory, "orca"), 1)
+            installed = json.loads((dest / public.name).read_text())
+            self.assertEqual((installed["skirt_loops"], installed["min_skirt_length"]), ("0", "0"))
+            self.assertEqual(json.loads((dest / "unrelated.json").read_text())["skirt_loops"], "2")
+        self.assertEqual(public.read_bytes(), original)
+
+    def test_personal_ini_skirts_are_disabled(self):
+        for slicer in ("prusa", "superslicer"):
+            with self.subTest(slicer=slicer), tempfile.TemporaryDirectory() as directory:
+                dest = pathlib.Path(directory) / "print"
+                dest.mkdir()
+                p = dest / "SV Zero test.ini"
+                p.write_text("skirts = 1\nmin_skirt_length = 8\nperimeters = 3\n")
+                self.assertEqual(MODULE.disable_personal_skirts(directory, slicer), 1)
+                self.assertEqual(p.read_text(), "skirts = 0\nmin_skirt_length = 0\nperimeters = 3\n")
 
 if __name__ == "__main__":
     unittest.main()

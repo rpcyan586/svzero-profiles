@@ -1438,7 +1438,9 @@ def orca_absolutise(doc, flat, nozzle):
         elif k == "initial_layer_print_height":
             doc[k] = "%g" % (pct / 100.0 * float(nozzle))
         elif k in ORCA_FIRST_LAYER and ORCA_FIRST_LAYER[k]:
-            doc[k] = "%g" % (pct / 100.0 * ORCA_FIRST_LAYER[k])
+            # Orca rejects first-layer speeds below 1 mm/s. Large-nozzle
+            # Strength presets reach that floor after flow scaling.
+            doc[k] = "%g" % max(1.0, pct / 100.0 * ORCA_FIRST_LAYER[k])
         elif k.endswith("_speed") and speed:
             doc[k] = "%g" % (pct / 100.0 * speed)
         elif k == "bridge_flow":
@@ -1571,6 +1573,11 @@ def emit_orca(model, ss, keymap, out_dir):
         # Orca-only decisions last, so they cannot be overwritten by a
         # translated value and so they appear on every process preset.
         doc.update(forced_process)
+        # Organic supports read a separate Orca option from normal trees.
+        # Keep Orca's 3 mm default on existing nozzles, but carry the larger
+        # branches needed above 1 mm; the normal-tree key alone is ignored.
+        doc["tree_support_branch_diameter_organic"] = "%g" % max(
+            3.0, float(flat["support_tree_branch_diameter"]))
         for k, v in list(doc.items()):
             if isinstance(v, bool) or isinstance(v, (int, float)):
                 doc[k] = str(v)
@@ -2212,6 +2219,9 @@ def main():
         print("  rendered presets match the model")
 
     emit = {e.strip() for e in args.emit.split(",") if e.strip()}
+    if problems and (args.check or emit):
+        # Never overwrite a working bundle with a partial nozzle/tier tree.
+        sys.exit(1)
     # Every PrusaSlicer emitter filters on this now, so it is loaded once and
     # unconditionally. It used to be loaded only for ps-presets/ps-vendor, which
     # is half of why `--emit ps` shipped keys PrusaSlicer does not define.
@@ -2291,6 +2301,18 @@ def main():
             first = next(iter(tiers.values()))
             per_nozzle[noz.rstrip("n")] = {
                 k: v for k, v in first.items() if k != "z_hop"}
+        # The historical override table predates added nozzle sizes. Resolve
+        # their widths from the current master instead of omitting the variant.
+        for noz in model["machine"]["nozzles"]:
+            if noz not in per_nozzle:
+                flat = flatten(ss, next(name for name in ss
+                    if name.startswith("print:SV Zero %sn - " % noz)))
+                per_nozzle[noz] = {
+                    key: "%g" % (float(str(flat[key]).lstrip("!").rstrip("%"))
+                                 * float(noz) / 100)
+                    if str(flat[key]).endswith("%") else flat[key]
+                    for key in ovr["0.4n"][next(iter(ovr["0.4n"]))]
+                    if key != "z_hop"}
         common = dict(ss.get("print:*SV Zero General*", {}))
         common.pop("inherits", None)
         # The printer preset's values come from the same PS2 printer section the

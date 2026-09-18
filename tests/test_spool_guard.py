@@ -256,5 +256,60 @@ class TestRetryOverride(unittest.TestCase):
         self.assertIsNotNone(g._take_override("second.gcode"))
 
 
+class TestOptionalIntegration(unittest.TestCase):
+    def guard(self):
+        import types
+        g = TestRetryOverride().guard()
+        g.enabled = True
+        g.moonraker_url = "http://127.0.0.1:7125"
+        g.timeout = 8.0
+        g._spool = {"material": "abs", "id": 1}
+        stats = types.SimpleNamespace(get_status=lambda now: {"filename": "test.gcode"})
+        g.printer = types.SimpleNamespace(lookup_object=lambda *args: stats)
+        return g
+
+    def command(self):
+        import types
+        return types.SimpleNamespace(get=lambda key, default=None: default,
+                                     get_int=lambda key, default=0: default)
+
+    def test_absent_spoolman_allows_print_and_warns_once(self):
+        from unittest.mock import patch, Mock
+        g = self.guard()
+        client = Mock()
+        client.quote.side_effect = lambda x: x
+        client.run.side_effect = MODULE.moonraker.MoonrakerError(
+            "not configured", status=404, key="ask Moonraker which spool is active")
+        with patch.object(MODULE.moonraker, "MoonrakerClient", return_value=client):
+            g.cmd_SPOOL_GUARD(self.command())
+            g.cmd_SPOOL_GUARD(self.command())
+        self.assertEqual(len(g.gcode.responses), 1)
+        self.assertIn("checks are skipped", g.gcode.responses[0])
+        self.assertIsNone(g._spool["material"])
+        self.assertIsNone(g._armed_file)
+        self.assertEqual(client.run.call_args[0][0][0][1], "/server/spoolman/spool_id")
+
+    def test_configured_without_active_spool_still_refuses(self):
+        from unittest.mock import patch
+        g = self.guard()
+        with patch.object(g, "_fetch", return_value={"spool_id": None}), \
+                self.assertRaisesRegex(RuntimeError, "refused"):
+            g.cmd_SPOOL_GUARD(self.command())
+
+    def test_missing_metadata_and_server_failures_do_not_fail_open(self):
+        from unittest.mock import patch, Mock
+        for status, key in ((404, "read this job's metadata from Moonraker"),
+                            (500, "ask Moonraker which spool is active"),
+                            (None, "ask Moonraker which spool is active")):
+            with self.subTest(status=status, key=key):
+                g = self.guard()
+                client = Mock()
+                client.quote.side_effect = lambda x: x
+                client.run.side_effect = MODULE.moonraker.MoonrakerError("failed", status=status, key=key)
+                with patch.object(MODULE.moonraker, "MoonrakerClient", return_value=client), \
+                        self.assertRaisesRegex(RuntimeError, "refused"):
+                    g.cmd_SPOOL_GUARD(self.command())
+
+
 if __name__ == "__main__":
     unittest.main()

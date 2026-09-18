@@ -26,7 +26,7 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # notes/kb/spool-preflight.md.
 # Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
 # as plain strings and a mismatch only warns -- see the note in that file.
-SVZERO_PACK_VERSION = "1.0.4"
+SVZERO_PACK_VERSION = "2.0.0"
 
 ORCA_PREFLIGHT_BLOCK = "\n".join([
     ";  SVZERO_REQUIRE names the pack this profile was built against. It only",
@@ -92,10 +92,9 @@ ORCA_START_TAIL = "\n".join([
     # print finishes, and this is where the other generated material lookup
     # lives. machine_end_gcode stays the bare END_PRINT every bundle ships.
     "@@COOLDOWN@@",
-    # NO M190 HERE. It moved into START_PRINT, behind CLEAN_NOZZLE, so the
-    # nozzle is wiped while the plate is still falling from the preheat ceiling
-    # instead of after it. The calibration and mesh still run on a settled
-    # plate -- see start_print.cfg.
+    # Stock START_PRINT does not guarantee a settled bed before calibration.
+    # The public profile must provide that wait even without our replacement.
+    "M190 S[bed_temperature_initial_layer_single]",
     "START_PRINT",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
@@ -130,7 +129,7 @@ ORCA_SHADOW_CHAMBER_BLOCK = "\n".join([
     ";  no bed boost -- because zero means do not wait.",
     ";  The spool gate stays ahead of bed heat here too: a sandbox test print",
     ";  consumes the same real filament as a publication one.",
-    ORCA_PREFLIGHT_BLOCK.split("\n")[-1],
+    ORCA_PREFLIGHT_BLOCK,
     "M140 S[bed_temperature_initial_layer_single]",
     "{if activate_chamber_temp_control[0]}",
     "{if chamber_temperature[0] > 0}",

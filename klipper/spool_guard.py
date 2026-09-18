@@ -149,27 +149,21 @@ class SpoolGuard:
         meta_call = (job_key, "/server/files/metadata?filename=%s" % quoted, None)
         try:
             got = client.run([
-                meta_call,
                 (spool_key, "/server/spoolman/spool_id", None),
+                meta_call,
             ])
         except moonraker.MoonrakerError as error:
             # SPOOLMAN IS SIMPLY NOT SET UP HERE, which is most installations.
             # Moonraker answers 404 because it never loaded the spoolman
             # component, not because anything is broken, and refusing every
             # print over that would make the pack unusable for anyone who does
-            # not run Spoolman -- while the one-line install pulls this file in
-            # for everybody. A 404 on that endpoint is an ABSENT FEATURE; a
+            # not run Spoolman. A 404 on that endpoint is an ABSENT FEATURE; a
             # timeout or a 500 is a broken one, and those still refuse.
             if error.status == 404 and error.key == spool_key:
                 self._announce_no_spoolman()
-                try:
-                    got = client.run([meta_call])
-                except moonraker.MoonrakerError as retry:
-                    raise self._refuse(
-                        "could not %s" % retry,
-                        "fix it, or SPOOL_GUARD BYPASS=1", live
-                    )
-                got[spool_key] = None
+                # Distinguish absent integration from a configured integration
+                # with no active spool. The latter must still refuse.
+                return {"spoolman_available": False}
             else:
                 raise self._refuse(
                     "could not %s" % error,
@@ -255,6 +249,10 @@ class SpoolGuard:
             return
 
         fetched = self._fetch(filename, live)
+        if fetched.get("spoolman_available") is False:
+            if not rehearsal:
+                self._spool = {key: None for key in self._spool}
+            return
         if fetched.get("spool_id") is None:
             raise self._refuse(
                 "no active spool selected, so this print cannot be tracked",

@@ -230,7 +230,13 @@ def check(path):
         if not cp.has_option(s, 'gcode') or not cp.get(s, 'gcode').strip():
             continue
         scenarios = [("", params, "S40", {}, {})]
-        if s == "gcode_macro CHAMBER_ORBIT_SWEEP":
+        if s == "gcode_macro CLEAN_NOZZLE":
+            scenarios = [
+                ("heated", Mock(), "", {}, {}),
+                ("cold-contact", Mock(HEAT="0"), "HEAT=0", {}, {}),
+                ("dry", Mock(DRY="1"), "DRY=1", {}, {}),
+            ]
+        elif s == "gcode_macro CHAMBER_ORBIT_SWEEP":
             scenarios = [("default", Mock(CYCLES="1"), "CYCLES=1", {}, {})]
         elif s == "gcode_macro _BRUSH_MARK_DONE":
             # Both branches. The shipped default for t_start is -1.0, so
@@ -382,14 +388,18 @@ def check(path):
             ]
         elif s == "gcode_macro M191":
             scenarios = [
-                ("default-compatibility", None, "", {}, {}),
-                ("exact-minimum", None, "S30", {}, {}),
+                ("default-compatibility", None, "", {}, {},
+                 {"chamber_preheat": Mock()}),
+                ("exact-minimum", None, "S30", {}, {},
+                 {"chamber_preheat": Mock()}),
                 # The real published line. Every KEY=VALUE here reaches the
                 # macro with a literal "=" still attached.
                 ("shadow-test-line", None,
                  "S33 Z15 STIR=1 BOOST=1 MAX_BOOST=10 COAST_RATE=1"
                  " INITIAL_BOOST=5 FILTER_ALPHA=0.25",
-                 {}, {}),
+                 {}, {}, {"chamber_preheat": Mock()}),
+                ("without-python", None, "S30", {}, {},
+                 {"chamber_preheat": None}),
                 ("abort", None, "S0", {}, {}),
             ]
 
@@ -1239,6 +1249,16 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
 
         # Everything defined above without a printer patch gets an empty one.
+        if s == "gcode_macro CLEAN_NOZZLE":
+            expect[(s, "cold-contact")] = "COLD CONTACT RUN"
+            expect[(s, "dry")] = "DRY RUN"
+            forbid[(s, "dry")] = "RUN_PROBE_PRESSURE"
+        if s == "gcode_macro M191":
+            for label in ("default-compatibility", "exact-minimum", "shadow-test-line"):
+                expect[(s, label)] = "CHAMBER_PREHEAT_WAIT"
+                forbid[(s, label)] = 'TEMPERATURE_WAIT SENSOR="temperature_sensor chamber_temp"'
+            expect[(s, "without-python")] = 'TEMPERATURE_WAIT SENSOR="temperature_sensor chamber_temp" MINIMUM=30.0'
+            forbid[(s, "without-python")] = "CHAMBER_PREHEAT_WAIT"
         scenarios = [sc if len(sc) == 6 else sc + ({},) for sc in scenarios]
 
         for label, scenario_params, scenario_rawparams, state_patch, extruder_patch, printer_patch in scenarios:

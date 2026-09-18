@@ -8,6 +8,10 @@ whole point of confirming the on-disk layouts.
     ./install-presets.py prusa <datadir> [--no-shrink]
     ./install-presets.py orca  <datadir> [--no-shrink] [--chamber-shadow-test]
 
+--personal installs this operator's printer connections and disables fallback
+skirts in the installed presets because PURGE_LINE is available there. Do not
+use it for a stock printer; public generated bundles retain their skirts.
+
 --no-shrink zeroes the filament shrinkage compensation in the INSTALLED presets
 only, leaving the pack itself untouched.
 
@@ -639,6 +643,30 @@ def enable_orca_chamber_shadow_test(datadir):
     return changed
 
 
+def disable_personal_skirts(datadir, which):
+    """Operator-only: PURGE_LINE is installed, so no fallback skirt is needed.
+
+    Published profiles keep their priming skirt. Like physical-printer hosts,
+    this preference is applied only to the installed personal sandbox.
+    """
+    from pathlib import Path
+    root = Path(datadir)
+    count = 0
+    if which == "orca":
+        for path in (root / "system/SVZero/process").glob("*.json"):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if "@SV Zero " not in doc.get("name", ""):
+                continue
+            doc.update(skirt_loops="0", min_skirt_length="0")
+            path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+            count += 1
+    else:
+        for path in (root / "print").glob("SV Zero *.ini"):
+            set_ini_keys(str(path), None, {"skirts": "0", "min_skirt_length": "0"})
+            count += 1
+    return count
+
+
 if __name__ == "__main__":
     argv = sys.argv[1:]
     args = [a for i, a in enumerate(argv)
@@ -671,6 +699,9 @@ if __name__ == "__main__":
         c = enable_orca_chamber_shadow_test(datadir)
         print("enabled chamber shadow test in %d Orca machine presets" % c)
         print("selected base PLA chamber profile at exact 33/33")
+    if personal:
+        nsk = disable_personal_skirts(datadir, which)
+        print("disabled fallback skirts in %d personal presets (requires PURGE_LINE)" % nsk)
     caps = [f for f in flags if f.startswith("--accel-cap")]
     if caps:
         try:
