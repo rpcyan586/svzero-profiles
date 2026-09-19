@@ -1,0 +1,16 @@
+solid schematic_bed
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 152.4 0 0
+vertex 152.4 152.4 0
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 152.4 152.4 0
+vertex 0 152.4 0
+endloop
+endfacet
+endsolid schematic_bed

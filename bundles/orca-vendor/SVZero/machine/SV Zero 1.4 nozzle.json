@@ -1,0 +1,116 @@
+{
+  "type": "machine",
+  "setting_id": "GM001",
+  "name": "SV Zero 1.4 nozzle",
+  "from": "system",
+  "instantiation": "true",
+  "inherits": "fdm_machine_common",
+  "printer_model": "SV Zero",
+  "default_print_profile": "0.70mm Standard @SV Zero 1.4 nozzle",
+  "printer_variant": "1.4",
+  "nozzle_diameter": [
+    "1.4"
+  ],
+  "retract_before_wipe": [
+    "100%"
+  ],
+  "printable_area": [
+    "0x0",
+    "152.4x0",
+    "152.4x152.4",
+    "0x152.4"
+  ],
+  "printable_height": "152.4",
+  "gcode_flavor": "klipper",
+  "retraction_length": [
+    "0.8"
+  ],
+  "machine_max_speed_e": [
+    "50"
+  ],
+  "machine_max_speed_x": [
+    "1200"
+  ],
+  "machine_max_speed_y": [
+    "1200"
+  ],
+  "machine_max_speed_z": [
+    "30"
+  ],
+  "machine_max_acceleration_e": [
+    "20000"
+  ],
+  "machine_max_acceleration_extruding": [
+    "40000"
+  ],
+  "machine_max_acceleration_retracting": [
+    "20000"
+  ],
+  "machine_max_acceleration_travel": [
+    "40000"
+  ],
+  "machine_max_acceleration_x": [
+    "40000"
+  ],
+  "machine_max_acceleration_y": [
+    "40000"
+  ],
+  "machine_max_acceleration_z": [
+    "1000"
+  ],
+  "machine_max_jerk_e": [
+    "2.5"
+  ],
+  "machine_max_jerk_x": [
+    "5"
+  ],
+  "machine_max_jerk_y": [
+    "5"
+  ],
+  "machine_max_jerk_z": [
+    "0.5"
+  ],
+  "z_hop": [
+    "1.4"
+  ],
+  "retraction_speed": [
+    "40"
+  ],
+  "deretraction_speed": [
+    "40"
+  ],
+  "retraction_minimum_travel": [
+    "0"
+  ],
+  "retract_length_toolchange": [
+    "2"
+  ],
+  "wipe": [
+    "1"
+  ],
+  "wipe_distance": [
+    "2"
+  ],
+  "z_hop_types": [
+    "Auto Lift"
+  ],
+  "thumbnails": [
+    "300x300",
+    "32x32"
+  ],
+  "retract_lift_below": [
+    "150"
+  ],
+  "auxiliary_fan": "1",
+  "thumbnails_format": "PNG",
+  "before_layer_change_gcode": "TIMELAPSE_TAKE_FRAME\nG92 E0\nSET_PRINT_STATS_INFO CURRENT_LAYER=[layer_num]\n",
+  "machine_start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\n;  DO NOT add G28 here. Sovol's original had three homes per job.\n;  Chamber control is never omitted. With activation enabled, M191 waits\n;  for Orca's exact Minimal temperature and M141 sets its Target. A zero\n;  Minimal skips the wait and keeps the Target; a zero Target turns\n;  chamber control off entirely. Unchecked activation uses bare M191 and\n;  its own 22 C minimum / 32 C target fallback.\n;  SVZERO_REQUIRE names the pack this profile was built against. It only\n;  ever WARNS: on a printer without the pack it is an unknown command,\n;  which Klipper reports and steps over, and on a printer with a different\n;  pack version it prints one line. It also tells the pack that a job was\n;  sliced by an SV Zero profile, so START_PRINT can say when one was not.\nSVZERO_REQUIRE VERSION=2.0.1-beta.1\n;  _PREFLIGHT is next so a rejected job costs no heating. It is inert\n;  unless the optional spool_guard extra is installed.\n_PREFLIGHT\nM140 S[bed_temperature_initial_layer_single]\n{if activate_chamber_temp_control[0]}\n{if chamber_temperature[0] > 0}\n{if chamber_minimal_temperature[0] > 0}\nM191 S{chamber_minimal_temperature[0]}\n{endif}\nM141 S{chamber_temperature[0]}\n{else}M141 S0{endif}\n{else}M191{endif}\n;>>>CLEAN_TEMP\n;  The material is NAMED here; the temperature table lives in the macro\n;  pack, in nozzle_brush.cfg's _BRUSH_CLEAN_TEMPS. Same division as\n;  COOLDOWN_ARM below. Provenance for the curve is\n;  source/filament-clean-temp.json.\n;  Safe to omit: without the pack this is an unknown command and only\n;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.\nSET_CLEAN_TEMP MATERIAL=[filament_type]\n;<<<CLEAN_TEMP\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\n;  Names the material; the RATES live in cooldown.cfg's\n;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool\n;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE\n;  or BED_RATE here only to OVERRIDE the table for an experiment.\n;  Omitting this block is safe: END_PRINT then asks spool_guard what is\n;  loaded, and falls back to the default row if nothing knows.\nCOOLDOWN_ARM MATERIAL=[filament_type]\n;<<<COOLDOWN\nM190 S[bed_temperature_initial_layer_single]\nSTART_PRINT\nG90\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\nM104 S[nozzle_temperature_initial_layer]\nM109 S[nozzle_temperature_initial_layer]\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirt_loops * initial_layer_line_width + 2}\nSET_PRINT_STATS_INFO TOTAL_LAYER=[total_layer_count]\n\n",
+  "machine_end_gcode": "END_PRINT\n",
+  "default_filament_profile": [
+    "SOVOL ZERO PLA - Brass"
+  ],
+  "single_extruder_multi_material": "0",
+  "use_relative_e_distances": "1",
+  "host_type": "octoprint",
+  "bed_custom_model": "svzero_bed.stl"
+}

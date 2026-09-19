@@ -1,0 +1,17 @@
+{
+  "_what": "Material-aware nozzle cleaning temperature, passed to CLEAN_NOZZLE.",
+  "_why": "Sovol cleans at a flat 200 for every material. Holding a nozzle near 200 through a long brush-and-probe sequence keeps PETG oozing and recontaminates the tip after it has just been cleaned, so cleaning and probing want different temperatures and the sequence has to get from one to the other without dwelling hot.",
+  "_derivation": "Anchoring PC's 290 C first layer to a 200 C clean in a 20 C room gives 20 + 2/3*(T_first_layer - 20), rounded up to 5 C. See notes/kb/filament-profiles.md.",
+  "_status": "PROPOSED commissioning curve, not a measurement. Nothing here has been validated on hardware.",
+  "_keyed_on": "filament_type only. The published curve also splits PLA by nozzle material (160 Brass / 170 Hardened Steel) and carries separate 8M values, but no placeholder available in machine start G-code exposes either, and both local nozzles are recorded as material-unverified in notes/kb/nozzles.md -- so we cannot claim to know which case applies. PLA takes the Hardened Steel value; a brass nozzle is then cleaned 10 C hotter than the curve proposes.",
+  "_fallback": "200, Sovol's stock cleaning temperature. An unparameterised caller gets vendor behaviour rather than a number of ours. The macro carries the same fallback independently in _BRUSH.retract_temp.",
+  "_floor": "Must stay above the extruder's min_extrude_temp (150 on both units) or CLEAN_NOZZLE refuses to retract and raises rather than aborting mid-scrub.",
+  "by_type": {
+    "PLA": 170,
+    "TPU": 175,
+    "PETG": 185,
+    "ABS": 195,
+    "PC": 200
+  },
+  "default": 200
+}

@@ -1,0 +1,44 @@
+{
+  "_what": "Nominal filament shrinkage, per material, as an Orca/SuperSlicer scale percentage.",
+  "_units": "filament_shrink is a SCALE FACTOR: 100% means no compensation, 100.3% scales the model up by 0.3% so the cooled part lands on nominal. PrusaSlicer expresses the SAME thing as the shrinkage percentage itself -- its own tooltip reads 'if you measured 99mm instead of 100mm, enter 1%' -- so PrusaSlicer's value is ours minus 100. The emitter does that transform; do not pre-subtract here.",
+  "_why_not_100": "Every vendor in the entire OrcaSlicer profile tree ships filament_shrink at 100% -- 64 files checked, not one populated. That is a default nobody filled in, not a finding that plastics do not shrink. Shipping 100% means every part comes out systematically undersized by the material's shrinkage.",
+  "_status": "NOMINAL, NOT MEASURED. These are polymer-class typicals, chosen mid-range from the published spread for each family. Real shrinkage on this machine is also a function of chamber temperature, bed temperature and cooling, and the Zero runs a hot small enclosure -- so treat these as a starting point that is right in sign and order of magnitude, and replace them per material with measured values. Procedure: notes/runbook-flow-and-shrinkage.md.",
+  "_z_axis": "Deliberately left at 0 for every material. Z error on an FDM part is dominated by first-layer squish and layer-height quantisation, not by polymer shrinkage, and scaling Z breaks the relationship between commanded and actual layer height. Both slicers default it to no compensation and we keep that. Settable per material here if a measurement ever justifies it.",
+  "materials": {
+    "PLA": {
+      "shrink": "100.3%",
+      "z": "0",
+      "typical_range": "0.2-0.5%",
+      "note": "lowest-shrinkage common filament"
+    },
+    "PLA Silk": {
+      "shrink": "100.3%",
+      "z": "0",
+      "typical_range": "0.2-0.5%",
+      "note": "PLA base polymer, treated as PLA"
+    },
+    "PETG": {
+      "shrink": "100.4%",
+      "z": "0",
+      "typical_range": "0.2-0.8%",
+      "note": "wide spread by brand"
+    },
+    "ABS": {
+      "shrink": "100.8%",
+      "z": "0",
+      "typical_range": "0.5-1.5%",
+      "note": "strongly chamber-dependent; the Zero's hot enclosure should put it at the low end"
+    },
+    "PC": {
+      "shrink": "100.7%",
+      "z": "0",
+      "typical_range": "0.6-0.9%"
+    },
+    "TPU": {
+      "shrink": "100.6%",
+      "z": "0",
+      "typical_range": "0.5-1.5%",
+      "note": "least reliable of the set -- elastomers recover dimensionally over hours and a single caliper reading is not the whole story"
+    }
+  }
+}

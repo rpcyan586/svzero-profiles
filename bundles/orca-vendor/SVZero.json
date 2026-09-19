@@ -1,0 +1,270 @@
+{
+  "name": "SVZero",
+  "version": "02.00.01.01",
+  "force_update": "0",
+  "description": "SV Zero profile pack \u2014 generated",
+  "machine_model_list": [
+    {
+      "name": "SV Zero",
+      "sub_path": "machine/SV Zero.json"
+    }
+  ],
+  "process_list": [
+    {
+      "name": "fdm_process_common",
+      "sub_path": "process/fdm_process_common.json"
+    },
+    {
+      "name": "0.05mm Fine @SV Zero 0.2 nozzle",
+      "sub_path": "process/0.05mm Fine @SV Zero 0.2 nozzle.json"
+    },
+    {
+      "name": "0.10mm Fine @SV Zero 0.4 nozzle",
+      "sub_path": "process/0.10mm Fine @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.10mm Optimal @SV Zero 0.2 nozzle",
+      "sub_path": "process/0.10mm Optimal @SV Zero 0.2 nozzle.json"
+    },
+    {
+      "name": "0.125mm Fine @SV Zero 0.5 nozzle",
+      "sub_path": "process/0.125mm Fine @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.15mm Optimal @SV Zero 0.4 nozzle",
+      "sub_path": "process/0.15mm Optimal @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.15mm Standard @SV Zero 0.2 nozzle",
+      "sub_path": "process/0.15mm Standard @SV Zero 0.2 nozzle.json"
+    },
+    {
+      "name": "0.175mm Optimal @SV Zero 0.5 nozzle",
+      "sub_path": "process/0.175mm Optimal @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.20mm Fine @SV Zero 0.6 nozzle",
+      "sub_path": "process/0.20mm Fine @SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "0.20mm Standard @SV Zero 0.4 nozzle",
+      "sub_path": "process/0.20mm Standard @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.20mm Strength @SV Zero 0.4 nozzle",
+      "sub_path": "process/0.20mm Strength @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.25mm Draft @SV Zero 0.4 nozzle",
+      "sub_path": "process/0.25mm Draft @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.25mm Fine @SV Zero 0.8 nozzle",
+      "sub_path": "process/0.25mm Fine @SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "0.25mm Optimal @SV Zero 0.6 nozzle",
+      "sub_path": "process/0.25mm Optimal @SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "0.25mm Standard @SV Zero 0.5 nozzle",
+      "sub_path": "process/0.25mm Standard @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.25mm Strength @SV Zero 0.5 nozzle",
+      "sub_path": "process/0.25mm Strength @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.325mm Draft @SV Zero 0.5 nozzle",
+      "sub_path": "process/0.325mm Draft @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.35mm Fine @SV Zero 1.4 nozzle",
+      "sub_path": "process/0.35mm Fine @SV Zero 1.4 nozzle.json"
+    },
+    {
+      "name": "0.3mm Fine @SV Zero 1.2 nozzle",
+      "sub_path": "process/0.3mm Fine @SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "0.3mm Optimal @SV Zero 0.8 nozzle",
+      "sub_path": "process/0.3mm Optimal @SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "0.3mm Standard @SV Zero 0.6 nozzle",
+      "sub_path": "process/0.3mm Standard @SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "0.3mm Strength @SV Zero 0.6 nozzle",
+      "sub_path": "process/0.3mm Strength @SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "0.4mm Draft @SV Zero 0.6 nozzle",
+      "sub_path": "process/0.4mm Draft @SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "0.4mm Fine @SV Zero 1.0 nozzle",
+      "sub_path": "process/0.4mm Fine @SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "0.4mm Optimal @SV Zero 1.2 nozzle",
+      "sub_path": "process/0.4mm Optimal @SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "0.4mm Standard @SV Zero 0.8 nozzle",
+      "sub_path": "process/0.4mm Standard @SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "0.4mm Strength @SV Zero 0.8 nozzle",
+      "sub_path": "process/0.4mm Strength @SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "0.5mm Optimal @SV Zero 1.0 nozzle",
+      "sub_path": "process/0.5mm Optimal @SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "0.5mm Optimal @SV Zero 1.4 nozzle",
+      "sub_path": "process/0.5mm Optimal @SV Zero 1.4 nozzle.json"
+    },
+    {
+      "name": "0.5mm Standard @SV Zero 1.2 nozzle",
+      "sub_path": "process/0.5mm Standard @SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "0.5mm Strength @SV Zero 1.2 nozzle",
+      "sub_path": "process/0.5mm Strength @SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "0.6mm Draft @SV Zero 0.8 nozzle",
+      "sub_path": "process/0.6mm Draft @SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "0.6mm Standard @SV Zero 1.0 nozzle",
+      "sub_path": "process/0.6mm Standard @SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "0.6mm Strength @SV Zero 1.0 nozzle",
+      "sub_path": "process/0.6mm Strength @SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "0.7mm Standard @SV Zero 1.4 nozzle",
+      "sub_path": "process/0.7mm Standard @SV Zero 1.4 nozzle.json"
+    },
+    {
+      "name": "0.7mm Strength @SV Zero 1.4 nozzle",
+      "sub_path": "process/0.7mm Strength @SV Zero 1.4 nozzle.json"
+    },
+    {
+      "name": "0.8mm Draft @SV Zero 1.0 nozzle",
+      "sub_path": "process/0.8mm Draft @SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "0.8mm Draft @SV Zero 1.2 nozzle",
+      "sub_path": "process/0.8mm Draft @SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "1.05mm Draft @SV Zero 1.4 nozzle",
+      "sub_path": "process/1.05mm Draft @SV Zero 1.4 nozzle.json"
+    }
+  ],
+  "filament_list": [
+    {
+      "name": "fdm_filament_common",
+      "sub_path": "filament/fdm_filament_common.json"
+    },
+    {
+      "name": "fdm_filament_pla",
+      "sub_path": "filament/fdm_filament_pla.json"
+    },
+    {
+      "name": "fdm_filament_pet",
+      "sub_path": "filament/fdm_filament_pet.json"
+    },
+    {
+      "name": "fdm_filament_abs",
+      "sub_path": "filament/fdm_filament_abs.json"
+    },
+    {
+      "name": "fdm_filament_tpu",
+      "sub_path": "filament/fdm_filament_tpu.json"
+    },
+    {
+      "name": "fdm_filament_pc",
+      "sub_path": "filament/fdm_filament_pc.json"
+    },
+    {
+      "name": "SV Zero ABS",
+      "sub_path": "filament/SV Zero ABS.json"
+    },
+    {
+      "name": "SV Zero PC",
+      "sub_path": "filament/SV Zero PC.json"
+    },
+    {
+      "name": "SV Zero PETG - Brass",
+      "sub_path": "filament/SV Zero PETG - Brass.json"
+    },
+    {
+      "name": "SV Zero PETG - Steel",
+      "sub_path": "filament/SV Zero PETG - Steel.json"
+    },
+    {
+      "name": "SV Zero PLA - Brass",
+      "sub_path": "filament/SV Zero PLA - Brass.json"
+    },
+    {
+      "name": "SV Zero PLA - Steel",
+      "sub_path": "filament/SV Zero PLA - Steel.json"
+    },
+    {
+      "name": "SV Zero PLA Silk - Brass",
+      "sub_path": "filament/SV Zero PLA Silk - Brass.json"
+    },
+    {
+      "name": "SV Zero PLA Silk - Steel",
+      "sub_path": "filament/SV Zero PLA Silk - Steel.json"
+    },
+    {
+      "name": "SV Zero TPU",
+      "sub_path": "filament/SV Zero TPU.json"
+    }
+  ],
+  "machine_list": [
+    {
+      "name": "fdm_machine_common",
+      "sub_path": "machine/fdm_machine_common.json"
+    },
+    {
+      "name": "SV Zero 0.2 nozzle",
+      "sub_path": "machine/SV Zero 0.2 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.4 nozzle",
+      "sub_path": "machine/SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.5 nozzle",
+      "sub_path": "machine/SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.6 nozzle",
+      "sub_path": "machine/SV Zero 0.6 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.8 nozzle",
+      "sub_path": "machine/SV Zero 0.8 nozzle.json"
+    },
+    {
+      "name": "SV Zero 1.0 nozzle",
+      "sub_path": "machine/SV Zero 1.0 nozzle.json"
+    },
+    {
+      "name": "SV Zero 1.2 nozzle",
+      "sub_path": "machine/SV Zero 1.2 nozzle.json"
+    },
+    {
+      "name": "SV Zero 1.4 nozzle",
+      "sub_path": "machine/SV Zero 1.4 nozzle.json"
+    }
+  ]
+}

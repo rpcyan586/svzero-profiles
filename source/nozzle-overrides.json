@@ -1,0 +1,176 @@
+{
+ "_source": "slicer profiles/rpcyan dev/svzero_printables_package_v102/SVZero_PrusaSlicer_config_bundle.ini",
+ "_why": "v1.0.3 moved every print preset to inherit from the 0.4mm tier bases but kept only compatible_printers/inherits/layer_height as overrides, so every nozzle silently inherited 0.4mm extrusion widths. These are the values v1.0.2 carried per nozzle, restored as explicit overrides. Widths scale linearly with nozzle diameter; z_hop does not and appears hand-set.",
+ "by_nozzle_and_tier": {
+  "0.2n": {
+   "ExtraDraft": {
+    "external_perimeter_extrusion_width": "0.2",
+    "first_layer_extrusion_width": "0.21",
+    "first_layer_infill_extrusion_width": "!0.28",
+    "infill_extrusion_width": "0.225",
+    "perimeter_extrusion_width": "0.2",
+    "solid_infill_extrusion_width": "0.225",
+    "top_infill_extrusion_width": "0.19",
+    "z_hop": "0.2"
+   },
+   "Normal": {
+    "external_perimeter_extrusion_width": "0.2",
+    "first_layer_extrusion_width": "0.21",
+    "first_layer_infill_extrusion_width": "!0.28",
+    "infill_extrusion_width": "0.225",
+    "perimeter_extrusion_width": "0.2",
+    "solid_infill_extrusion_width": "0.225",
+    "top_infill_extrusion_width": "0.19",
+    "z_hop": "0.2"
+   },
+   "Quality": {
+    "external_perimeter_extrusion_width": "0.2",
+    "first_layer_extrusion_width": "0.21",
+    "first_layer_infill_extrusion_width": "!0.28",
+    "infill_extrusion_width": "0.225",
+    "perimeter_extrusion_width": "0.2",
+    "solid_infill_extrusion_width": "0.225",
+    "top_infill_extrusion_width": "0.19",
+    "z_hop": "0.2"
+   }
+  },
+  "0.4n": {
+   "ExtraDraft": {
+    "external_perimeter_extrusion_width": "0.4",
+    "first_layer_extrusion_width": "0.42",
+    "first_layer_infill_extrusion_width": "!0.56",
+    "infill_extrusion_width": "0.45",
+    "perimeter_extrusion_width": "0.4",
+    "solid_infill_extrusion_width": "0.45",
+    "top_infill_extrusion_width": "0.38",
+    "z_hop": "0.4"
+   },
+   "Normal": {
+    "external_perimeter_extrusion_width": "0.4",
+    "first_layer_extrusion_width": "0.42",
+    "first_layer_infill_extrusion_width": "!0.56",
+    "infill_extrusion_width": "0.45",
+    "perimeter_extrusion_width": "0.4",
+    "solid_infill_extrusion_width": "0.45",
+    "top_infill_extrusion_width": "0.38",
+    "z_hop": "0.4"
+   },
+   "Quality": {
+    "external_perimeter_extrusion_width": "0.4",
+    "first_layer_extrusion_width": "0.42",
+    "first_layer_infill_extrusion_width": "!0.56",
+    "infill_extrusion_width": "0.45",
+    "perimeter_extrusion_width": "0.4",
+    "solid_infill_extrusion_width": "0.45",
+    "top_infill_extrusion_width": "0.38",
+    "z_hop": "0.4"
+   }
+  },
+  "0.6n": {
+   "ExtraDraft": {
+    "external_perimeter_extrusion_width": "0.6",
+    "first_layer_extrusion_width": "0.63",
+    "first_layer_infill_extrusion_width": "!0.84",
+    "infill_extrusion_width": "0.675",
+    "perimeter_extrusion_width": "0.6",
+    "solid_infill_extrusion_width": "0.675",
+    "top_infill_extrusion_width": "0.57",
+    "z_hop": "0.4"
+   },
+   "Normal": {
+    "external_perimeter_extrusion_width": "0.6",
+    "first_layer_extrusion_width": "0.63",
+    "first_layer_infill_extrusion_width": "!0.84",
+    "infill_extrusion_width": "0.675",
+    "perimeter_extrusion_width": "0.6",
+    "solid_infill_extrusion_width": "0.675",
+    "top_infill_extrusion_width": "0.57",
+    "z_hop": "0.4"
+   },
+   "Quality": {
+    "external_perimeter_extrusion_width": "0.6",
+    "first_layer_extrusion_width": "0.63",
+    "first_layer_infill_extrusion_width": "!0.84",
+    "infill_extrusion_width": "0.675",
+    "perimeter_extrusion_width": "0.6",
+    "solid_infill_extrusion_width": "0.675",
+    "top_infill_extrusion_width": "0.57",
+    "z_hop": "0.4"
+   }
+  },
+  "0.8n": {
+   "ExtraDraft": {
+    "external_perimeter_extrusion_width": "0.8",
+    "first_layer_extrusion_width": "0.84",
+    "first_layer_infill_extrusion_width": "!1.12",
+    "infill_extrusion_width": "0.9",
+    "perimeter_extrusion_width": "0.8",
+    "solid_infill_extrusion_width": "0.9",
+    "top_infill_extrusion_width": "0.76",
+    "z_hop": "0.36"
+   },
+   "Normal": {
+    "external_perimeter_extrusion_width": "0.8",
+    "first_layer_extrusion_width": "0.84",
+    "first_layer_infill_extrusion_width": "!1.12",
+    "infill_extrusion_width": "0.9",
+    "perimeter_extrusion_width": "0.8",
+    "solid_infill_extrusion_width": "0.9",
+    "top_infill_extrusion_width": "0.76",
+    "z_hop": "0.4"
+   },
+   "Quality": {
+    "external_perimeter_extrusion_width": "0.8",
+    "first_layer_extrusion_width": "0.84",
+    "first_layer_infill_extrusion_width": "!1.12",
+    "infill_extrusion_width": "0.9",
+    "perimeter_extrusion_width": "0.8",
+    "solid_infill_extrusion_width": "0.9",
+    "top_infill_extrusion_width": "0.76",
+    "z_hop": "0.4"
+   }
+  },
+  "1.0n": {
+   "ExtraDraft": {
+    "external_perimeter_extrusion_width": "1",
+    "first_layer_extrusion_width": "1.05",
+    "first_layer_infill_extrusion_width": "!1.4",
+    "infill_extrusion_width": "1.125",
+    "perimeter_extrusion_width": "1",
+    "solid_infill_extrusion_width": "1.125",
+    "top_infill_extrusion_width": "0.95",
+    "z_hop": "0.45"
+   },
+   "Normal": {
+    "external_perimeter_extrusion_width": "1",
+    "first_layer_extrusion_width": "1.05",
+    "first_layer_infill_extrusion_width": "!1.4",
+    "infill_extrusion_width": "1.125",
+    "perimeter_extrusion_width": "1",
+    "solid_infill_extrusion_width": "1.125",
+    "top_infill_extrusion_width": "0.95",
+    "z_hop": "0.3"
+   },
+   "Quality": {
+    "external_perimeter_extrusion_width": "1",
+    "first_layer_extrusion_width": "1.05",
+    "first_layer_infill_extrusion_width": "!1.4",
+    "infill_extrusion_width": "1.125",
+    "perimeter_extrusion_width": "1",
+    "solid_infill_extrusion_width": "1.125",
+    "top_infill_extrusion_width": "0.95",
+    "z_hop": "0.4"
+   }
+  }
+ },
+ "keys": [
+  "external_perimeter_extrusion_width",
+  "first_layer_extrusion_width",
+  "first_layer_infill_extrusion_width",
+  "infill_extrusion_width",
+  "perimeter_extrusion_width",
+  "solid_infill_extrusion_width",
+  "top_infill_extrusion_width",
+  "z_hop"
+ ]
+}

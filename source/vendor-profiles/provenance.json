@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/Sovol3d/Sovol-OrcaSlicer",
+  "commit": "f1d3dca3394124492762d39bac597912db799ccc",
+  "path_prefix": "OrcaSlicer/resources/profiles",
+  "files": [
+    {
+      "path": "Sovol/machine/SOVOL ZERO 0.4 nozzle.json",
+      "sha256": "443c80d8d583d0efdf9c4e55d6c89cf37d822e3b0155a4e6c4a56147660c988c"
+    },
+    {
+      "path": "Sovol/machine/fdm_machine_common.json",
+      "sha256": "829fbc2adc1f3d13881fb40e61645afc9de91372018ed0e12e547a8abca69fd7"
+    },
+    {
+      "path": "Sovol/process/fdm_process_common.json",
+      "sha256": "b8a2b1d22452da9f52794d6e42f6c03982b2ab491ab703002a59d4c072f89ab3"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_common.json",
+      "sha256": "e440fb88b4aec563fa1ce122ee6db097132ac89501018cccee43059103837893"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_pla.json",
+      "sha256": "acf94474588228718e744d24fc08222b388fa26f01623867f0a00a49dae77544"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_pet.json",
+      "sha256": "a84e6f901993f88d7b947b3d784e7f6efd6d9859f75c55e35cb91f0ac2238fcd"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_abs.json",
+      "sha256": "05b718ce4db6cd7f6b1eef039b87b96b3bf865af8a58fd2ad9bad26ecfaf2291"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_tpu.json",
+      "sha256": "76808fbd40b7ae24f7650e7be558bd9c9c5886933cca6a8814ae36eba9f33272"
+    },
+    {
+      "path": "Sovol/filament/fdm_filament_pc.json",
+      "sha256": "4d858d87942430b3e78ee824d608cb3a4615cb6c16a65862e81948e632c5ad6e"
+    }
+  ]
+}

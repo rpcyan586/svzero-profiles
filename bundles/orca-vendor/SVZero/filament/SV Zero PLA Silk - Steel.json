@@ -1,0 +1,123 @@
+{
+  "type": "filament",
+  "filament_id": "GFL99",
+  "name": "SV Zero PLA Silk - Steel",
+  "from": "system",
+  "instantiation": "true",
+  "inherits": "fdm_filament_pla",
+  "filament_notes": [
+    "Imported from Orca JSON (SV Zero PLA Silk - Steel). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead)"
+  ],
+  "default_filament_colour": [
+    "#B1B9C5"
+  ],
+  "slow_down_layer_time": [
+    "5"
+  ],
+  "pressure_advance": [
+    "0.038"
+  ],
+  "enable_pressure_advance": [
+    "1"
+  ],
+  "filament_shrink": [
+    "100.3%"
+  ],
+  "nozzle_temperature": [
+    "230"
+  ],
+  "nozzle_temperature_initial_layer": [
+    "250"
+  ],
+  "filament_flow_ratio": [
+    "0.98"
+  ],
+  "filament_z_hop": [
+    "0.4"
+  ],
+  "filament_max_volumetric_speed": [
+    "15"
+  ],
+  "filament_cost": [
+    "20"
+  ],
+  "filament_type": [
+    "PLA"
+  ],
+  "filament_diameter": [
+    "1.75"
+  ],
+  "filament_density": [
+    "1.24"
+  ],
+  "filament_vendor": [
+    "Sovol (Orca)"
+  ],
+  "cool_plate_temp": [
+    "65"
+  ],
+  "eng_plate_temp": [
+    "65"
+  ],
+  "hot_plate_temp": [
+    "65"
+  ],
+  "textured_plate_temp": [
+    "65"
+  ],
+  "cool_plate_temp_initial_layer": [
+    "65"
+  ],
+  "eng_plate_temp_initial_layer": [
+    "65"
+  ],
+  "hot_plate_temp_initial_layer": [
+    "65"
+  ],
+  "textured_plate_temp_initial_layer": [
+    "65"
+  ],
+  "fan_min_speed": [
+    "70"
+  ],
+  "fan_max_speed": [
+    "100"
+  ],
+  "fan_cooling_layer_time": [
+    "80"
+  ],
+  "full_fan_speed_layer": [
+    "3"
+  ],
+  "slow_down_min_speed": [
+    "10"
+  ],
+  "overhang_fan_speed": [
+    "100"
+  ],
+  "chamber_temperature": [
+    "33"
+  ],
+  "activate_chamber_temp_control": [
+    "1"
+  ],
+  "chamber_minimal_temperature": [
+    "20"
+  ],
+  "filament_start_gcode": [
+    "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
+  ],
+  "activate_air_filtration": [
+    "0"
+  ],
+  "compatible_printers": [
+    "SV Zero 0.2 nozzle",
+    "SV Zero 0.4 nozzle",
+    "SV Zero 0.5 nozzle",
+    "SV Zero 0.6 nozzle",
+    "SV Zero 0.8 nozzle",
+    "SV Zero 1.0 nozzle",
+    "SV Zero 1.2 nozzle",
+    "SV Zero 1.4 nozzle"
+  ]
+}

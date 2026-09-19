@@ -1,0 +1,21 @@
+{
+  "_what": "Post-print cooldown policy. THE RATES NO LONGER LIVE HERE.",
+  "_moved": "by_type and default were deleted on 2026-09-03. The table is now _COOLDOWN_MATERIALS in cooldown.cfg, where Klipper reads it without a slicer -- so the same print gets the same descent from Orca, from PrusaSlicer, from Sovol's stock profile, or from none at all, with spool_guard naming the material off Spoolman at print start. Two copies of the numbers is the drift this move exists to prevent, so they are not kept here for reference either.",
+  "_this_file": "Still read by generate.py, and still the home of the prose below. It emits one line: COOLDOWN_ARM MATERIAL=[filament_type].",
+  "_why": "Sovol's END_PRINT drops the bed and chamber from print temperature to ambient in one step. For a material printed on a 110 C plate inside a 60 C chamber that is a step change of tens of degrees across a part that is still bonded to the plate, and the part and the plate do not contract at the same rate. The ramp holds both on a scheduled descent to a common endpoint so the differential stays small.",
+  "_mechanism": "This is NOT annealing. PC's Tg is around 147 C and it prints on a 110 C plate, so the part is already glassy before the cooldown starts and no stress relaxation is available at these temperatures. What the ramp buys is a smaller part-to-plate differential, no exhaust draft across one face, and a smaller top-to-bottom gradient. Say that rather than claiming stress relief.",
+  "_measured": "The macro's rates are set against the MEASURED passive decay curve in notes/data/cooldown/zero2-passive-decay-20260903.md. The recovered 5.0 C/min default that used to sit here was ABOVE passive loss everywhere below 90 C, which means the bed heater had no authority and the ramp did nothing at all.",
+  "_authority": "The bed heater can only SLOW a descent -- it holds the plate above passive loss. The exhaust and curtain fans can only speed one. The passive curve is the boundary between those two regimes rather than a floor, and _COOLDOWN_ASSIST_CFG governs the forced-cooling half.",
+  "_keyed_on": "filament_type, normalised in the macro so PLA+ and PLA Plus both land on PLA. Passing FINAL, CHAMBER_RATE or BED_RATE to COOLDOWN_ARM overrides the table for an experiment.",
+  "_fallback": "Omitting the generated block is safe and supported. END_PRINT then asks spool_guard what is loaded, and falls back to _COOLDOWN_CFG's default row if nothing knows.",
+  "_endpoint": "35 C is an operational endpoint recovered from the prior design, not a Tg calculation: below any transition that matters here, above room temperature so the macro is not servoing to ambient, and a clean point to release active control. Do not embellish it into a material-science claim.",
+  "_notes": {
+    "PLA": "Prints with a chamber ceiling at or below the endpoint and a 60 C bed, so the arithmetic degenerates to a short bed-only descent on its own. No special case is needed and none is written.",
+    "TPU": "Same as PLA. A 40 C bed is 1 minute of ramp. Self-limiting.",
+    "PETG": "Bonds hard to smooth PEI while hot and releases cold. The ramp is the recovered default.",
+    "ABS": "The recovered reference case. Bed 110 chamber 60 gives 16.7 min at 1.5 and 4.5 C/min. Deliberately identical to ASA -- no ABS-specific behaviour is defined here, and the re-warm destress cycle some community macros run after the ramp is explicitly NOT implemented.",
+    "ASA": "As ABS.",
+    "PA": "Semi-crystalline, unlike everything else in this table. Slower cooling raises crystallinity and therefore total shrinkage, so nylon is the one material where a slower ramp can make dimensional accuracy worse. Left at the default rather than slowed, and it should not be slowed without a measurement.",
+    "PC": "The only deviation from the recovered defaults. Highest bed temperature in the set, the largest shrink compensation in our filament profiles at 100.7 percent, and the hardest bond to the plate, so the bed is the binding constraint rather than the chamber. Bed 2.5 C/min makes the bed govern: 110/60 gives 30 min, chamber 0.833 C/min, 72 s cadence, 1.0 C chamber and 3.0 C bed per step."
+  }
+}

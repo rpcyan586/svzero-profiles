@@ -1,0 +1,79 @@
+{
+  "_what": "Toolhead-scope values taken from Sovol's own SV08 MAX Orca filament profiles and applied to the (8M) presets. Extracted mechanically from Sovol3d/Sovol-OrcaSlicer public Sovol filament profiles -- do not hand-edit.",
+  "_why": "notes/kb/toolhead-lineage.md establishes the Zero's toolhead IS the SV08 MAX's: byte-identical PT1000b calibration points, identical PID constants, same heater pin, same 85W cartridge, one shared Sovol replacement kit. So temperature, pressure advance, flow ratio and retraction transfer between them. Cooling, bed and exhaust values do NOT -- the Max is a 500mm machine, the Zero a 152mm enclosure that reaches 43C on PLA -- and are deliberately excluded here.",
+  "_not_a_measurement": "These are Sovol's numbers, not ours. Nothing in either corpus shows a measured flow or PA figure for the Zero. Treat as a better-sourced default, not as calibration. See notes/kb/filament-profiles.md.",
+  "_source_profile": {
+    "SV Zero PLA - Brass": "SOVOL SV08 MAX PLA",
+    "SV Zero PLA - Steel": "SOVOL SV08 MAX PLA",
+    "SV Zero PLA Silk - Brass": "SOVOL SV08 MAX Silk PLA - Hardened Steel",
+    "SV Zero PLA Silk - Steel": "SOVOL SV08 MAX Silk PLA - Hardened Steel",
+    "SV Zero PETG - Brass": "SOVOL SV08 MAX PETG",
+    "SV Zero PETG - Steel": "SOVOL SV08 MAX PETG",
+    "SV Zero ABS": "SOVOL SV08 MAX ABS",
+    "SV Zero PC": "SOVOL SV08 MAX PC",
+    "SV Zero TPU": "SOVOL SV08 MAX TPU"
+  },
+  "overrides": {
+    "SV Zero PLA - Brass": {
+      "temperature": "230",
+      "first_layer_temperature": "250",
+      "filament_pressure_advance": "0.036",
+      "extrusion_multiplier": "0.98"
+    },
+    "SV Zero PLA - Steel": {
+      "temperature": "230",
+      "first_layer_temperature": "250",
+      "filament_pressure_advance": "0.036",
+      "extrusion_multiplier": "0.98"
+    },
+    "SV Zero PLA Silk - Brass": {
+      "temperature": "230",
+      "first_layer_temperature": "250",
+      "filament_pressure_advance": "0.038",
+      "extrusion_multiplier": "0.98",
+      "filament_retract_lift": "0.4"
+    },
+    "SV Zero PLA Silk - Steel": {
+      "temperature": "230",
+      "first_layer_temperature": "250",
+      "filament_pressure_advance": "0.038",
+      "extrusion_multiplier": "0.98",
+      "filament_retract_lift": "0.4"
+    },
+    "SV Zero PETG - Brass": {
+      "temperature": "255",
+      "first_layer_temperature": "265",
+      "filament_pressure_advance": "0.048",
+      "extrusion_multiplier": "0.98",
+      "filament_retract_length": "0.5",
+      "filament_retract_lift": "0.4"
+    },
+    "SV Zero PETG - Steel": {
+      "temperature": "255",
+      "first_layer_temperature": "265",
+      "filament_pressure_advance": "0.048",
+      "extrusion_multiplier": "0.98",
+      "filament_retract_length": "0.5",
+      "filament_retract_lift": "0.4"
+    },
+    "SV Zero ABS": {
+      "temperature": "270",
+      "first_layer_temperature": "280",
+      "extrusion_multiplier": "0.98"
+    },
+    "SV Zero PC": {
+      "temperature": "260",
+      "first_layer_temperature": "280",
+      "extrusion_multiplier": "0.98"
+    },
+    "SV Zero TPU": {
+      "temperature": "240",
+      "first_layer_temperature": "250",
+      "extrusion_multiplier": "0.98",
+      "filament_retract_length": "0.4",
+      "filament_retract_lift": "0.4"
+    }
+  },
+  "_merged_2026_09_06": "The (8M) presets are GONE and these values now apply to the base preset of each material. Two variants per material asked the operator to choose between Sovol's numbers for this exact toolhead and older numbers for the same toolhead, which is not a choice anyone can make informedly. 18 filament presets became 9.",
+  "_one_value_did_not_come_across": "slowdown_below_layer_time. It differed in 8 of the 9 pairs and it is a COOLING value -- which _why above says in as many words does not transfer, because the Max is a 500 mm open machine and the Zero a 152 mm enclosure that reaches 43 C on PLA. The (8M) presets carried it anyway, which was the pack contradicting its own stated rule. The Zero's value is kept; everything else in the pair is the Max's."
+}

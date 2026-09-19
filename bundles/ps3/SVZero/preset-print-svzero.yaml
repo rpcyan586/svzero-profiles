@@ -1,0 +1,128 @@
+kind: print
+id: 3iaKNQNXG9navCxKkJnkzw
+name: SV Zero
+values:
+  bottom_fill_pattern: monotonic
+  bottom_solid_layers: '3'
+  bridge_flow_ratio: 100%
+  brim_type: outer_only
+  brim_width: '3'
+  external_perimeter_extrusion_width: 100%
+  fill_angle: '45'
+  fill_density: 10%
+  fill_pattern: grid
+  first_layer_extrusion_width: 105%
+  first_layer_height: 62.5%
+  gap_fill_enabled: '1'
+  gcode_label_objects: firmware
+  infill_anchor: 600%
+  infill_extrusion_width: 112.5%
+  infill_overlap: 25%
+  ironing: '0'
+  layer_height: '0.2'
+  min_bead_width: 85%
+  min_feature_size: 25%
+  perimeter_extrusion_width: 100%
+  perimeters: '2'
+  raft_layers: '0'
+  resolution: '0.012'
+  seam_position: aligned
+  skirt_distance: '0.8'
+  skirts: '1'
+  small_perimeter_speed: 50%
+  solid_infill_below_area: '15'
+  solid_infill_extrusion_width: 112.5%
+  support_material: '1'
+  support_material_buildplate_only: '1'
+  support_material_style: organic
+  top_fill_pattern: monotonic
+  top_infill_extrusion_width: 95%
+  top_solid_layers: '4'
+  travel_speed_z: '300'
+  wipe_tower: '0'
+  xy_size_compensation: '0'
+  min_skirt_length: '8'
+  max_volumetric_speed: '50'
+  perimeter_speed: 68%
+  infill_speed: 100%
+  solid_infill_speed: 68%
+  gap_fill_speed: 59%
+  bridge_speed: 50%
+  first_layer_speed: 10.5%
+  external_perimeter_speed: 83%
+  top_solid_infill_speed: 65%
+variants:
+- condition: tool.nozzle_diameter == 0.2
+  id: +1KQzSpKML2yGVCFTyoAIg
+  values:
+    external_perimeter_extrusion_width: '0.2'
+    first_layer_extrusion_width: '0.21'
+    infill_extrusion_width: '0.225'
+    perimeter_extrusion_width: '0.2'
+    solid_infill_extrusion_width: '0.225'
+    top_infill_extrusion_width: '0.19'
+- condition: tool.nozzle_diameter == 0.4
+  id: sUFQfRMaQUI0CcSGkiDsiQ
+  values:
+    external_perimeter_extrusion_width: '0.4'
+    first_layer_extrusion_width: '0.42'
+    infill_extrusion_width: '0.45'
+    perimeter_extrusion_width: '0.4'
+    solid_infill_extrusion_width: '0.45'
+    top_infill_extrusion_width: '0.38'
+- condition: tool.nozzle_diameter == 0.5
+  id: dVEeuW2JOxrTTA4nory8CA
+  values:
+    external_perimeter_extrusion_width: '0.5'
+    first_layer_extrusion_width: '0.525'
+    infill_extrusion_width: '0.5625'
+    perimeter_extrusion_width: '0.5'
+    solid_infill_extrusion_width: '0.5625'
+    top_infill_extrusion_width: '0.475'
+- condition: tool.nozzle_diameter == 0.6
+  id: 6IJYVrl53TzDP8Gd/zR40Q
+  values:
+    external_perimeter_extrusion_width: '0.6'
+    first_layer_extrusion_width: '0.63'
+    infill_extrusion_width: '0.675'
+    perimeter_extrusion_width: '0.6'
+    solid_infill_extrusion_width: '0.675'
+    top_infill_extrusion_width: '0.57'
+- condition: tool.nozzle_diameter == 0.8
+  id: dJfrpyBwQuDhe4tMy7VMyg
+  values:
+    external_perimeter_extrusion_width: '0.8'
+    first_layer_extrusion_width: '0.84'
+    infill_extrusion_width: '0.9'
+    perimeter_extrusion_width: '0.8'
+    solid_infill_extrusion_width: '0.9'
+    top_infill_extrusion_width: '0.76'
+- condition: tool.nozzle_diameter == 1.0
+  id: XgS/aVWpJGXKti01e7IEvQ
+  values:
+    external_perimeter_extrusion_width: '1'
+    first_layer_extrusion_width: '1.05'
+    infill_extrusion_width: '1.125'
+    perimeter_extrusion_width: '1'
+    solid_infill_extrusion_width: '1.125'
+    top_infill_extrusion_width: '0.95'
+- condition: tool.nozzle_diameter == 1.2
+  id: nFVBXyQfpTEHcv6MyQ0wKg
+  values:
+    external_perimeter_extrusion_width: '1.2'
+    first_layer_extrusion_width: '1.26'
+    infill_extrusion_width: '1.35'
+    perimeter_extrusion_width: '1.2'
+    solid_infill_extrusion_width: '1.35'
+    top_infill_extrusion_width: '1.14'
+- condition: tool.nozzle_diameter == 1.4
+  id: RXQPsb67LXM6YgblESxF6A
+  values:
+    external_perimeter_extrusion_width: '1.4'
+    first_layer_extrusion_width: '1.47'
+    infill_extrusion_width: '1.575'
+    perimeter_extrusion_width: '1.4'
+    solid_infill_extrusion_width: '1.575'
+    top_infill_extrusion_width: '1.33'
+- id: 1bZuZTdNzH0+m0qbX/tiGA
+  values: {}

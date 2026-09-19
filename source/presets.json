@@ -1,0 +1,1219 @@
+{
+  "_what": "THE MASTER. Authored preset values for the SV Zero pack, in the fragment shape PrusaSlicer 3.0 defines (specs/presets/preset-schema.json): a tree of {id, name, condition, features, values, variants, inherits} where every root-to-named-leaf path is one preset and values merge down the path. tools/generate.py renders it into every slicer format; no slicer's own file format is the source any more.",
+  "_not_here": "Anything a model function derives -- the Stock tier, physical printers, speed ratios, per-preset default_speed, filament shrinkage, (8M) overrides, compatible_printers. Those are computed on every run from source/model.json and friends. See tools/ini-to-tree.py for the full list.",
+  "_derived_from": "bundles/SVZero_SuperSlicer.ini as of 2026-09-01, by tools/ini-to-tree.py. That bundle is now generated output.",
+  "fragments": [
+    {
+      "kind": "printer",
+      "id": "*SV Zero Base*",
+      "values": {
+        "arc_fitting": "disabled",
+        "arc_fitting_resolution": "100%",
+        "arc_fitting_tolerance": "5%",
+        "autoemit_temperature_commands": "1",
+        "bed_custom_model": "svzero_bed.stl",
+        "bed_shape": "0x0,152.4x0,152.4x152.4,0x152.4",
+        "before_layer_gcode": "TIMELAPSE_TAKE_FRAME\\nG92 E0\\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num+1}",
+        "between_objects_gcode": "",
+        "binary_gcode": "0",
+        "cooling_tube_length": "5",
+        "cooling_tube_retraction": "91.5",
+        "deretract_speed": "40",
+        "end_gcode": "END_PRINT\\n",
+        "extra_loading_move": "-2",
+        "extruder_colour": "",
+        "extruder_extrusion_multiplier_speed": "0:10:1:10x1:20x1:30x1:40x1:60x1:80x1:120x1:160x1:240x1:320x1:480x1:640x1:960x1:1280x1",
+        "extruder_fan_offset": "0%",
+        "extruder_offset": "0x0",
+        "extruder_temperature_offset": "0",
+        "fan_kickstart": "0",
+        "fan_percentage": "0",
+        "fan_printer_min_speed": "0",
+        "fan_speedup_overhangs": "1",
+        "fan_speedup_time": "0",
+        "gcode_ascii": "0",
+        "gcode_command_buffer": "10",
+        "gcode_filename_illegal_char": "[<>:\"/\\\\|?*]",
+        "gcode_flavor": "klipper",
+        "gcode_min_length": "0.02",
+        "gcode_min_resolution": "0",
+        "gcode_precision_e": "5",
+        "gcode_precision_xyz": "3",
+        "host_type": "prusalink",
+        "init_z_rotate": "0",
+        "lift_min": "0",
+        "machine_limits_usage": "time_estimate_only",
+        "machine_max_acceleration_e": "20000,5000",
+        "machine_max_acceleration_extruding": "40000,1250",
+        "machine_max_acceleration_retracting": "20000,1250",
+        "machine_max_acceleration_travel": "40000,1250",
+        "machine_max_acceleration_x": "40000,1000",
+        "machine_max_acceleration_y": "40000,1000",
+        "machine_max_acceleration_z": "1000,200",
+        "machine_max_feedrate_e": "50,120",
+        "machine_max_feedrate_x": "1200,200",
+        "machine_max_feedrate_y": "1200,200",
+        "machine_max_feedrate_z": "30,12",
+        "machine_max_jerk_e": "2.5,2.5",
+        "machine_max_jerk_x": "5,10",
+        "machine_max_jerk_y": "5,10",
+        "machine_max_jerk_z": "0.5,0.4",
+        "machine_min_extruding_rate": "0,0",
+        "machine_min_travel_rate": "0,0",
+        "max_gcode_per_second": "!1500",
+        "max_layer_height": "80%",
+        "max_print_height": "152.4",
+        "min_layer_height": "20%",
+        "parking_pos_retraction": "92",
+        "remaining_times": "1",
+        "remaining_times_type": "m73",
+        "retract_before_travel": "0",
+        "retract_before_wipe": "100%",
+        "retract_layer_change": "1",
+        "retract_length": "0.8",
+        "retract_length_toolchange": "10",
+        "retract_lift": "0",
+        "retract_lift_above": "0",
+        "retract_lift_before_travel": "2",
+        "retract_lift_below": "0",
+        "retract_lift_first_layer": "0",
+        "retract_lift_top": "\"All surfaces\"",
+        "retract_restart_extra": "0",
+        "retract_restart_extra_toolchange": "0",
+        "retract_speed": "40",
+        "seam_gap": "5%",
+        "silent_mode": "0",
+        "single_extruder_multi_material": "0",
+        "start_gcode_manual": "0",
+        "thumbnails": "32x32,300x300",
+        "thumbnails_color": "#018aff",
+        "thumbnails_custom_color": "1",
+        "thumbnails_end_file": "0",
+        "thumbnails_format": "PNG",
+        "thumbnails_tag_format": "0",
+        "thumbnails_with_bed": "0",
+        "time_cost": "0",
+        "time_estimation_compensation": "100%",
+        "time_start_gcode": "20",
+        "time_toolchange": "30",
+        "tool_name": "brass",
+        "travel_lift_before_obstacle": "0",
+        "travel_ramping_lift": "0",
+        "travel_slope": "0",
+        "use_firmware_retraction": "0",
+        "use_relative_e_distances": "1",
+        "use_volumetric_e": "0",
+        "variable_layer_height": "1",
+        "wipe": "1",
+        "wipe_advanced": "0",
+        "wipe_advanced_algo": "linear",
+        "wipe_advanced_multiplier": "60",
+        "wipe_advanced_nozzle_melted_volume": "120",
+        "wipe_extra_perimeter": "0",
+        "wipe_inside_depth": "50%",
+        "wipe_inside_end": "1",
+        "wipe_inside_start": "0",
+        "wipe_lift": "0",
+        "wipe_lift_length": "50%",
+        "wipe_min": "150%",
+        "wipe_only_crossing": "1",
+        "wipe_speed": "2",
+        "z_offset": "0",
+        "z_step": "0",
+        "printer_technology": "FFF",
+        "printer_notes": "SV Zero (Klipper). Place svzero_bed.stl and svzero_bed.svg where SuperSlicer can find them.",
+        "start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\\n;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per\\n;  job, one of which ran before the bed was at temperature.\\n;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\\n;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C\\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.\\n;  _PREFLIGHT is first so a rejected job costs no heating. It is inert\\n;  unless the optional spool_guard extra is installed.\\nSVZERO_REQUIRE VERSION=2.0.1-beta.1\\n_PREFLIGHT\\n;  M140 BEFORE the chamber block, and that order is load-bearing. The\\n;  M191 macro reads printer.heater_bed.target live and hands it to the\\n;  host waiter as BED_TARGET; with no target set yet the waiter is told\\n;  0 and commands the plate OFF for the whole chamber soak. Orca's\\n;  preamble has always had it this way round.\\nM140 S[first_layer_bed_temperature]\\n;>>>CHAMBER emitted per slicer by tools/generate.py -- do not hand-edit\\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\\n;<<<CHAMBER\\n;>>>CLEAN_TEMP\\n;  The material is NAMED here; the temperature table lives in the macro\\n;  pack, in nozzle_brush.cfg's _BRUSH_CLEAN_TEMPS. Same division as\\n;  COOLDOWN_ARM below. Provenance for the curve is\\n;  source/filament-clean-temp.json.\\n;  Safe to omit: without the pack this is an unknown command and only\\n;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.\\nSET_CLEAN_TEMP MATERIAL=[filament_type]\\n;<<<CLEAN_TEMP\\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\\n;  Names the material; the RATES live in cooldown.cfg's\\n;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool\\n;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE\\n;  or BED_RATE here only to OVERRIDE the table for an experiment.\\n;  Omitting this block is safe: END_PRINT then asks spool_guard what is\\n;  loaded, and falls back to the default row if nothing knows.\\nCOOLDOWN_ARM MATERIAL=[filament_type]\\n;<<<COOLDOWN\\n;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE\\n;  needs an empty skew_correction section in printer.cfg -- square\\n;  brackets are left off that name on purpose, the slicer reads them as a\\n;  template variable -- which NEITHER\\n;  firmware ships -- checked against Sovol's own 1.4.x tree, not against\\n;  a machine somebody had already modified -- and a profile YOU\\n;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.\\n;  Uncomment the line below with your own name once you have one.\\n;  Shipping somebody else's skew numbers would be worse than shipping\\n;  none, and naming a profile that does not exist logs a failed load on\\n;  every print -- skew_correction.py answers an unknown name with\\n;  respond_info, so it warns forever rather than failing once.\\n;SKEW_PROFILE LOAD=your_skew_profile\\n;  Stock START_PRINT does not guarantee a settled plate before calibration.\\nM190 S[first_layer_bed_temperature]\\nSTART_PRINT\\nG90\\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\\nG92 E0\\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\\nM104 S[first_layer_temperature]\\nM83\\n;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers\\n;  only it knows. The old inline math is retired: it collapsed algebraically to\\n;  nozzle_diameter/2, ignored the filament's volumetric ceiling (TPU was driven\\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\\n;  See notes/kb/purge-lines.md.\\nM109 S[first_layer_temperature]\\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}",
+        "printer_model": "SV Zero"
+      },
+      "variants": [
+        {
+          "condition": "tool.nozzle_diameter == 0.2",
+          "id": "SV Zero 0.2n",
+          "name": "SV Zero 0.2n",
+          "features": {
+            "nozzle_diameter": "0.2"
+          },
+          "values": {
+            "retract_lift": "0.30"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.4",
+          "id": "SV Zero 0.4n",
+          "name": "SV Zero 0.4n",
+          "features": {
+            "nozzle_diameter": "0.4"
+          },
+          "values": {
+            "retract_lift": "0.4"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.6",
+          "id": "SV Zero 0.6n",
+          "name": "SV Zero 0.6n",
+          "features": {
+            "nozzle_diameter": "0.6"
+          },
+          "values": {
+            "retract_lift": "0.60"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.8",
+          "id": "SV Zero 0.8n",
+          "name": "SV Zero 0.8n",
+          "features": {
+            "nozzle_diameter": "0.8"
+          },
+          "values": {
+            "retract_lift": "0.8"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.0",
+          "id": "SV Zero 1.0n",
+          "name": "SV Zero 1.0n",
+          "features": {
+            "nozzle_diameter": "1.0"
+          },
+          "values": {
+            "retract_lift": "1.0"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.5",
+          "id": "SV Zero 0.5n",
+          "name": "SV Zero 0.5n",
+          "features": {
+            "nozzle_diameter": "0.5"
+          },
+          "values": {
+            "retract_lift": "0.5"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.2",
+          "id": "SV Zero 1.2n",
+          "name": "SV Zero 1.2n",
+          "features": {
+            "nozzle_diameter": "1.2"
+          },
+          "values": {
+            "retract_lift": "1.2"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.4",
+          "id": "SV Zero 1.4n",
+          "name": "SV Zero 1.4n",
+          "features": {
+            "nozzle_diameter": "1.4"
+          },
+          "values": {
+            "retract_lift": "1.4"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "print",
+      "id": "*SV Zero General*",
+      "values": {
+        "_why_first_layer_speed": "10.5% means 10.5% of default_speed in SuperSlicer -- a FLAT 24.5 mm/s for the whole first layer. PrusaSlicer reads the same string as a per-feature MULTIPLIER, which is a different first layer, and against an unpinned small_perimeter_speed it produced 1.575 mm/s on a real print. The emitters now do dialect-specific arithmetic to land all three on the same flat 24.5: SuperSlicer keeps the percentage, PrusaSlicer and Orca get it resolved.",
+        "_why_gcode_label_objects": "PRINT scope, not printer scope. It lived on the printer preset until 2026-09-07 and PrusaSlicer ignored it there -- a live job's own config footer read `gcode_label_objects = disabled` while the printer preset said firmware, and the file contained no EXCLUDE_OBJECT lines at all, so object skipping did not work. PrusaSlicer's own bundle puts it under [print:*common*]; Orca carries it in 366 process profiles and none of its machine profiles. keymap.json used to assert the opposite and that was the whole bug.",
+        "_why_small_perimeter_speed": "PINNED 2026-09-07 after a live print ran its first-layer perimeters at 1.575 mm/s. PrusaSlicer's default is 15 mm/s ABSOLUTE, set for machines whose perimeters run at 40-60; ours run at 158.6, so it was a 10x discontinuity on every small hole in every layer. Then first_layer_speed -- which PrusaSlicer applies as a MULTIPLIER, not as a speed -- turned 10.5% x 15 into 1.575 mm/s, F94.5. 50% is Orca's own common-profile value and SuperSlicer documents the same percentage-of-internal-perimeter meaning, so one number now says the same thing in all three.",
+        "_why_solid_infill_below_area": "PINNED because the three slicers disagree by 17x and we had never set it: SuperSlicer defaults to 4 mm2, OrcaSlicer to 15, PrusaSlicer to 70. Found 2026-09-06 by the slice matrix's totals check -- the 10x10x40 tower has an infill region of about 58 mm2, which falls between SuperSlicer's default and PrusaSlicer's, so PrusaSlicer filled the whole tower SOLID and used 1.7x the filament for the same part and the same settings. That is not a test artefact: anyone slicing a small part would have got materially different results depending on which of our profiles they loaded. 15 is Orca's number and the middle of the three; 70 would make most small parts on a 152 mm bed fully solid. The exact value is a judgement, the pinning is not.",
+        "_why_supports": "ON by default from 2026-09-05, operator's call: supports are disliked but occasionally necessary, and anything used or published should have them configured properly rather than left at whatever the slicer defaults to. Tree/organic, automatic, build-plate-only. Orca also gets support_critical_regions_only, which has no PS equivalent -- see keymap.json process_forced.",
+        "avoid_crossing_not_first_layer": "1",
+        "avoid_crossing_top": "1",
+        "bottom_fill_pattern": "monotonic",
+        "bottom_solid_layers": "3",
+        "bridge_flow_ratio": "100%",
+        "bridge_overlap": "90%",
+        "bridge_overlap_min": "80%",
+        "bridge_precision": "25%",
+        "bridged_infill_margin": "200%",
+        "brim_ears": "1",
+        "brim_ears_max_angle": "125",
+        "brim_type": "outer_only",
+        "brim_width": "3",
+        "external_infill_margin": "150%",
+        "external_perimeter_extrusion_width": "100%",
+        "external_perimeter_overlap": "80%",
+        "extrusion_spacing": "105%",
+        "fill_angle": "45",
+        "fill_density": "10%",
+        "fill_pattern": "grid",
+        "first_layer_extrusion_width": "105%",
+        "first_layer_flow_ratio": "100%",
+        "first_layer_height": "62.5%",
+        "first_layer_infill_extrusion_width": "!140%",
+        "gap_fill_enabled": "1",
+        "gap_fill_overlap": "80%",
+        "gcode_label_objects": "firmware",
+        "infill_anchor": "600%",
+        "infill_connection": "connected",
+        "infill_extrusion_width": "112.5%",
+        "infill_overlap": "25%",
+        "internal_bridge_min_width": "300%",
+        "ironing": "0",
+        "layer_height": "0.2",
+        "min_bead_width": "85%",
+        "min_feature_size": "25%",
+        "min_width_top_surface": "100%",
+        "only_one_perimeter_top": "1",
+        "overhangs_width": "75%",
+        "perimeter_direction": "ccw_cw",
+        "perimeter_extrusion_width": "100%",
+        "perimeter_overlap": "80%",
+        "perimeters": "2",
+        "print_bed_temperature": "!60",
+        "print_extrusion_multiplier": "100%",
+        "print_first_layer_bed_temperature": "!60",
+        "print_first_layer_temperature": "!200",
+        "print_settings_id": "",
+        "print_temperature": "!200",
+        "raft_layers": "0",
+        "resolution": "0.012",
+        "seam_angle_cost": "60%",
+        "seam_position": "aligned",
+        "skirt_distance": "0.8",
+        "skirts": "1",
+        "small_perimeter_speed": "50%",
+        "solid_fill_pattern": "monotonic",
+        "solid_infill_below_area": "15",
+        "solid_infill_extrusion_width": "112.5%",
+        "solid_infill_overlap": "100%",
+        "support_material": "1",
+        "support_material_auto": "1",
+        "support_material_buildplate_only": "1",
+        "support_material_style": "organic",
+        "thin_perimeters": "80%",
+        "top_fill_pattern": "monotonic",
+        "top_infill_extrusion_width": "95%",
+        "top_solid_infill_overlap": "100%",
+        "top_solid_layers": "4",
+        "travel_speed_z": "300",
+        "wipe_tower": "0",
+        "xy_size_compensation": "0",
+        "min_skirt_length": "8",
+        "_why_stock_priming": "The profile must still prime when PURGE_LINE is absent on stock firmware. One skirt, extended until 8 mm of filament has been extruded, is the baseline. Personal sandbox installs disable it because the macro purge is present there."
+      },
+      "variants": [
+        {
+          "id": "*SV Zero - Fine*",
+          "values": {
+            "bridge_acceleration": "50%",
+            "default_acceleration": "26301",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "658",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "internal_bridge_speed": "400%",
+            "max_print_speed": "53",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "perimeter_acceleration": "9073",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "986",
+            "travel_speed": "658"
+          }
+        },
+        {
+          "id": "*SV Zero - Optimal*",
+          "values": {
+            "bridge_acceleration": "50%",
+            "default_acceleration": "30246",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "756",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "internal_bridge_speed": "400%",
+            "max_print_speed": "60",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "perimeter_acceleration": "10434",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "1134",
+            "travel_speed": "756"
+          }
+        },
+        {
+          "id": "*SV Zero - Standard*",
+          "values": {
+            "thin_walls_speed": "100%",
+            "overhangs_speed": "100%",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_width_speed": "55%",
+            "internal_bridge_speed": "402%",
+            "bridge_acceleration": "50%",
+            "default_acceleration": "40000",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "1000",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "perimeter_acceleration": "30%",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "40000",
+            "travel_speed": "1000"
+          }
+        },
+        {
+          "id": "*SV Zero - Draft*",
+          "values": {
+            "bridge_acceleration": "50%",
+            "default_acceleration": "40000",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "1000",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "internal_bridge_speed": "400%",
+            "max_print_speed": "80",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "perimeter_acceleration": "13799",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "1500",
+            "travel_speed": "1000"
+          }
+        },
+        {
+          "id": "*SV Zero - Strength*",
+          "values": {
+            "bridge_acceleration": "50%",
+            "default_acceleration": "30246",
+            "external_perimeter_acceleration": "83%",
+            "first_layer_acceleration": "756",
+            "first_layer_infill_speed": "0",
+            "infill_acceleration": "100%",
+            "internal_bridge_acceleration": "50%",
+            "internal_bridge_speed": "400%",
+            "max_print_speed": "60",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "perimeter_acceleration": "10434",
+            "solid_infill_acceleration": "50%",
+            "top_solid_infill_acceleration": "25%",
+            "travel_acceleration": "1134",
+            "travel_speed": "756",
+            "fill_density": "25%",
+            "top_solid_layers": "5",
+            "bottom_solid_layers": "4"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.5",
+          "id": "SV Zero 0.5n presets",
+          "variants": [
+            {
+              "id": "SV Zero 0.5n - 0.125mm (Fine)",
+              "name": "SV Zero 0.5n - 0.125mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.125",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2"
+              }
+            },
+            {
+              "id": "SV Zero 0.5n - 0.175mm (Optimal)",
+              "name": "SV Zero 0.5n - 0.175mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.175",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2"
+              }
+            },
+            {
+              "id": "SV Zero 0.5n - 0.25mm (Standard)",
+              "name": "SV Zero 0.5n - 0.25mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2"
+              }
+            },
+            {
+              "id": "SV Zero 0.5n - 0.325mm (Draft)",
+              "name": "SV Zero 0.5n - 0.325mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.325",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2"
+              }
+            },
+            {
+              "id": "SV Zero 0.5n - 0.25mm (Strength)",
+              "name": "SV Zero 0.5n - 0.25mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2",
+                "perimeters": "5"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.2",
+          "id": "SV Zero 1.2n presets",
+          "variants": [
+            {
+              "id": "SV Zero 1.2n - 0.3mm (Fine)",
+              "name": "SV Zero 1.2n - 0.3mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.3",
+                "support_tree_tip_diameter": "1.8",
+                "support_tree_branch_diameter": "3.6"
+              }
+            },
+            {
+              "id": "SV Zero 1.2n - 0.4mm (Optimal)",
+              "name": "SV Zero 1.2n - 0.4mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "1.8",
+                "support_tree_branch_diameter": "3.6"
+              }
+            },
+            {
+              "id": "SV Zero 1.2n - 0.5mm (Standard)",
+              "name": "SV Zero 1.2n - 0.5mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.5",
+                "support_tree_tip_diameter": "1.8",
+                "support_tree_branch_diameter": "3.6"
+              }
+            },
+            {
+              "id": "SV Zero 1.2n - 0.8mm (Draft)",
+              "name": "SV Zero 1.2n - 0.8mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.8",
+                "support_tree_tip_diameter": "1.8",
+                "support_tree_branch_diameter": "3.6"
+              }
+            },
+            {
+              "id": "SV Zero 1.2n - 0.5mm (Strength)",
+              "name": "SV Zero 1.2n - 0.5mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.5",
+                "support_tree_tip_diameter": "1.8",
+                "support_tree_branch_diameter": "3.6",
+                "perimeters": "2"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.4",
+          "id": "SV Zero 1.4n presets",
+          "variants": [
+            {
+              "id": "SV Zero 1.4n - 0.35mm (Fine)",
+              "name": "SV Zero 1.4n - 0.35mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.35",
+                "support_tree_tip_diameter": "2.1",
+                "support_tree_branch_diameter": "4.2"
+              }
+            },
+            {
+              "id": "SV Zero 1.4n - 0.5mm (Optimal)",
+              "name": "SV Zero 1.4n - 0.5mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.5",
+                "support_tree_tip_diameter": "2.1",
+                "support_tree_branch_diameter": "4.2"
+              }
+            },
+            {
+              "id": "SV Zero 1.4n - 0.7mm (Standard)",
+              "name": "SV Zero 1.4n - 0.7mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.7",
+                "support_tree_tip_diameter": "2.1",
+                "support_tree_branch_diameter": "4.2"
+              }
+            },
+            {
+              "id": "SV Zero 1.4n - 1.05mm (Draft)",
+              "name": "SV Zero 1.4n - 1.05mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "1.05",
+                "support_tree_tip_diameter": "2.1",
+                "support_tree_branch_diameter": "4.2"
+              }
+            },
+            {
+              "id": "SV Zero 1.4n - 0.7mm (Strength)",
+              "name": "SV Zero 1.4n - 0.7mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.7",
+                "support_tree_tip_diameter": "2.1",
+                "support_tree_branch_diameter": "4.2",
+                "perimeters": "2"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "print",
+      "id": "*SV Zero presets*",
+      "variants": [
+        {
+          "condition": "tool.nozzle_diameter == 0.2",
+          "id": "SV Zero 0.2n presets",
+          "variants": [
+            {
+              "id": "SV Zero 0.2n - 0.05mm (Fine)",
+              "name": "SV Zero 0.2n - 0.05mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.05",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.2n - 0.10mm (Optimal)",
+              "name": "SV Zero 0.2n - 0.10mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.10",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.2n - 0.15mm (Standard)",
+              "name": "SV Zero 0.2n - 0.15mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.15",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.4",
+          "id": "SV Zero 0.4n presets",
+          "variants": [
+            {
+              "id": "SV Zero 0.4n - 0.10mm (Fine)",
+              "name": "SV Zero 0.4n - 0.10mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.10",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.15mm (Optimal)",
+              "name": "SV Zero 0.4n - 0.15mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.15",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.20mm (Standard)",
+              "name": "SV Zero 0.4n - 0.20mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.2",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.25mm (Draft)",
+              "name": "SV Zero 0.4n - 0.25mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.20mm (Strength)",
+              "name": "SV Zero 0.4n - 0.20mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.2",
+                "perimeters": "6",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.6",
+          "id": "SV Zero 0.6n presets",
+          "variants": [
+            {
+              "id": "SV Zero 0.6n - 0.20mm (Fine)",
+              "name": "SV Zero 0.6n - 0.20mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.2",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.6n - 0.25mm (Optimal)",
+              "name": "SV Zero 0.6n - 0.25mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.6n - 0.3mm (Standard)",
+              "name": "SV Zero 0.6n - 0.3mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.3",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.6n - 0.4mm (Draft)",
+              "name": "SV Zero 0.6n - 0.4mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.6n - 0.3mm (Strength)",
+              "name": "SV Zero 0.6n - 0.3mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.3",
+                "perimeters": "4",
+                "support_tree_tip_diameter": "0.9",
+                "support_tree_branch_diameter": "2.0"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.8",
+          "id": "SV Zero 0.8n presets",
+          "variants": [
+            {
+              "id": "SV Zero 0.8n - 0.25mm (Fine)",
+              "name": "SV Zero 0.8n - 0.25mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.25",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            },
+            {
+              "id": "SV Zero 0.8n - 0.3mm (Optimal)",
+              "name": "SV Zero 0.8n - 0.3mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.3",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            },
+            {
+              "id": "SV Zero 0.8n - 0.4mm (Standard)",
+              "name": "SV Zero 0.8n - 0.4mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            },
+            {
+              "id": "SV Zero 0.8n - 0.6mm (Draft)",
+              "name": "SV Zero 0.8n - 0.6mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.6",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            },
+            {
+              "id": "SV Zero 0.8n - 0.4mm (Strength)",
+              "name": "SV Zero 0.8n - 0.4mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "perimeters": "3",
+                "support_tree_tip_diameter": "1.2",
+                "support_tree_branch_diameter": "2.4"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "tool.nozzle_diameter == 1.0",
+          "id": "SV Zero 1.0n presets",
+          "variants": [
+            {
+              "id": "SV Zero 1.0n - 0.4mm (Fine)",
+              "name": "SV Zero 1.0n - 0.4mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.4",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            },
+            {
+              "id": "SV Zero 1.0n - 0.5mm (Optimal)",
+              "name": "SV Zero 1.0n - 0.5mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.5",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            },
+            {
+              "id": "SV Zero 1.0n - 0.6mm (Standard)",
+              "name": "SV Zero 1.0n - 0.6mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.6",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            },
+            {
+              "id": "SV Zero 1.0n - 0.8mm (Draft)",
+              "name": "SV Zero 1.0n - 0.8mm (Draft)",
+              "inherits": [
+                "*SV Zero - Draft*"
+              ],
+              "values": {
+                "layer_height": "0.8",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            },
+            {
+              "id": "SV Zero 1.0n - 0.6mm (Strength)",
+              "name": "SV Zero 1.0n - 0.6mm (Strength)",
+              "inherits": [
+                "*SV Zero - Strength*"
+              ],
+              "values": {
+                "layer_height": "0.6",
+                "perimeters": "3",
+                "support_tree_tip_diameter": "1.5",
+                "support_tree_branch_diameter": "3.0"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "filament",
+      "id": "*SV Zero ABS Base*",
+      "values": {
+        "filament_type": "ABS",
+        "filament_diameter": "1.75",
+        "filament_cost": "30",
+        "filament_density": "1.04",
+        "filament_vendor": "Sovol (Orca)",
+        "extrusion_multiplier": "0.98",
+        "temperature": "270",
+        "first_layer_temperature": "280",
+        "bed_temperature": "100",
+        "first_layer_bed_temperature": "100",
+        "default_fan_speed": "10",
+        "max_fan_speed": "30",
+        "fan_below_layer_time": "30",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "30",
+        "filament_pressure_advance": "0",
+        "chamber_temperature": "60",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "45",
+        "_why_chamber_minimal": "corpus: ss1gohan13 (SV08) moved the ASA/ABS wait 40 -> 45 C on 2024-09-27; smokin76 runs 45-47 C at nozzle 255 bed 100",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=45"
+      },
+      "variants": [
+        {
+          "id": "SV Zero ABS",
+          "name": "SV Zero ABS",
+          "values": {
+            "filament_notes": "Imported from Orca JSON (SV Zero ABS).",
+            "filament_colour": "#1FA7C1",
+            "filament_max_volumetric_speed": "20",
+            "slowdown_below_layer_time": "5"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "filament",
+      "id": "*SV Zero PC Base*",
+      "values": {
+        "filament_type": "PC",
+        "filament_diameter": "1.75",
+        "filament_cost": "45",
+        "filament_density": "1.2",
+        "filament_vendor": "Sovol (Orca)",
+        "extrusion_multiplier": "0.98",
+        "temperature": "270",
+        "first_layer_temperature": "290",
+        "bed_temperature": "110",
+        "first_layer_bed_temperature": "110",
+        "default_fan_speed": "10",
+        "max_fan_speed": "20",
+        "fan_below_layer_time": "40",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "20",
+        "filament_pressure_advance": "0",
+        "chamber_temperature": "60",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "45",
+        "_why_chamber_minimal": "no corpus figure for PC on any Sovol. Inherits the ABS wait because it shares the ceiling and the warp mechanism -- INFERRED, not measured",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=45"
+      },
+      "variants": [
+        {
+          "id": "SV Zero PC",
+          "name": "SV Zero PC",
+          "values": {
+            "filament_notes": "Imported from Orca JSON (SV Zero PC).",
+            "filament_colour": "#1FA7C1",
+            "filament_max_volumetric_speed": "18",
+            "slowdown_below_layer_time": "5"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "filament",
+      "id": "*SV Zero PETG Base*",
+      "values": {
+        "filament_type": "PETG",
+        "filament_diameter": "1.75",
+        "filament_cost": "30",
+        "filament_density": "1.27",
+        "filament_vendor": "Sovol (Orca)",
+        "filament_max_volumetric_speed": "15",
+        "first_layer_temperature": "265",
+        "bed_temperature": "85",
+        "first_layer_bed_temperature": "85",
+        "default_fan_speed": "10",
+        "max_fan_speed": "40",
+        "fan_below_layer_time": "50",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "70",
+        "chamber_temperature": "50",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "30",
+        "_why_chamber_minimal": "operator's number. Warmer than the PLA/TPU floor and well under the 50 C ceiling, which stays a cap rather than a goal. No corpus figure for PETG chamber on any Sovol -- INFERRED",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=30"
+      },
+      "variants": [
+        {
+          "id": "SV Zero PETG - Brass",
+          "name": "SV Zero PETG - Brass",
+          "values": {
+            "filament_notes": "Imported from Orca JSON (SV Zero PETG - Brass).",
+            "filament_colour": "#C8AF89",
+            "extrusion_multiplier": "1.0348",
+            "temperature": "245",
+            "slowdown_below_layer_time": "10",
+            "filament_pressure_advance": "0.046"
+          },
+          "variants": []
+        },
+        {
+          "id": "SV Zero PETG - Steel",
+          "name": "SV Zero PETG - Steel",
+          "values": {
+            "filament_notes": "Imported from Orca JSON (SV Zero PETG - Steel).",
+            "filament_colour": "#ADB1B7",
+            "extrusion_multiplier": "0.98",
+            "temperature": "250",
+            "slowdown_below_layer_time": "10",
+            "filament_pressure_advance": "0.048"
+          },
+          "variants": []
+        }
+      ]
+    },
+    {
+      "kind": "filament",
+      "id": "*SV Zero PLA Base*",
+      "values": {
+        "filament_type": "PLA",
+        "filament_diameter": "1.75",
+        "filament_density": "1.24",
+        "filament_vendor": "Sovol (Orca)",
+        "bed_temperature": "65",
+        "first_layer_bed_temperature": "65",
+        "default_fan_speed": "70",
+        "max_fan_speed": "100",
+        "fan_below_layer_time": "80",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "100",
+        "chamber_temperature": "33",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "20",
+        "_why_chamber_minimal": "operator's number, lowered from 25 on 2026-09-04 for the cold-garage case. The corpus runs the other way for PLA -- 'keep the lid off and the doors open' -- so this is a floor against printing into a cold chamber, not a soak",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=20"
+      },
+      "variants": [
+        {
+          "id": "SV Zero PLA - Brass",
+          "name": "SV Zero PLA - Brass",
+          "values": {
+            "filament_cost": "20",
+            "filament_notes": "Imported from Orca JSON (SV Zero PLA - Brass).",
+            "filament_colour": "#C8AF89",
+            "extrusion_multiplier": "0.98",
+            "filament_max_volumetric_speed": "21",
+            "temperature": "210",
+            "first_layer_temperature": "230",
+            "slowdown_below_layer_time": "5",
+            "filament_pressure_advance": "0.032"
+          },
+          "variants": [
+            {
+              "id": "SV Zero PLA - Steel",
+              "name": "SV Zero PLA - Steel",
+              "values": {
+                "filament_notes": "Imported from Orca JSON (SV Zero PLA - Steel).",
+                "filament_colour": "#ADB1B7",
+                "extrusion_multiplier": "1.0348",
+                "temperature": "230",
+                "first_layer_temperature": "245",
+                "filament_pressure_advance": "0.03",
+                "filament_cost": "20"
+              },
+              "variants": []
+            },
+            {
+              "id": "SV Zero PLA Silk - Brass",
+              "name": "SV Zero PLA Silk - Brass",
+              "values": {
+                "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Brass).",
+                "filament_colour": "#DEBA84",
+                "filament_max_volumetric_speed": "15",
+                "temperature": "220",
+                "first_layer_temperature": "245",
+                "slowdown_below_layer_time": "7",
+                "filament_pressure_advance": "0.029"
+              },
+              "variants": [
+                {
+                  "id": "SV Zero PLA Silk - Steel",
+                  "name": "SV Zero PLA Silk - Steel",
+                  "values": {
+                    "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Steel).",
+                    "filament_colour": "#B1B9C5",
+                    "slowdown_below_layer_time": "5",
+                    "filament_pressure_advance": "0.027"
+                  },
+                  "variants": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "filament",
+      "id": "*SV Zero TPU Base*",
+      "values": {
+        "filament_type": "TPU",
+        "filament_diameter": "1.75",
+        "filament_cost": "35",
+        "filament_density": "1.21",
+        "filament_vendor": "Sovol (Orca)",
+        "extrusion_multiplier": "0.98",
+        "temperature": "235",
+        "first_layer_temperature": "250",
+        "bed_temperature": "85",
+        "first_layer_bed_temperature": "85",
+        "default_fan_speed": "80",
+        "max_fan_speed": "100",
+        "fan_below_layer_time": "50",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "100",
+        "filament_pressure_advance": "0",
+        "chamber_temperature": "35",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "20",
+        "_why_chamber_minimal": "same floor as PLA, and for the same reason: TPU wants no chamber heat, only a guard against a genuinely cold one",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=20"
+      },
+      "variants": [
+        {
+          "id": "SV Zero TPU",
+          "name": "SV Zero TPU",
+          "values": {
+            "filament_notes": "Imported from Orca JSON (SV Zero TPU).",
+            "filament_colour": "#1FA7C1",
+            "filament_max_volumetric_speed": "3",
+            "slowdown_below_layer_time": "5"
+          }
+        }
+      ]
+    }
+  ],
+  "_z_offset_stub": "Every filament carries a zero SET_GCODE_OFFSET Z_ADJUST stub. The VALUE is deliberately 0.000 in the published pack -- a per-material first-layer offset is a property of one machine's plate, probe and nozzle, and shipping someone else's number is worse than shipping none. The stub is there so the line exists to edit. Operator's live experiment, 2026-09-04: ABS was taking flakes off the plate at 0.020 and is being tried at 0.040."
+}

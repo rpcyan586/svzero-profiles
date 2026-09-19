@@ -1,0 +1,640 @@
+{
+  "_benchy_time": {
+    "extradraft": "8m22s",
+    "normal": "31m11s"
+  },
+  "_columns": {
+    "extradraft": "Sovol speedBenchy (8m22s)",
+    "forum_intermediate": "rpcyan's original split-the-difference column, reference only",
+    "normal": "stock Sovol Zero Orca profile"
+  },
+  "_interpolatable": [
+    "accel_to_decel_factor",
+    "additional_cooling_fan_speed",
+    "bridge_acceleration",
+    "bridge_flow",
+    "bridge_speed",
+    "brim_width",
+    "deretraction_speed",
+    "elefant_foot_compensation",
+    "enable_pressure_advance",
+    "fan_cooling_layer_time",
+    "fan_min_speed",
+    "filament_max_volumetric_speed",
+    "filter_out_gap_fill",
+    "first_layer_temperature",
+    "fuzzy_skin_point_distance",
+    "fuzzy_skin_thickness",
+    "gap_infill_speed",
+    "infill_direction",
+    "infill_wall_overlap",
+    "initial_layer_acceleration",
+    "initial_layer_infill_speed",
+    "initial_layer_jerk",
+    "initial_layer_line_width",
+    "initial_layer_speed",
+    "initial_layer_travel_speed",
+    "inner_wall_acceleration",
+    "inner_wall_jerk",
+    "inner_wall_line_width",
+    "inner_wall_speed",
+    "internal_bridge_flow",
+    "internal_solid_infill_line_width",
+    "internal_solid_infill_speed",
+    "layer_height",
+    "line_width",
+    "machine_max_jerk_e",
+    "machine_max_jerk_x",
+    "machine_max_jerk_y",
+    "machine_max_speed_e",
+    "max_travel_detour_distance",
+    "minimum_sparse_infill_area",
+    "nozzle_temperature",
+    "nozzle_temperature_initial_layer",
+    "nozzle_temperature_range_high",
+    "only_one_wall_first_layer",
+    "only_one_wall_top",
+    "outer_wall_acceleration",
+    "outer_wall_jerk",
+    "outer_wall_line_width",
+    "outer_wall_speed",
+    "overhang_2_4_speed",
+    "overhang_3_4_speed",
+    "overhang_4_4_speed",
+    "precise_outer_wall",
+    "precise_z_height",
+    "pressure_advance",
+    "reduce_crossing_wall",
+    "retract_lift_below",
+    "retraction_length",
+    "retraction_minimum_travel",
+    "retraction_speed",
+    "skirt_distance",
+    "slow_down_layer_time",
+    "solid_infill_direction",
+    "sparse_infill_line_width",
+    "support_base_pattern_spacing",
+    "support_bottom_interface_spacing",
+    "support_bottom_z_distance",
+    "support_interface_spacing",
+    "support_interface_top_layers",
+    "support_line_width",
+    "support_speed",
+    "support_top_z_distance",
+    "thick_bridges",
+    "top_shell_layers",
+    "top_solid_infill_flow_ratio",
+    "top_surface_acceleration",
+    "top_surface_jerk",
+    "top_surface_line_width",
+    "top_surface_speed",
+    "travel_jerk",
+    "travel_speed",
+    "wipe",
+    "z_hop"
+  ],
+  "_source": "https://forum.sovol3d.com/t/9053/8 — rpcyan, 2025-11-21",
+  "params": {
+    "accel_to_decel_factor": {
+      "extradraft": "50%",
+      "forum_intermediate": "37%",
+      "normal": "25%"
+    },
+    "additional_cooling_fan_speed": {
+      "extradraft": "100",
+      "forum_intermediate": "87",
+      "normal": "75"
+    },
+    "bridge_acceleration": {
+      "extradraft": "100%",
+      "forum_intermediate": "75%",
+      "normal": "50%"
+    },
+    "bridge_flow": {
+      "extradraft": "1.0",
+      "forum_intermediate": "1.1",
+      "normal": "1.2"
+    },
+    "bridge_speed": {
+      "extradraft": "200",
+      "forum_intermediate": "125",
+      "normal": "50"
+    },
+    "brim_type": {
+      "extradraft": "outer_only",
+      "forum_intermediate": "?",
+      "normal": "auto_brim"
+    },
+    "brim_width": {
+      "extradraft": "2",
+      "forum_intermediate": "3",
+      "normal": "5"
+    },
+    "deretraction_speed": {
+      "extradraft": "60",
+      "forum_intermediate": "50",
+      "normal": "40"
+    },
+    "elefant_foot_compensation": {
+      "extradraft": "0.1",
+      "forum_intermediate": "0.05",
+      "normal": "0"
+    },
+    "enable_extra_bridge_layer": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "disabled"
+    },
+    "enable_pressure_advance": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "extrusion_rate_smoothing_external_perimeter_only": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "fan_cooling_layer_time": {
+      "extradraft": "10",
+      "forum_intermediate": "45",
+      "normal": "80"
+    },
+    "fan_min_speed": {
+      "extradraft": "100",
+      "forum_intermediate": "87",
+      "normal": "70"
+    },
+    "filament_max_volumetric_speed": {
+      "extradraft": "50",
+      "forum_intermediate": "35",
+      "normal": "21"
+    },
+    "filter_out_gap_fill": {
+      "extradraft": "8",
+      "forum_intermediate": "4",
+      "normal": "0"
+    },
+    "first_layer_temperature": {
+      "extradraft": "255",
+      "forum_intermediate": "243",
+      "normal": "230"
+    },
+    "fuzzy_skin_noise_type": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "classic"
+    },
+    "fuzzy_skin_octaves": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "4"
+    },
+    "fuzzy_skin_persistence": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0.5"
+    },
+    "fuzzy_skin_point_distance": {
+      "extradraft": "0.8",
+      "forum_intermediate": "0.55",
+      "normal": "0.3"
+    },
+    "fuzzy_skin_scale": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "fuzzy_skin_thickness": {
+      "extradraft": "0.3",
+      "forum_intermediate": "0.25",
+      "normal": "0.2"
+    },
+    "gap_fill_target": {
+      "extradraft": "topbottom",
+      "forum_intermediate": "?",
+      "normal": "nowhere"
+    },
+    "gap_infill_speed": {
+      "extradraft": "400",
+      "forum_intermediate": "300",
+      "normal": "200"
+    },
+    "infill_direction": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "45"
+    },
+    "infill_wall_overlap": {
+      "extradraft": "10%",
+      "forum_intermediate": "13%",
+      "normal": "15%"
+    },
+    "initial_layer_acceleration": {
+      "extradraft": "20000",
+      "forum_intermediate": "10500",
+      "normal": "1000"
+    },
+    "initial_layer_infill_speed": {
+      "extradraft": "300",
+      "forum_intermediate": "202",
+      "normal": "105"
+    },
+    "initial_layer_jerk": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "initial_layer_line_width": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.46",
+      "normal": "0.42"
+    },
+    "initial_layer_speed": {
+      "extradraft": "300",
+      "forum_intermediate": "177",
+      "normal": "55"
+    },
+    "initial_layer_travel_speed": {
+      "extradraft": "100%",
+      "forum_intermediate": "80%",
+      "normal": "60%"
+    },
+    "inner_wall_acceleration": {
+      "extradraft": "0",
+      "forum_intermediate": "6000",
+      "normal": "12000"
+    },
+    "inner_wall_jerk": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "inner_wall_line_width": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.45",
+      "normal": "0.4"
+    },
+    "inner_wall_speed": {
+      "extradraft": "500",
+      "forum_intermediate": "450",
+      "normal": "400"
+    },
+    "internal_bridge_angle": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "internal_bridge_density": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "100%"
+    },
+    "internal_bridge_fan_speed": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "-1"
+    },
+    "internal_bridge_flow": {
+      "extradraft": "1.0",
+      "forum_intermediate": "1.1",
+      "normal": "1.2"
+    },
+    "internal_solid_infill_line_width": {
+      "extradraft": "0.55",
+      "forum_intermediate": "0.50",
+      "normal": "0.45"
+    },
+    "internal_solid_infill_speed": {
+      "extradraft": "250",
+      "forum_intermediate": "225",
+      "normal": "200"
+    },
+    "ironing_inset": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "lattice_angle_1": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "45"
+    },
+    "layer_height": {
+      "extradraft": "0.25",
+      "forum_intermediate": "0.22",
+      "normal": "0.2"
+    },
+    "line_width": {
+      "extradraft": "0.50",
+      "forum_intermediate": "0.45",
+      "normal": "0.4"
+    },
+    "machine_max_jerk_e": {
+      "extradraft": "5",
+      "forum_intermediate": "3.7",
+      "normal": "2.5"
+    },
+    "machine_max_jerk_x": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "machine_max_jerk_y": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "machine_max_speed_e": {
+      "extradraft": "150",
+      "forum_intermediate": "100",
+      "normal": "50"
+    },
+    "max_travel_detour_distance": {
+      "extradraft": "0%",
+      "forum_intermediate": "50%",
+      "normal": "100%"
+    },
+    "minimum_sparse_infill_area": {
+      "extradraft": "0%",
+      "forum_intermediate": "8%",
+      "normal": "15%"
+    },
+    "nozzle_temperature": {
+      "extradraft": "215",
+      "forum_intermediate": "213",
+      "normal": "210"
+    },
+    "nozzle_temperature_initial_layer": {
+      "extradraft": "255",
+      "forum_intermediate": "243",
+      "normal": "230"
+    },
+    "nozzle_temperature_range_high": {
+      "extradraft": "350",
+      "forum_intermediate": "300",
+      "normal": "250"
+    },
+    "only_one_wall_first_layer": {
+      "extradraft": "1",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "only_one_wall_top": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "outer_wall_acceleration": {
+      "extradraft": "0",
+      "forum_intermediate": "5000",
+      "normal": "10000"
+    },
+    "outer_wall_jerk": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "outer_wall_line_width": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.45",
+      "normal": "0.4"
+    },
+    "outer_wall_speed": {
+      "extradraft": "500",
+      "forum_intermediate": "425",
+      "normal": "350"
+    },
+    "overhang_2_4_speed": {
+      "extradraft": "120",
+      "forum_intermediate": "85",
+      "normal": "50"
+    },
+    "overhang_3_4_speed": {
+      "extradraft": "80",
+      "forum_intermediate": "55",
+      "normal": "30"
+    },
+    "overhang_4_4_speed": {
+      "extradraft": "50",
+      "forum_intermediate": "35",
+      "normal": "20"
+    },
+    "precise_outer_wall": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "precise_z_height": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "pressure_advance": {
+      "extradraft": "0.020",
+      "forum_intermediate": "0.026",
+      "normal": "0.032"
+    },
+    "reduce_crossing_wall": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "retract_lift_below": {
+      "extradraft": "140",
+      "forum_intermediate": "145",
+      "normal": "150"
+    },
+    "retraction_length": {
+      "extradraft": "0.4",
+      "forum_intermediate": "0.6",
+      "normal": "0.8"
+    },
+    "retraction_minimum_travel": {
+      "extradraft": "1",
+      "forum_intermediate": "0.5",
+      "normal": "0"
+    },
+    "retraction_speed": {
+      "extradraft": "60",
+      "forum_intermediate": "50",
+      "normal": "40"
+    },
+    "single_loop_draft_shield": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "skirt_distance": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.65",
+      "normal": "0.8"
+    },
+    "slow_down_layer_time": {
+      "extradraft": "1.2",
+      "forum_intermediate": "3.1",
+      "normal": "5"
+    },
+    "solid_infill_direction": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "45"
+    },
+    "sparse_infill_line_width": {
+      "extradraft": "0.55",
+      "forum_intermediate": "0.50",
+      "normal": "0.45"
+    },
+    "spiral_finishing_flow_ratio": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "spiral_starting_flow_ratio": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0"
+    },
+    "supertack_plate_temp": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "35"
+    },
+    "supertack_plate_temp_initial_layer": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "35"
+    },
+    "support_base_pattern_spacing": {
+      "extradraft": "2.5",
+      "forum_intermediate": "3.0",
+      "normal": "3.5"
+    },
+    "support_bottom_interface_spacing": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.35",
+      "normal": "0.2"
+    },
+    "support_bottom_z_distance": {
+      "extradraft": "0.2",
+      "forum_intermediate": "0.217",
+      "normal": "0.235"
+    },
+    "support_interface_pattern": {
+      "extradraft": "auto",
+      "forum_intermediate": "?",
+      "normal": "grid"
+    },
+    "support_interface_spacing": {
+      "extradraft": "0.5",
+      "forum_intermediate": "0.35",
+      "normal": "0.2"
+    },
+    "support_interface_top_layers": {
+      "extradraft": "2",
+      "forum_intermediate": "4",
+      "normal": "5"
+    },
+    "support_line_width": {
+      "extradraft": "0.50",
+      "forum_intermediate": "0.47",
+      "normal": "0.45"
+    },
+    "support_object_first_layer_gap": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "0.2"
+    },
+    "support_speed": {
+      "extradraft": "300",
+      "forum_intermediate": "200",
+      "normal": "100"
+    },
+    "support_style": {
+      "extradraft": "snug",
+      "forum_intermediate": "?",
+      "normal": "default"
+    },
+    "support_threshold_overlap": {
+      "extradraft": "",
+      "forum_intermediate": "?",
+      "normal": "50%"
+    },
+    "support_top_z_distance": {
+      "extradraft": "0.200",
+      "forum_intermediate": "0.218",
+      "normal": "0.235"
+    },
+    "support_type": {
+      "extradraft": "normal(auto)",
+      "forum_intermediate": "?",
+      "normal": "tree(auto)"
+    },
+    "thick_bridges": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "top_shell_layers": {
+      "extradraft": "3",
+      "forum_intermediate": "4",
+      "normal": "4"
+    },
+    "top_solid_infill_flow_ratio": {
+      "extradraft": "1.0",
+      "forum_intermediate": "0.95",
+      "normal": "0.9"
+    },
+    "top_surface_acceleration": {
+      "extradraft": "40000",
+      "forum_intermediate": "22500",
+      "normal": "5000"
+    },
+    "top_surface_jerk": {
+      "extradraft": "9",
+      "forum_intermediate": "7",
+      "normal": "5"
+    },
+    "top_surface_line_width": {
+      "extradraft": "0.55",
+      "forum_intermediate": "0.46",
+      "normal": "0.38"
+    },
+    "top_surface_speed": {
+      "extradraft": "250",
+      "forum_intermediate": "225",
+      "normal": "200"
+    },
+    "travel_jerk": {
+      "extradraft": "12",
+      "forum_intermediate": "8",
+      "normal": "5"
+    },
+    "travel_speed": {
+      "extradraft": "1200",
+      "forum_intermediate": "1100",
+      "normal": "1000"
+    },
+    "wall_direction": {
+      "extradraft": "cw",
+      "forum_intermediate": "?",
+      "normal": "auto"
+    },
+    "wall_sequence": {
+      "extradraft": "inner-outer-inner",
+      "forum_intermediate": "?",
+      "normal": "inner wall / outer wall"
+    },
+    "wipe": {
+      "extradraft": "0",
+      "forum_intermediate": "?",
+      "normal": "1"
+    },
+    "z_hop": {
+      "extradraft": "0",
+      "forum_intermediate": "0.2",
+      "normal": "0.4"
+    }
+  },
+  "_superseded": "The `extradraft` column is a TRANSCRIPTION of a forum table and is wrong in half its rows. Checked 2026-09-02 against Sovol's own 3MF (source/speedbenchy-3mf.json): outer wall is 350 not 500, inner 400 not 500, solid infill 400 not 250, top 300 not 250, bridge 250 not 200, outer-wall acceleration 40000 not 0, retraction 0.35 not 0.4, nozzle 225/245 not 215/255, and pressure advance is 0.032 ENABLED, not 0.020 disabled. sparse_infill_speed and default_acceleration are absent from the table entirely and are 500 and 40000. Use speedbenchy-3mf.json for the speedBenchy anchor; this file is kept for the `normal` and `forum_intermediate` columns and as the record of what the forum said."
+}

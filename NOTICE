@@ -1,0 +1,30 @@
+SV Zero profiles — copyright (C) 2026 rpcyan and contributors
+
+Project-authored code and configuration are offered under GPL-3.0; see LICENSE.
+Third-party material retains its own notices and licensing. This notice is an
+inventory, not a claim that including a licence file resolves every upstream
+permission question.
+
+Public upstream inputs:
+- source/vendor-profiles: selected unmodified profile JSONs from
+  Sovol3d/Sovol-OrcaSlicer, with a pinned commit and SHA-256 inventory in
+  source/vendor-profiles/provenance.json. The upstream repository carries
+  AGPL-3.0 in OrcaSlicer/LICENSE.txt; a copy is in LICENSES/AGPL-3.0.txt.
+  Generation modifies the machine root to describe a single-material printer.
+- source/ps3: PrusaSlicer schema files, AGPL-3.0. Their provenance is recorded
+  alongside them; the full licence is in LICENSES/AGPL-3.0.txt.
+- Source tables retain stock numerical reference settings used for comparisons.
+  They are development inputs, not selectable Stock presets.
+
+UNRESOLVED BEFORE FIRST PUBLIC UPLOAD:
+The earlier pack identified cancel_print.cfg, end_print.cfg, filament_load.cfg
+and nozzle_brush.cfg as derived from Sovol3d/SOVOL-ZERO Macro.cfg. That source's
+applicable licence has not been established in this review. These files remain
+in the local candidate for review; no new licence is asserted over Sovol's
+contributions. Source: https://github.com/Sovol3d/SOVOL-ZERO (reviewed 2026-09-18).
+Confirm permission/applicable terms, or replace/omit affected
+material and revalidate, before publishing the candidate.
+
+The bed SVG and two-triangle STL are original schematic previews, GPL-3.0.
+They are not derived from the third-party assets used in earlier private builds.
+The original artwork and the optional Orca validator binary are not distributed.

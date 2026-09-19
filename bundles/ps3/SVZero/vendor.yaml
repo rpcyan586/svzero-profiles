@@ -1,0 +1,175 @@
+kind: vendor
+id: SVZero
+name: SV Zero FFF
+version: 1.0.0
+features:
+  printer:
+    supports_high_flow_nozzle:
+      default: false
+      user_editable: false
+    supports_non_high_flow_nozzle:
+      default: true
+      user_editable: false
+    input_shaper:
+      default: false
+      user_editable: false
+    multi_extruder:
+      default: false
+      user_editable: false
+    chamber_temperature_control:
+      default: true
+      user_editable: false
+    supports_02_nozzle:
+      default: true
+    supports_04_nozzle:
+      default: true
+    supports_05_nozzle:
+      default: true
+    supports_06_nozzle:
+      default: true
+    supports_08_nozzle:
+      default: true
+    supports_10_nozzle:
+      default: true
+    supports_12_nozzle:
+      default: true
+    supports_14_nozzle:
+      default: true
+  tool:
+    nozzle_diameter:
+      default: 0.4
+      user_editable: false
+    nozzle_high_flow:
+      default: false
+      user_editable: false
+  sheet:
+    cold:
+      default: false
+      user_editable: false
+  feeder:
+    single_mode:
+      default: true
+      user_editable: false
+---
+kind: printer
+technology: FFF
+id: svzero
+name: SV Zero
+model:
+  base_model: SVZERO
+  model: SVZERO
+tool_count: 1
+features:
+  supports_02_nozzle:
+    default: true
+  supports_04_nozzle:
+    default: true
+  supports_05_nozzle:
+    default: true
+  supports_06_nozzle:
+    default: true
+  supports_08_nozzle:
+    default: true
+  supports_10_nozzle:
+    default: true
+  supports_12_nozzle:
+    default: true
+  supports_14_nozzle:
+    default: true
+---
+kind: tool
+technology: FFF
+id: '0.2'
+name: '0.2'
+condition: printer.supports_02_nozzle
+features:
+  nozzle_diameter:
+    default: 0.2
+---
+kind: tool
+technology: FFF
+id: '0.4'
+name: '0.4'
+condition: printer.supports_04_nozzle
+features:
+  nozzle_diameter:
+    default: 0.4
+---
+kind: tool
+technology: FFF
+id: '0.5'
+name: '0.5'
+condition: printer.supports_05_nozzle
+features:
+  nozzle_diameter:
+    default: 0.5
+---
+kind: tool
+technology: FFF
+id: '0.6'
+name: '0.6'
+condition: printer.supports_06_nozzle
+features:
+  nozzle_diameter:
+    default: 0.6
+---
+kind: tool
+technology: FFF
+id: '0.8'
+name: '0.8'
+condition: printer.supports_08_nozzle
+features:
+  nozzle_diameter:
+    default: 0.8
+---
+kind: tool
+technology: FFF
+id: '1.0'
+name: '1.0'
+condition: printer.supports_10_nozzle
+features:
+  nozzle_diameter:
+    default: 1.0
+---
+kind: tool
+technology: FFF
+id: '1.2'
+name: '1.2'
+condition: printer.supports_12_nozzle
+features:
+  nozzle_diameter:
+    default: 1.2
+---
+kind: tool
+technology: FFF
+id: '1.4'
+name: '1.4'
+condition: printer.supports_14_nozzle
+features:
+  nozzle_diameter:
+    default: 1.4
+---
+kind: sheet
+id: golden_pei
+name: Golden PEI
+type: pei_textured
+---
+kind: feeder
+technology: FFF
+id: direct
+name: Direct drive
+feeder_type: manual
+model:
+  base_model: DIRECT
+  model: DIRECT
+slot_count: 1
+---
+kind: printer_config
+id: svzero
+name: SV Zero
+printer: svzero
+legacy_printer_model:
+- SVZERO
+tools:
+- tool: '0.4'
+sheet: golden_pei

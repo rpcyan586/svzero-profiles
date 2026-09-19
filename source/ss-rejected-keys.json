@@ -1,0 +1,13 @@
+{
+  "_what": "Keys SuperSlicer ACTUALLY REFUSED when it loaded our presets. The SuperSlicer emitters drop these. Measured, not inferred.",
+  "_why_not_an_allowlist": "The first attempt filtered against an ALLOW-list built from `superslicer --help-fff`, and it silently deleted layer_height from every SuperSlicer preset -- --help-fff lists the CLI-settable subset, not the preset vocabulary, and layer_height is simply not in it. Every 0.2 nozzle row of the slice matrix then failed with \"Layer height can't be greater than max layer height\", because with no layer_height the slicer used its own default. An allow-list built from an incomplete oracle deletes valid keys and the damage is silent. A deny-list of keys the slicer was OBSERVED to reject cannot over-delete.",
+  "_why_not_the_keymap": "Deriving foreign keys from keymap.json was tried and is also wrong in both directions: it missed chamber_minimal_temperature, which PrusaSlicer 2.9 DOES define and only SuperSlicer lacks, and it would have dropped compatible_printers and filament_vendor, which both slicers define. The PrusaSlicer family is not one dialect.",
+  "_source": "tools/slice-harness.py, SuperSlicer 2.7.62.0-beta2, 2026-09-06. Re-derive by reading the REFUSED line of a master-pass run.",
+  "_note": "Annotation keys (_why_*) are refused too but are handled by prefix in ini_writable(), so they are not repeated here.",
+  "keys": [
+    "activate_chamber_temp_control",
+    "brim_type",
+    "chamber_minimal_temperature"
+  ],
+  "_note_brim_type": "SuperSlicer has no brim_type. It expresses the same choice as brim_width + brim_width_interior + brim_ears, so the PrusaSlicer key has no counterpart and SuperSlicer warns 'Unknow setting' on it. Confirmed against superslicer --help-fff 2026-09-07."
+}
