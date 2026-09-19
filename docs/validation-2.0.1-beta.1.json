@@ -1,0 +1,36 @@
+{
+  "version": "2.0.1-beta.1",
+  "date": "2026-09-18",
+  "unit_tests": 113,
+  "python_tested": "3.14",
+  "jinja_tested": "2.11.3",
+  "clean_rebuild": "byte-identical",
+  "publication_scan": {
+    "blocks": 0,
+    "warnings": 0
+  },
+  "slicers": {
+    "OrcaSlicer": "2.4.2",
+    "PrusaSlicer": "2.9.6",
+    "SuperSlicer": "2.7.62.0-beta2"
+  },
+  "standalone_matrix": {
+    "slices": 27,
+    "nozzle_sizes": 8,
+    "tiers": 5,
+    "filaments": 9,
+    "objects": 4,
+    "refused_keys": 0
+  },
+  "archives": {
+    "repeat_build": "identical SHA-256",
+    "profiles_zip_installer_tests": [
+      "orca",
+      "prusa",
+      "superslicer"
+    ]
+  },
+  "physical_stock_startup": "pending",
+  "github_actions": "workflow authored; no hosted run yet",
+  "licence_review": "see NOTICE; not cleared for publication"
+}

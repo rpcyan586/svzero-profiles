@@ -36,3 +36,9 @@ The beta does not include the earlier third-party bed graphics.
 The optional Python modules are opt-in, not auto-installed dependencies. A
 configured feature can deliberately refuse a failed check; absence of a feature
 and an actual failure have different behavior. See [INSTALL.md](../INSTALL.md).
+
+The standalone candidate also passed the full 27-slice matrix. Its three
+archives have reproducible SHA-256 checksums; the extracted profiles archive
+installs into fresh Orca, PrusaSlicer and SuperSlicer data directories.
+[Machine-readable results](validation-2.0.1-beta.1.json) distinguish local
+Python 3.14 validation from the not-yet-run hosted Python 3.11 workflow.
