@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "targets": {
+    "svzero-1.3.7.cfg": {
+      "sources": {
+        "cancel_print.cfg": "c9331df0da35a45dc56e9cfe7245ee8e07ebfabf5fb287de044beab3e4b3777c",
+        "chamber_fan.cfg": "2ff4b7352ad7a3b27425d5d21c130dc8984ae914ae164ceea569353ab9b6bffc",
+        "chamber_fan_hw_1.3.7.cfg": "116219db16e9b26e5f57b16b2f3b10f10f59fbcccf9e0fe6d111a4c2edfb0829",
+        "chamber_orbit.cfg": "9954dfec03d3dee0f689d93c188ebcc74352d82f4e7689b3e3e43d1aadeae7c4",
+        "cooldown.cfg": "aaccdb2fe2bce1ccd30606ccb65a2419593fb96b8fb7df192fa207867d4575c6",
+        "curtain_fan.cfg": "9394f01ca7b01e0d4c2cf977dfb656c18ccc998a32e928358a7c759e15cb064c",
+        "end_print.cfg": "10e1ce2d261958ea849acad051433af289aad88846758d097e481f89bc7f23e9",
+        "filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
+        "nozzle_brush.cfg": "4f332eca0ab2a517b8870bfa6edbbdcec42016b3a4dc79f399faf424c6011022",
+        "orca_compat.cfg": "566f903ec02eaba35cd760015695787b7a68935b03e74e9bc55006a16a7e4e72",
+        "probe_pressure_1.3.7.cfg": "cf082257ec367c339ee72c87b92da57939ffd6cdb0e4ff82d971531337ff33ab",
+        "purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
+        "start_print.cfg": "090a82980580e198e965e0c98883c5db225ebd21ab353eb872705504bf57f88d",
+        "svzero-1.3.7.cfg": "395a2ab09e445e69992ad5f5c61e3f00c416d11a657fb1a6bf35413dc00e7ae0",
+        "svzero_pack.cfg": "81547351779ad55870265f19810c4d3e9464279aeb0272a3e493b38f69fb1e5c"
+      },
+      "sha256": "faa5721b09724c5c217ad0317f46653b79370aae702e6d20889f291c597bd0ad"
+    },
+    "svzero-1.4.x.cfg": {
+      "sources": {
+        "cancel_print.cfg": "c9331df0da35a45dc56e9cfe7245ee8e07ebfabf5fb287de044beab3e4b3777c",
+        "chamber_fan.cfg": "2ff4b7352ad7a3b27425d5d21c130dc8984ae914ae164ceea569353ab9b6bffc",
+        "chamber_fan_hw_1.4.x.cfg": "d9f382a925c75cd2a6354199073aee8236fa41990b624e2b017902a44ff9cbf8",
+        "chamber_orbit.cfg": "9954dfec03d3dee0f689d93c188ebcc74352d82f4e7689b3e3e43d1aadeae7c4",
+        "cooldown.cfg": "aaccdb2fe2bce1ccd30606ccb65a2419593fb96b8fb7df192fa207867d4575c6",
+        "curtain_fan.cfg": "9394f01ca7b01e0d4c2cf977dfb656c18ccc998a32e928358a7c759e15cb064c",
+        "end_print.cfg": "10e1ce2d261958ea849acad051433af289aad88846758d097e481f89bc7f23e9",
+        "filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
+        "nozzle_brush.cfg": "4f332eca0ab2a517b8870bfa6edbbdcec42016b3a4dc79f399faf424c6011022",
+        "orca_compat.cfg": "566f903ec02eaba35cd760015695787b7a68935b03e74e9bc55006a16a7e4e72",
+        "purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
+        "start_print.cfg": "090a82980580e198e965e0c98883c5db225ebd21ab353eb872705504bf57f88d",
+        "svzero-1.4.x.cfg": "edadfa8fc5ce588cdf9f65496efa8d6cb2149f915b3f21b93338a0f7f2fece8f",
+        "svzero_pack.cfg": "81547351779ad55870265f19810c4d3e9464279aeb0272a3e493b38f69fb1e5c"
+      },
+      "sha256": "034288bbf30fa1bf505f86e7d75876734820ad872aa54a90edb308dfa7c4b1f8"
+    },
+    "svzero-python.cfg": {
+      "sources": {
+        "chamber_preheat.cfg": "684e0c4275d4f5078adf39371fadcca6d19e662a2a63744ca925ba1caee72492",
+        "spool_guard.cfg": "80f97bacb2fbaa83cc7b8d267266cdf482d5d95df9537eb26978545beb2c000e",
+        "svzero-python.cfg": "89b6017542db36657d5266ee90d36c4a715c3d282c39935adf4ac128f2267071"
+      },
+      "sha256": "a85958da36fc2a23f167b9122b78bde880482a289eed5344c2eac5da5ac5f452"
+    }
+  }
+}

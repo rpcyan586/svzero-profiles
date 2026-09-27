@@ -20,6 +20,7 @@ sources and regenerate; do not patch generated bundles:
 
 ```sh
 python tools/generate.py --check --emit ss,ps,ps-vendor,ps-presets,ss-presets,orca,orca-filament,orca-vendor,ps3
+python tools/build-macros.py
 python tools/verify.py
 ```
 
@@ -27,6 +28,13 @@ Pinned public Orca inputs and their checksums live under
 `source/vendor-profiles/`. Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
 PrusaSlicer 3 output remains experimental and is not in the user download.
+
+Macro sources stay separate at the repository root. `tools/build-macros.py`
+expands each firmware's explicit include tree into one config under
+`bundles/klipper/`, with a separate opt-in config for the two Python helpers.
+It requires only Python's standard library. Tests compare the effective
+settings with the modular layout, including the 1.4.x probe overrides; the
+full suite also renders the consolidated macros and checks a clean rebuild.
 
 ## Actual slicing
 

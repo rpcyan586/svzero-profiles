@@ -128,6 +128,15 @@ def check(path):
     # validated separately. Supply the same public interface here so the common
     # controller can still be rendered as a standalone source file.
     settings.setdefault("gcode_macro _CH_HW", Mock(fan="exhaust_fan"))
+    # The standalone fixtures default to 1.4.x. A consolidated 1.3.7 config
+    # supplies its real hardware identity: use that name in mocks and expected
+    # fan commands too, so the assembled pack is checked without changing it.
+    exhaust_fan = settings["gcode_macro _CH_HW"].fan
+
+    def expected_tokens(value):
+        values = [value] if isinstance(value, str) else value
+        return [v.replace("exhaust_fan SPEED=", exhaust_fan + " SPEED=") for v in values]
+
     # Sovol's own objects, always present at runtime but defined in Macro.cfg
     # rather than in any file we ship. Overriding macros legitimately read them,
     # so supply the same public interface here instead of failing the render.
@@ -203,7 +212,7 @@ def check(path):
         "heater_bed": Mock(temperature=25.0, target=65.0),
         "temperature_sensor chamber_temp": Mock(temperature=30.0),
         "temperature_sensor Toolhead_Temp": Mock(temperature=30.0),
-        "fan_generic exhaust_fan": Mock(speed=0.0, rpm=1500.0),
+        "fan_generic " + exhaust_fan: Mock(speed=0.0, rpm=1500.0),
         # total_duration: _BRUSH_MARK_DONE subtracts it from the stamp
         # CLEAN_NOZZLE took at its start, to report how long the wipe ran.
         "print_stats": Mock(state="standby", filename="job.gcode",
@@ -510,7 +519,7 @@ def check(path):
             # This supervisor had NO scenarios, so its branches were never
             # rendered. It is also the macro that can drive the exhaust to 1.0.
             hot = {"extruder": Mock(temperature=250.0, target=250.0, power=0.5),
-                   "fan_generic exhaust_fan": Mock(speed=0.0, rpm=0.0)}
+                   "fan_generic " + exhaust_fan: Mock(speed=0.0, rpm=0.0)}
             def vent(floor, **kw):
                 sv = {"was_interrupted": 0.0, "nb_lane": 0, "ch_target": 32.0,
                       "ch_vent_floor": floor, "ch_stall_rpm": 500,
@@ -1315,7 +1324,7 @@ def check(path):
                 # and either half alone is satisfied by the wrong branch.
                 want = expect.get((s, label))
                 if want is not None:
-                    miss = [w for w in ([want] if isinstance(want, str) else want)
+                    miss = [w for w in expected_tokens(want)
                             if w not in out]
                     if miss:
                         bad += 1
@@ -1324,7 +1333,7 @@ def check(path):
                         continue
                 never = forbid.get((s, label))
                 if never is not None:
-                    hit = [n for n in ([never] if isinstance(never, str) else never)
+                    hit = [n for n in expected_tokens(never)
                            if n in out]
                     if hit:
                         bad += 1

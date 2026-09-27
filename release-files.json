@@ -23,6 +23,8 @@
     ".github/ISSUE_TEMPLATE/beta-feedback.md"
   ],
   "macros": [
+    "bundles/klipper/",
+    "tools/build-macros.py",
     "VERSION",
     "README.md",
     "INSTALL.md",

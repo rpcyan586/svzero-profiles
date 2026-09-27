@@ -52,12 +52,15 @@ def main():
     run('tools/validate-bundle.py')
     macros=['nozzle_brush.cfg','chamber_fan.cfg','start_print.cfg','end_print.cfg','cancel_print.cfg','cooldown.cfg','purge_line.cfg','svzero_pack.cfg','filament_load.cfg','orca_compat.cfg','chamber_orbit.cfg']
     run('tools/check-macros.py',*macros)
+    run('tools/build-macros.py','--check')
+    run('tools/check-macros.py','bundles/klipper/svzero-1.3.7.cfg','bundles/klipper/svzero-1.4.x.cfg')
     run('tools/check-purge-geometry.py')
     with tempfile.TemporaryDirectory(prefix='svzero-rebuild-') as tmp:
         work=Path(tmp)/'pack'
         # No old bundles: proves missing or undeclared generator inputs fail.
         shutil.copytree(ROOT,work,ignore=shutil.ignore_patterns('.git','.venv','dist','.cache','__pycache__','bundles','*.log'))
         run('tools/generate.py','--check','--emit',EMIT,cwd=work)
+        run('tools/build-macros.py',cwd=work)
         before=inventory(ROOT/'bundles');after=inventory(work/'bundles')
         if before!=after:
             changed=sorted(k for k in before.keys()|after.keys() if before.get(k)!=after.get(k))

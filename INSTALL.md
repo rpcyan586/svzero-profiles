@@ -63,13 +63,22 @@ keeps skirts enabled. Configure printer connections in your slicer.
 
 ## 2. Optional macro pack, without Python
 
-Back up the current configuration. Copy the pack's `.cfg` files to
-`~/printer_data/config/svzero/`, retaining their relative paths. Do not copy
-someone else's `svzero-personal.cfg`; personal overrides are no longer loaded
-automatically.
+Back up the current configuration. Copy **one file** from `bundles/klipper/`
+into `~/printer_data/config/svzero/` on the printer:
+
+| Installed firmware | File to copy |
+|---|---|
+| 1.3.7 | `svzero-1.3.7.cfg` |
+| 1.4.x (checked against 1.4.7) | `svzero-1.4.x.cfg` |
+
+These are self-contained generated files. The separate `.cfg` files at the
+source root remain available for development; they are not additional install
+steps. Do not load both layouts, both firmware files, or someone else's
+`svzero-personal.cfg`.
 
 Near the bottom of `printer.cfg`, after Sovol's `[include Macro.cfg]` **and after
-all stock fan/sensor definitions**, add exactly one firmware-matched include:
+all stock fan/sensor definitions**, but **before the `SAVE_CONFIG` block**, add
+exactly one firmware-matched include:
 
 ```ini
 # Stock firmware 1.3.7:
@@ -83,9 +92,9 @@ or:
 [include svzero/svzero-1.4.x.cfg]
 ```
 
-These include the native macros and hardware configuration only. No added
-Python modules are required. The 1.3.7-only pressure-probe sampling override
-lives in `probe_pressure_1.3.7.cfg`; the 1.4.x include must not load it.
+These contain the native macros and hardware configuration only. No added
+Python modules are required. The builder includes the pressure-probe sampling
+override from `probe_pressure_1.3.7.cfg` only in the 1.3.7 file.
 The 1.4.x include instead selects `RUN_PROBE_VIR_CONTACT` at Sovol's stock
 X30/Y30 plate-contact location; 1.3.7 keeps its load-cell command/location.
 
@@ -136,21 +145,21 @@ end-retract bookkeeping.
 
 Install only the helpers you want. For adaptive preheat **and** Spoolman:
 
-```sh
-cp ~/printer_data/config/svzero/klipper/chamber_preheat.py ~/klipper/klippy/extras/
-cp ~/printer_data/config/svzero/klipper/spool_guard.py ~/klipper/klippy/extras/
-cp ~/printer_data/config/svzero/klipper/moonraker.py ~/klipper/klippy/extras/
-```
-
-Then add, **after** the firmware-matched include:
+1. Copy `chamber_preheat.py`, `spool_guard.py` and `moonraker.py` from the pack's
+   `klipper/` directory into `~/klipper/klippy/extras/` on the printer. Back up
+   any existing files with those names before replacing them.
+2. Copy the single generated `bundles/klipper/svzero-python.cfg` into
+   `~/printer_data/config/svzero/`.
+3. Add this include **after** the firmware-matched include and before
+   `SAVE_CONFIG`:
 
 ```ini
 [include svzero/svzero-python.cfg]
 ```
 
-For just one feature, include `svzero/chamber_preheat.cfg` or
-`svzero/spool_guard.cfg` instead, and copy that feature's module plus
-`moonraker.py`. Do not also include `svzero-python.cfg`. Apply your own personal
+For just one feature, copy the source `chamber_preheat.cfg` or `spool_guard.cfg`
+into the printer's `svzero/` directory and include that file instead. Copy that
+feature's module plus `moonraker.py` into `klippy/extras/`. Do not also include `svzero-python.cfg`. Apply your own personal
 settings last, after any sections they override.
 
 Once the files and includes are ready and the printer is demonstrably idle,
@@ -186,6 +195,31 @@ The native macro path then takes over.
   dependencies, not included by the basic macro pack. Service failure is caught
   and printing continues with current/default camera settings. Configure this
   only if that camera/lighting setup exists on your machine.
+
+## Updating and rebuilding the macro bundle
+
+Update the generated firmware file in place; the include in `printer.cfg` stays
+the same. On 1.4.x the stock exhaust section must remain disabled. Keep a backup
+of the previous file for rollback. Keep your own tuning overrides in a separate
+file included last, before `SAVE_CONFIG`, so an update does not replace them.
+
+An existing modular install can switch by replacing its firmware entry file
+with the generated file of the same name. Previously copied source files become
+unused unless you still include them explicitly. Remove those duplicate includes.
+
+The individual sources are retained for reading and editing. Rebuild with
+Python 3 (standard library only), from the unpacked source directory:
+
+```sh
+python3 tools/build-macros.py
+python3 tools/build-macros.py --check
+```
+
+The builder writes `bundles/klipper/`, preserves the explicit include order and
+records source/output checksums in `manifest.json`. It does not connect to a
+printer. Edit source files and regenerate, or apply machine-specific settings
+in your separate override file; changes made only to generated files are lost
+at the next build. The source files and builder accompany distribution builds.
 
 ## Removing or downgrading
 

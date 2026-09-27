@@ -55,6 +55,8 @@ by this project.
 | Spoolman helper | Material and remaining-filament check before heating | Check the spool yourself |
 | Fan/camera helpers | Additional telemetry or tuning for separately configured hardware/services | Core profiles do not require them |
 
+Copy one generated firmware file from `bundles/klipper/` and add its include;
+the separate source files and build script remain available for development.
 The macro pack needs commissioning, particularly brush clearances. The 1.4.x
 installation replaces a stock fan section. Missing *configured* Python modules
 prevent Klipper from loading: enable their includes only after installing the
