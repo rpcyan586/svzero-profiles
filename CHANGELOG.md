@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.2-beta.1 — installation and profile consistency
+
+- Separate OrcaSlicer, PrusaSlicer and SuperSlicer ZIPs, each containing its own
+  profiles and the optional macro pack; a complete source ZIP for development.
+- One generated native macro config per firmware, with separate readable
+  sources and a standard-library builder. Python enhancements remain opt-in.
+- Included release builder, per-file inventory and reproducible ZIP checksums.
+- Nozzle-specific layer bounds, with consistency tests across all eight sizes.
+- Travel acceleration 5000 while retaining SuperSlicer's target-based deceleration.
+- Derived motion values rounded to tenths, preserving geometry/calibration
+  precision and native percentage relationships.
+
+The 1.4.x stock exhaust section still needs to be disabled for the macro pack.
+Physical commissioning and the existing upstream licensing question remain as
+documented in INSTALL.md and NOTICE.
+
 ## 2.0.1-beta.1 — public repository candidate
 
 - Standalone source, generator, pinned upstream inputs and automated checks.

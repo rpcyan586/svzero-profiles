@@ -17,9 +17,9 @@
         "purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "start_print.cfg": "090a82980580e198e965e0c98883c5db225ebd21ab353eb872705504bf57f88d",
         "svzero-1.3.7.cfg": "395a2ab09e445e69992ad5f5c61e3f00c416d11a657fb1a6bf35413dc00e7ae0",
-        "svzero_pack.cfg": "81547351779ad55870265f19810c4d3e9464279aeb0272a3e493b38f69fb1e5c"
+        "svzero_pack.cfg": "8a941871cf4d11fd58c10fa3397828070799644df092f023ece5a4111266694c"
       },
-      "sha256": "faa5721b09724c5c217ad0317f46653b79370aae702e6d20889f291c597bd0ad"
+      "sha256": "cf9d8c1594531840616c0f515610bbaf12550da6c55a446a4d3eddd667be72c3"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
@@ -36,9 +36,9 @@
         "purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "start_print.cfg": "090a82980580e198e965e0c98883c5db225ebd21ab353eb872705504bf57f88d",
         "svzero-1.4.x.cfg": "edadfa8fc5ce588cdf9f65496efa8d6cb2149f915b3f21b93338a0f7f2fece8f",
-        "svzero_pack.cfg": "81547351779ad55870265f19810c4d3e9464279aeb0272a3e493b38f69fb1e5c"
+        "svzero_pack.cfg": "8a941871cf4d11fd58c10fa3397828070799644df092f023ece5a4111266694c"
       },
-      "sha256": "034288bbf30fa1bf505f86e7d75876734820ad872aa54a90edb308dfa7c4b1f8"
+      "sha256": "f398dd15027616cc56011434da957eeefa7d7795e1ad464eaef09d4936a6d310"
     },
     "svzero-python.cfg": {
       "sources": {

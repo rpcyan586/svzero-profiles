@@ -1,5 +1,18 @@
 # Validation and known limitations
 
+## Candidate 2.0.2-beta.1
+
+The offline suite passes 131 tests. The profile repairs retain the native
+SuperSlicer travel-deceleration option
+and add layer-limit/precision checks. Macro consolidation compares all effective
+settings and renders both firmware configurations under Jinja 2.11.3. Release
+tests extract each slicer ZIP, install into a fresh isolated data directory,
+check macro rebuilds and reproduce the original ZIP byte for byte without Git.
+The complete source archive also reproduces from its extracted contents.
+
+These are offline checks. Physical-print and platform limitations below remain.
+
+
 ## Candidate 2.0.1-beta.1
 
 Recorded 2026-09-18. The standalone public candidate passes 113 unit tests,

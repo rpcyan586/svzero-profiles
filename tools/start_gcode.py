@@ -26,7 +26,7 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # notes/kb/spool-preflight.md.
 # Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
 # as plain strings and a mismatch only warns -- see the note in that file.
-SVZERO_PACK_VERSION = "2.0.1-beta.1"
+SVZERO_PACK_VERSION = "2.0.2-beta.1"
 
 ORCA_PREFLIGHT_BLOCK = "\n".join([
     ";  SVZERO_REQUIRE names the pack this profile was built against. It only",

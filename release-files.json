@@ -1,38 +1,13 @@
 {
-  "profiles": [
-    "VERSION",
-    "README.md",
-    "INSTALL.md",
-    "CHANGELOG.md",
-    "NOTICE",
-    "LICENSE",
-    "LICENSES/",
-    "docs/",
-    "svzero_bed.stl",
-    "svzero_bed.svg",
-    "svzero_bed.CREDITS.md",
-    "bundles/orca-vendor/",
-    "bundles/ps-presets/",
-    "bundles/ss-presets/",
-    "bundles/SVZero_PrusaSlicer.ini",
-    "bundles/SVZero_SuperSlicer.ini",
-    "tools/install-presets.py",
-    "tools/start_gcode.py",
-    "source/model.json",
-    "source/ps3/PROVENANCE.md",
-    ".github/ISSUE_TEMPLATE/beta-feedback.md"
-  ],
-  "macros": [
+  "common": [
     "bundles/klipper/",
     "tools/build-macros.py",
     "VERSION",
-    "README.md",
     "INSTALL.md",
     "CHANGELOG.md",
     "NOTICE",
     "LICENSE",
     "LICENSES/",
-    "docs/",
     "svzero_bed.stl",
     "svzero_bed.svg",
     "svzero_bed.CREDITS.md",
@@ -59,7 +34,38 @@
     "probe_pressure_1.3.7.cfg",
     "svzero-python.cfg",
     "klipper/",
-    "source/ps3/PROVENANCE.md",
-    ".github/ISSUE_TEMPLATE/beta-feedback.md"
-  ]
+    ".github/ISSUE_TEMPLATE/beta-feedback.md",
+    "tools/build-release.py",
+    "release-files.json",
+    "tools/install-presets.py",
+    "tools/start_gcode.py",
+    "source/model.json",
+    "docs/VALIDATION.md",
+    "docs/validation-2.0.1-beta.1.json",
+    "docs/DOWNLOADS.md",
+    "docs/RELEASING.md",
+    "tools/check-macros.py"
+  ],
+  "products": {
+    "orcaslicer": {
+      "files": [
+        "bundles/orca-vendor/"
+      ],
+      "readme": "docs/downloads/orcaslicer.txt"
+    },
+    "prusaslicer": {
+      "files": [
+        "bundles/SVZero_PrusaSlicer.ini",
+        "bundles/ps-presets/"
+      ],
+      "readme": "docs/downloads/prusaslicer.txt"
+    },
+    "superslicer": {
+      "files": [
+        "bundles/SVZero_SuperSlicer.ini",
+        "bundles/ss-presets/"
+      ],
+      "readme": "docs/downloads/superslicer.txt"
+    }
+  }
 }

@@ -1,0 +1,29 @@
+# SV Zero — PrusaSlicer download
+
+Use **File → Import → Import Config Bundle** and select
+`bundles/SVZero_PrusaSlicer.ini`. This download targets the PrusaSlicer 2.x
+format; the experimental 3.x YAML output is available in the source archive.
+
+For an isolated Linux trial, run:
+
+```sh
+python3 tools/install-presets.py prusa "$HOME/svzero-beta-prusa"
+flatpak run com.prusa3d.PrusaSlicer --datadir "$HOME/svzero-beta-prusa"
+```
+
+Select the nozzle actually installed, choose print and filament presets, then
+configure your own printer connection. Profiles alone support stock Sovol Zero
+1.3.7 and 1.4.x startup; retain the fallback skirt. Re-select presets in saved
+projects and re-slice. The installer is intended for a dedicated data directory.
+It replaces SVZero presets and selects defaults; close the slicer first.
+
+**Optional printer upgrade:** copy one firmware file from `bundles/klipper/` and
+add its include. On 1.4.x also disable the stock exhaust-fan section. Follow
+[INSTALL.md](INSTALL.md) for dependencies, brush commissioning, updates and
+rollback. Most `.cfg` files at this download's root are readable build sources;
+they are not files you have to install individually. Python helpers are opt-in.
+
+[Download contents and rebuilding](docs/DOWNLOADS.md) explains the included
+builders. The version is in `VERSION`, with an exact inventory in `RELEASE.json`.
+See [validation and limits](docs/VALIDATION.md) and [licences](NOTICE). These are
+beta profiles; offline checks do not establish physical print quality.

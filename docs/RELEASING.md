@@ -13,7 +13,9 @@ and use the same ZIPs and SHA256SUMS on both platforms.
    credentials, private quotations, missing attribution and broken citations.
 4. Commit the reviewed tree. Run `python tools/build-release.py`. The script
    requires a clean tracked tree and produces deterministic archives plus
-   checksums in `dist/`. Review their file lists, not only the working tree.
+   checksums in `dist/`: one ZIP per slicer plus the complete source ZIP.
+   Each slicer ZIP includes the optional macro pack and its builder/sources.
+   Review their file lists and extracted installation, not only the working tree.
 5. Create the matching GitHub prerelease tag and attach the files. The workflow
    validates builds; it does **not** automatically publish a release or post an
    announcement. Obtain community feedback on the GitHub prerelease first.
@@ -22,6 +24,6 @@ and use the same ZIPs and SHA256SUMS on both platforms.
    archive for Printables. Record the mirrored version in the release notes.
 
 Numeric vendor versions cannot express a prerelease suffix. This candidate maps
-release `2.0.1-beta.1` to PS vendor `2.0.1` and Orca vendor `02.00.01.01`.
+release `2.0.2-beta.1` to PS vendor `2.0.2` and Orca vendor `02.00.02.01`.
 Advance vendor versions for each distributed update so loaders see the change.
 The workflow has read-only repository permissions and no publishing credentials.

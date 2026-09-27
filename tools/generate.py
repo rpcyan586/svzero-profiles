@@ -45,6 +45,7 @@ import argparse
 import collections
 import shutil
 import json
+import math
 import os
 
 import re
@@ -68,6 +69,16 @@ SOVOL_VENDOR = os.path.join(ROOT, "source", "vendor-profiles")
 
 def load(name):
     return json.load(open(os.path.join(ROOT, "source", name), encoding="utf-8"))
+
+
+def computed_motion(value):
+    """Tenths for derived speeds/accelerations; keep .0 to mark computation.
+
+    Call after evaluating a reference chain, never on intermediate operands.
+    Geometry, material ratios, calibration values and authored settings retain
+    their own precision and are deliberately outside this formatter.
+    """
+    return "%.1f" % value
 
 
 def parse_ini(path):
@@ -394,6 +405,8 @@ def check(model, ss):
         if abs(lh - wlh) > 1e-9:
             problems.append("%s: layer height %s, model says %s" % (name, lh, wlh))
 
+    problems.extend(check_layer_limits(model, ss))
+
     for tier in all_tiers(model):
         if not isinstance(model["tiers"].get(tier), dict):
             continue
@@ -617,7 +630,7 @@ def apply_flow_model(model, ss):
         limited = "flow"
         if want > cap:
             want, limited = cap, "motion"
-        val = "%g" % round(want, 1)
+        val = computed_motion(want)
         if kv.get("default_speed") != val:
             kv["default_speed"] = val
             changed += 1
@@ -645,7 +658,7 @@ def apply_flow_model(model, ss):
 
 
 PS_TARGET = "2.9.6"          # overwritten from model.json in main()
-PS_CONFIG_VERSION = "2.0.1"  # vendor bundle version; must match the .idx entry
+PS_CONFIG_VERSION = "2.0.2"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
 
 
@@ -768,6 +781,54 @@ def flatten(ss, name):
     return flat
 
 
+def layer_mm(value, nozzle):
+    """Resolve authored millimetres or percent-of-nozzle without rounding."""
+    value = str(value).strip()
+    result = (float(value[:-1]) * float(nozzle) / 100
+              if value.endswith("%") else float(value))
+    if not math.isfinite(result) or result <= 0:
+        raise ValueError("layer height must be finite and positive")
+    return result
+
+
+def printer_layer_limits(ss, nozzle):
+    """One source for both Orca machine emitters, including inherited values."""
+    printer = flatten(ss, "printer:SV Zero %sn" % nozzle)
+    return {key: "%g" % layer_mm(printer[key], nozzle)
+            for key in ("min_layer_height", "max_layer_height")}
+
+
+def check_layer_limits(model, ss):
+    """Reject incompatible authored layers before overwriting any bundles."""
+    problems = []
+    limits = {}
+    for nozzle in model["machine"]["nozzles"]:
+        try:
+            bounds = printer_layer_limits(ss, nozzle)
+            low, high = (float(bounds[k]) for k in ("min_layer_height", "max_layer_height"))
+            if not low <= high <= float(nozzle):
+                raise ValueError("require min <= max <= nozzle diameter")
+            limits[nozzle] = (low, high)
+        except (KeyError, TypeError, ValueError) as error:
+            problems.append("%s nozzle: invalid layer limits (%s)" % (nozzle, error))
+    for name in ss:
+        match = re.match(r"print:SV Zero ([\d.]+)n - ", name)
+        if not match or match.group(1) not in limits:
+            continue
+        nozzle = match.group(1)
+        low, high = limits[nozzle]
+        flat = flatten(ss, name)
+        for key in ("layer_height", "first_layer_height"):
+            try:
+                height = layer_mm(flat[key], nozzle)
+                if not low - 1e-9 <= height <= high + 1e-9:
+                    problems.append("%s: %s=%g outside layer limits %g..%g"
+                                    % (name, key, height, low, high))
+            except (KeyError, TypeError, ValueError) as error:
+                problems.append("%s: invalid %s (%s)" % (name, key, error))
+    return problems
+
+
 # PrusaSlicer takes these three in MILLIMETRES. SuperSlicer accepts a percentage
 # of nozzle diameter and the master is written that way, so a straight copy hands
 # PrusaSlicer "80%" for a millimetre field. The plater then refuses to slice with
@@ -877,7 +938,7 @@ def ps_percent_to_mm(kv, preset):
             except ValueError:
                 continue
             if base:
-                kv[k] = "%g" % (pct / 100.0 * base); n += 1
+                kv[k] = computed_motion(pct / 100.0 * base); n += 1
     return n
 
 
@@ -919,9 +980,9 @@ def ps_absolutise_speeds(kv):
         except ValueError:
             continue
         if k.endswith("_speed") and speed:
-            kv[k] = "%g" % (pct / 100.0 * speed); n += 1
+            kv[k] = computed_motion(pct / 100.0 * speed); n += 1
         elif k.endswith("_acceleration") and accel:
-            kv[k] = "%g" % (pct / 100.0 * accel); n += 1
+            kv[k] = computed_motion(pct / 100.0 * accel); n += 1
     return n
 
 
@@ -1338,9 +1399,14 @@ PCT_REFERENCE = {
 }
 
 
-def resolve_speeds(flat):
-    """Turn percentage speeds into absolute mm/s, following the reference chain."""
+def resolve_speeds(flat, *, round_output=True):
+    """Evaluate the full speed chain before rounding derived outputs to tenths.
+
+    Orca requests unrounded values because its first-layer approximation still
+    needs to multiply them. Its emitter rounds after that final calculation.
+    """
     out, pending = dict(flat), True
+    computed = set()
     rounds = 0
     while pending and rounds < 6:
         pending, rounds = False, rounds + 1
@@ -1353,9 +1419,13 @@ def resolve_speeds(flat):
                 pending = True         # base not resolved yet, try next round
                 continue
             try:
-                out[key] = "%g" % (float(v.strip().rstrip("%")) / 100.0 * float(base))
+                out[key] = str(float(v.strip().rstrip("%")) / 100.0 * float(base))
+                computed.add(key)
             except (TypeError, ValueError):
                 pending = False        # no usable base; leave it and let --strict catch it
+    if round_output:
+        for key in computed:
+            out[key] = computed_motion(float(out[key]))
     return out
 
 
@@ -1431,15 +1501,15 @@ def orca_absolutise(doc, flat, nozzle):
         except ValueError:
             continue
         if k.endswith("_acceleration") and accel:
-            doc[k] = "%g" % (pct / 100.0 * accel)
+            doc[k] = computed_motion(pct / 100.0 * accel)
         elif k == "initial_layer_print_height":
             doc[k] = "%g" % (pct / 100.0 * float(nozzle))
         elif k in ORCA_FIRST_LAYER and ORCA_FIRST_LAYER[k]:
             # Orca rejects first-layer speeds below 1 mm/s. Large-nozzle
             # Strength presets reach that floor after flow scaling.
-            doc[k] = "%g" % max(1.0, pct / 100.0 * ORCA_FIRST_LAYER[k])
+            doc[k] = computed_motion(max(1.0, pct / 100.0 * ORCA_FIRST_LAYER[k]))
         elif k.endswith("_speed") and speed:
-            doc[k] = "%g" % (pct / 100.0 * speed)
+            doc[k] = computed_motion(pct / 100.0 * speed)
         elif k == "bridge_flow":
             doc[k] = "%g" % (pct / 100.0)
         else:
@@ -1521,7 +1591,9 @@ def emit_orca(model, ss, keymap, out_dir):
                 flat.setdefault(k, v)
             par = ss[cur].get("inherits", "").strip()
             cur = "print:%s" % par if par else None
-        flat = resolve_speeds(flat)
+        computed_speeds = {rev[key] for key in PCT_REFERENCE
+                           if key in rev and str(flat.get(key, "")).strip().endswith("%")}
+        flat = resolve_speeds(flat, round_output=False)
         doc = collections.OrderedDict()
         doc["type"] = "process"
         doc["name"] = "%smm %s @SV Zero %s nozzle" % (lh, tier, noz)
@@ -1560,6 +1632,9 @@ def emit_orca(model, ss, keymap, out_dir):
         widths_to_mm(doc, noz)
         orca_percent_to_ratio(doc, keymap)
         orca_absolutise(doc, flat, noz)
+        for key in computed_speeds:
+            if key in doc and not str(doc[key]).strip().endswith("%"):
+                doc[key] = computed_motion(float(doc[key]))
         # NOTE: no _sqv here. It was emitted as an int and Orca rejected the whole
         # profile with "invalid json type for _sqv" -- Orca requires every value to
         # be a string or a list of strings, and one bad profile fails the ENTIRE
@@ -1606,6 +1681,7 @@ def emit_orca(model, ss, keymap, out_dir):
             mach["printer_model"] = "SOVOL ZERO"
             mach["nozzle_diameter"] = [noz]
             mach["printer_variant"] = noz
+            mach.update({key: [value] for key, value in printer_layer_limits(ss, noz).items()})
             mach["gcode_flavor"] = "klipper"
             # PINNED, not left to Orca's default, even though the default is
             # already 1. Three things have to agree here and only one of them
@@ -2002,6 +2078,7 @@ def emit_orca_vendor(model, ss, out_dir):
         m["printer_model"] = "SV Zero"
         m["printer_variant"] = noz
         m["nozzle_diameter"] = [noz]
+        m.update({key: [value] for key, value in printer_layer_limits(ss, noz).items()})
         # z-hop is machine scope in Orca and printer scope in PS/SS, so it is
         # authored once on the printer variant and copied here. Without this the
         # machines carried Sovol's 0.4 for every nozzle, including the 1.0 where
@@ -2086,7 +2163,7 @@ def emit_orca_vendor(model, ss, out_dir):
         process_list.append({"name": doc["name"], "sub_path": "process/" + f})
 
     idx = collections.OrderedDict([
-        ("name", "SVZero"), ("version", "02.00.01.01"), ("force_update", "0"),
+        ("name", "SVZero"), ("version", "02.00.02.01"), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
         ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]),
         ("process_list", process_list), ("filament_list", filament_list),

@@ -3,7 +3,7 @@
 An open-beta candidate for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
 Sovol Zero. One source generates the profiles for all three slicers.
 
-**Candidate version: 2.0.1-beta.1.** Automated checks and slicing have passed;
+**Candidate version: 2.0.2-beta.1.** Automated checks and slicing have passed;
 physical testing of the latest stock-firmware fallback is still pending.
 Read [validation and limitations](docs/VALIDATION.md) before testing.
 
@@ -18,7 +18,7 @@ Python helpers are optional. Public startup retains `PURGE_LINE` and a priming
 skirt: stock firmware warns about the missing macro and continues; the skirt
 provides priming. Do not disable it unless another priming routine is installed.
 
-1. Download and unpack the profiles archive from a versioned release, or use
+1. Download and unpack the ZIP named for your slicer, or use
    this checkout. Read [INSTALL.md](INSTALL.md) for the firmware requirements.
 2. **PrusaSlicer / SuperSlicer:** import the corresponding INI from `bundles/`
    using File → Import → Import Config Bundle.
@@ -71,6 +71,7 @@ remove host addresses, API keys and other personal data from attached projects
 and logs. Use the [beta feedback template](.github/ISSUE_TEMPLATE/beta-feedback.md).
 
 - [Build and test](docs/DEVELOPMENT.md)
+- [Download contents and included builders](docs/DOWNLOADS.md)
 - [Release workflow](docs/RELEASING.md)
 - [Changes](CHANGELOG.md)
 - [Licences and upstream attribution](NOTICE)
