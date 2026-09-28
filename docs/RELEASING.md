@@ -3,7 +3,7 @@
 GitHub owns releases. Printables mirrors selected reviewed releases. Build once
 and use the same ZIPs and SHA256SUMS on both platforms.
 
-1. Update `VERSION`, the handshake in `tools/start_gcode.py`, `svzero_pack.cfg`
+1. Update `VERSION`, the handshake in `tools/start_gcode.py`, `klipper/config/svzero_pack.cfg`
    and `source/presets.json`, plus numeric vendor versions in the generator.
    Update the changelog and validation record. Regenerate and run the suite.
 2. Record current actual-slicer and physical test results. Describe limitations
@@ -22,6 +22,11 @@ and use the same ZIPs and SHA256SUMS on both platforms.
 6. When that version is selected for Printables, upload those exact archives,
    repeat the version and link the GitHub release. Do not rebuild or edit an
    archive for Printables. Record the mirrored version in the release notes.
+
+After a release is published, update the prominent README tag and direct ZIP
+links to that release. Use its explicit tag URL: GitHub's stable-release
+shortcut does not identify a prerelease. Repository layout changes apply to
+the next release; keep already-published tags and download files unchanged.
 
 Numeric vendor versions cannot express a prerelease suffix. This candidate maps
 release `2.0.2-beta.1` to PS vendor `2.0.2` and Orca vendor `02.00.02.01`.

@@ -20,7 +20,8 @@ The macro pack needs to be installed only once, even if you use several slicers.
 Its generated configs consolidate the separate sources in this download. Follow
 [INSTALL.md](../INSTALL.md): 1.4.x still requires disabling the original exhaust
 temperature-fan section. Python helpers remain optional. The source `.cfg` files
-are supplied for clarity and rebuilding, not as extra copy/edit steps.
+under `klipper/config/` are supplied for clarity and rebuilding, not as extra
+copy/edit steps. Bed previews and their credits are under `assets/`.
 
 ## Included builders
 

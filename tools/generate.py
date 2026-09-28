@@ -2027,7 +2027,7 @@ def emit_orca_vendor(model, ss, out_dir):
     # accompany the work, and a downloader who unpacks only the Orca vendor
     # directory must still find out whose model it is.
     for asset in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
-        src = os.path.join(ROOT, asset)
+        src = os.path.join(ROOT, "assets", asset)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
 
@@ -2148,7 +2148,7 @@ def emit_orca_vendor(model, ss, out_dir):
         # everywhere the two overlap. A texture is what you show INSTEAD of a
         # model, not underneath one. The SVG still ships -- it is the fallback
         # for anyone who removes the model, and the credits cover both.
-        if os.path.exists(os.path.join(ROOT, "svzero_bed.stl")):
+        if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")):
             m["bed_custom_model"] = "svzero_bed.stl"
         fn = "SV Zero %s nozzle.json" % noz
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)

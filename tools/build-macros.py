@@ -61,7 +61,7 @@ def render(root):
     outputs, manifest = {}, {"format": 1, "targets": {}}
     for target in TARGETS:
         inputs = {}
-        body = expand(root, Path(target), inputs)
+        body = expand(root, Path("klipper/config") / target, inputs)
         if target == "svzero-python.cfg":
             instructions = (
                 "# OPTIONAL: adaptive preheat and Spoolman. Install chamber_preheat.py,\n"

@@ -271,7 +271,7 @@ def install_bed_assets(datadir):
     """
     n = 0
     for name in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
-        src = os.path.join(ROOT, name)
+        src = os.path.join(ROOT, "assets", name)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(datadir, name))
             n += 1

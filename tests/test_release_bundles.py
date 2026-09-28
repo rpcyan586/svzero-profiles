@@ -30,7 +30,7 @@ class ReleaseBundles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.files = source_files()
-        cls.products = B.products(cls.files, json.loads(cls.files["release-files.json"]))
+        cls.products = B.products(cls.files, json.loads(cls.files["tools/release-files.json"]))
         cls.version = cls.files["VERSION"].decode().strip()
 
     def test_each_slicer_contains_only_its_output_and_complete_macros(self):
@@ -74,9 +74,14 @@ class ReleaseBundles(unittest.TestCase):
                                 continue
                             self.assertTrue((doc.parent / unquote(link)).exists(), (kind, doc.name, link))
                     if kind in installers:
+                        installed = root / (kind + "-installed")
                         subprocess.run([sys.executable, "tools/install-presets.py", installers[kind],
-                                        str(root / (kind + "-installed"))], cwd=work,
+                                        str(installed)], cwd=work,
                                        check=True, capture_output=True)
+                        asset_dir = installed / "system/SVZero" if kind == "orcaslicer" else installed
+                        for asset in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+                            self.assertEqual((asset_dir / asset).read_bytes(),
+                                             (work / "assets" / asset).read_bytes())
                         subprocess.run([sys.executable, "tools/build-macros.py", "--check"],
                                        cwd=work, check=True, capture_output=True)
                     with contextlib.redirect_stdout(io.StringIO()):

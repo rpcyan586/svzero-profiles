@@ -18,7 +18,8 @@ Public upstream inputs:
 
 UNRESOLVED BEFORE FIRST PUBLIC UPLOAD:
 The earlier pack identified cancel_print.cfg, end_print.cfg, filament_load.cfg
-and nozzle_brush.cfg as derived from Sovol3d/SOVOL-ZERO Macro.cfg. That source's
+and nozzle_brush.cfg (now under klipper/config/) as derived from
+Sovol3d/SOVOL-ZERO Macro.cfg. That source's
 applicable licence has not been established in this review. These files remain
 in the local candidate for review; no new licence is asserted over Sovol's
 contributions. Source: https://github.com/Sovol3d/SOVOL-ZERO (reviewed 2026-09-18).

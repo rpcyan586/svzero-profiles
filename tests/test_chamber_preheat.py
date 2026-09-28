@@ -669,7 +669,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
                           "hold"),
             "hold",
         )
-        shipped = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        shipped = (KLIPPER / "config/chamber_preheat.cfg").read_text()
         self.assertNotIn("\nboost_policy:", shipped,
                          "a shipped override would hide the module default")
 
@@ -753,7 +753,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
 
     def test_the_shipped_cap_is_25(self):
         import re
-        cfg = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        cfg = (KLIPPER / "config/chamber_preheat.cfg").read_text()
         shipped = re.search(r"^max_bed_boost:\s*([0-9.]+)", cfg, re.M)
         self.assertIsNotNone(shipped)
         self.assertEqual(float(shipped.group(1)), 25.0)
@@ -765,7 +765,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         # would buy chamber heat by making the operator wait for the bed.
         ctl = self._cold_start()[0]
         self.assertLess(ctl.bed_carry, 1.0)
-        cfg = (KLIPPER.parent / "chamber_preheat.cfg").read_text()
+        cfg = (KLIPPER / "config/chamber_preheat.cfg").read_text()
         import re
         shipped = re.search(r"^bed_carry:\s*([0-9.]+)", cfg, re.M)
         self.assertIsNotNone(shipped)
@@ -1251,9 +1251,8 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         writer is Python and the declaration is in a different file. This is
         the seam, so the check belongs here.
         """
-        cfg = KLIPPER.parent / "chamber_fan.cfg"
-        if not cfg.exists():                       # pragma: no cover
-            self.skipTest("chamber_fan.cfg not beside the module")
+        cfg = KLIPPER / "config/chamber_fan.cfg"
+        self.assertTrue(cfg.is_file(), "Missing shipped chamber configuration")
         text = cfg.read_text(encoding="utf-8")
         section = text.split("[gcode_macro _CH_STATE]", 1)[1].split("\n[", 1)[0]
         declared = set(re.findall(r"^variable_([a-z_0-9]+)\s*:", section, re.M))

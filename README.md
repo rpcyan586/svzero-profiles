@@ -1,9 +1,21 @@
 # SV Zero profiles
 
+**[Download the latest prerelease — v2.0.2-beta.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.0.2-beta.1)**
+
+[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-orcaslicer.zip) ·
+[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-prusaslicer.zip) ·
+[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-superslicer.zip)
+
+[Complete source](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-source.zip) ·
+[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/SHA256SUMS) ·
+[All releases](https://github.com/rpcyan586/svzero-profiles/releases)
+
+Each ZIP includes its installation guide and the optional printer macro pack.
+
 An open-beta candidate for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
 Sovol Zero. One source generates the profiles for all three slicers.
 
-**Candidate version: 2.0.2-beta.1.** Automated checks and slicing have passed;
+Automated checks and slicing have passed;
 physical testing of the latest stock-firmware fallback is still pending.
 Read [validation and limitations](docs/VALIDATION.md) before testing.
 
@@ -75,6 +87,19 @@ and logs. Use the [beta feedback template](.github/ISSUE_TEMPLATE/beta-feedback.
 - [Release workflow](docs/RELEASING.md)
 - [Changes](CHANGELOG.md)
 - [Licences and upstream attribution](NOTICE)
+
+## Repository layout
+
+| Directory | Contents |
+|---|---|
+| [bundles/](bundles/) | Generated profiles and single-file firmware configs |
+| [klipper/config/](klipper/config/) | Separate macro and hardware configuration sources |
+| [klipper/](klipper/) | Optional Python helpers |
+| [assets/](assets/) | Bed preview model, texture and credits |
+| [source/](source/) | Profile settings, schemas and pinned upstream inputs |
+| [tools/](tools/) | Generators, installers, release manifest and development dependencies |
+| [tests/](tests/) | Automated checks |
+| [docs/](docs/) | Development, download and validation guides |
 
 GitHub is the intended source of truth. Printables downloads will mirror
 reviewed GitHub releases, with matching versions and checksums. This repository

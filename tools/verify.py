@@ -37,12 +37,12 @@ def run(*args,cwd=ROOT):
 
 def main():
     import jinja2
-    if jinja2.__version__!='2.11.3':raise SystemExit('Use requirements-dev.txt: macros require Jinja 2.11.3 for this check')
+    if jinja2.__version__!='2.11.3':raise SystemExit('Use tools/requirements-dev.txt: macros require Jinja 2.11.3 for this check')
     version=(ROOT/'VERSION').read_text().strip()
-    for file in ('tools/start_gcode.py','svzero_pack.cfg','source/presets.json'):
+    for file in ('tools/start_gcode.py','klipper/config/svzero_pack.cfg','source/presets.json'):
         if version not in (ROOT/file).read_text():raise RuntimeError('Version mismatch: '+file)
     if 'hosts' in json.loads((ROOT/'source/model.json').read_text()):raise RuntimeError('Public model contains personal hosts')
-    if (ROOT/'svzero-personal.cfg').exists():raise RuntimeError('Personal config must not ship')
+    if (ROOT/'svzero-personal.cfg').exists() or (ROOT/'klipper/config/svzero-personal.cfg').exists():raise RuntimeError('Personal config must not ship')
     provenance=json.loads((ROOT/'source/vendor-profiles/provenance.json').read_text())
     for item in provenance['files']:
         p=ROOT/'source/vendor-profiles'/item['path']
@@ -51,7 +51,7 @@ def main():
     run('-m','unittest','discover','-s','tests','-p','test_*.py')
     run('tools/validate-bundle.py')
     macros=['nozzle_brush.cfg','chamber_fan.cfg','start_print.cfg','end_print.cfg','cancel_print.cfg','cooldown.cfg','purge_line.cfg','svzero_pack.cfg','filament_load.cfg','orca_compat.cfg','chamber_orbit.cfg']
-    run('tools/check-macros.py',*macros)
+    run('tools/check-macros.py',*['klipper/config/'+name for name in macros])
     run('tools/build-macros.py','--check')
     run('tools/check-macros.py','bundles/klipper/svzero-1.3.7.cfg','bundles/klipper/svzero-1.4.x.cfg')
     run('tools/check-purge-geometry.py')

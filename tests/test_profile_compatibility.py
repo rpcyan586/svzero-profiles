@@ -35,7 +35,7 @@ class InstallationContracts(unittest.TestCase):
         for version in ("1.3.7", "1.4.x"):
             with self.subTest(version=version):
                 cp = configparser.RawConfigParser(strict=False)
-                cp.read_string("\n".join(sections(PACK / ("svzero-%s.cfg" % version))))
+                cp.read_string("\n".join(sections(PACK / "klipper/config" / ("svzero-%s.cfg" % version))))
                 self.assertFalse(extras.intersection(s.split()[0] for s in cp.sections()))
                 self.assertEqual(cp.has_section("probe_pressure"), version == "1.3.7")
                 self.assertTrue(cp.has_section("gcode_macro PURGE_LINE"))
@@ -50,7 +50,7 @@ class InstallationContracts(unittest.TestCase):
 
     def test_python_is_an_explicit_separate_include(self):
         cp = configparser.RawConfigParser(strict=False)
-        cp.read_string("\n".join(sections(PACK / "svzero-python.cfg")))
+        cp.read_string("\n".join(sections(PACK / "klipper/config/svzero-python.cfg")))
         self.assertEqual(set(cp.sections()), {"chamber_preheat", "spool_guard"})
 
     def test_public_profiles_wait_for_bed_and_keep_optional_purge(self):

@@ -42,7 +42,7 @@ class MacroBundles(unittest.TestCase):
                 with self.subTest(name=name):
                     path = Path(tmp) / name
                     path.write_bytes(outputs[name])
-                    source = load_config(ROOT / name)
+                    source = load_config(ROOT / "klipper/config" / name)
                     combined = load_config(path)  # temp dir has no source includes
                     self.assertEqual(settings(combined), settings(source))
                     if name == "svzero-python.cfg":
@@ -64,8 +64,8 @@ class MacroBundles(unittest.TestCase):
         manifest = json.loads(outputs["manifest.json"])
         for name, info in manifest["targets"].items():
             self.assertEqual(info["sha256"], B.digest(outputs[name]))
-            self.assertIn(name, info["sources"])
-            self.assertNotIn("svzero-personal.cfg", info["sources"])
+            self.assertIn("klipper/config/" + name, info["sources"])
+            self.assertFalse(any(Path(n).name == "svzero-personal.cfg" for n in info["sources"]))
             for source, checksum in info["sources"].items():
                 self.assertEqual(checksum, B.digest((ROOT / source).read_bytes()))
 
@@ -99,7 +99,7 @@ class MacroBundles(unittest.TestCase):
 
     def test_build_refuses_source_overwrite_and_detects_stale_output(self):
         with self.assertRaises(ValueError):
-            B.build(ROOT, ROOT)
+            B.build(ROOT, ROOT / "klipper/config")
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             original = B.build(ROOT, out)

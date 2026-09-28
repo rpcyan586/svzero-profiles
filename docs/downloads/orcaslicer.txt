@@ -21,7 +21,7 @@ It replaces SVZero presets and selects defaults; close the slicer first.
 **Optional printer upgrade:** copy one firmware file from `bundles/klipper/` and
 add its include. On 1.4.x also disable the stock exhaust-fan section. Follow
 [INSTALL.md](INSTALL.md) for dependencies, brush commissioning, updates and
-rollback. Most `.cfg` files at this download's root are readable build sources;
+rollback. The `.cfg` files under `klipper/config/` are readable build sources;
 they are not files you have to install individually. Python helpers are opt-in.
 
 [Download contents and rebuilding](docs/DOWNLOADS.md) explains the included

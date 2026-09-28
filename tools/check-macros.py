@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Parse AND render every macro in a Klipper .cfg, in Klipper's own environment.
 
-    ./tools/check-macros.py nozzle_brush.cfg purge_line.cfg
+    ./tools/check-macros.py klipper/config/nozzle_brush.cfg klipper/config/purge_line.cfg
 
 Two lessons are baked in, both learned the expensive way:
 
@@ -1355,7 +1355,9 @@ def check(path):
 
 
 if __name__ == "__main__":
-    files = sys.argv[1:] or ["nozzle_brush.cfg", "purge_line.cfg"]
+    files = sys.argv[1:] or [os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                            "klipper", "config", name)
+                                for name in ("nozzle_brush.cfg", "purge_line.cfg")]
     total = 0
     for f in files:
         print("=== %s ===" % f)

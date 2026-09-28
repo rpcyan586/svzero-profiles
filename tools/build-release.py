@@ -101,7 +101,7 @@ def build(root=ROOT, output=None, requested=None):
             raise ValueError("This download can only rebuild " + record["kind"])
         chosen = {record["kind"]: files}
     else:
-        chosen = products(files, json.loads(files["release-files.json"]), requested)
+        chosen = products(files, json.loads(files["tools/release-files.json"]), requested)
     output = Path(output) if output is not None else root / "dist"
     output.mkdir(parents=True, exist_ok=True)
     sums = []

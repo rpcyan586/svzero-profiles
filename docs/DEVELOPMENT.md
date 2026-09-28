@@ -5,7 +5,7 @@ Use Python 3.11 for the reproducible macro-test environment:
 ```sh
 python3.11 -m venv .venv
 . .venv/bin/activate
-python -m pip install -r requirements-dev.txt
+python -m pip install -r tools/requirements-dev.txt
 python tools/verify.py
 ```
 
@@ -29,12 +29,16 @@ Pinned public Orca inputs and their checksums live under
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
 PrusaSlicer 3 output remains experimental and is not in the user download.
 
-Macro sources stay separate at the repository root. `tools/build-macros.py`
+Macro sources stay separate under `klipper/config/`. `tools/build-macros.py`
 expands each firmware's explicit include tree into one config under
 `bundles/klipper/`, with a separate opt-in config for the two Python helpers.
 It requires only Python's standard library. Tests compare the effective
 settings with the modular layout, including the 1.4.x probe overrides; the
 full suite also renders the consolidated macros and checks a clean rebuild.
+
+Bed preview assets live under `assets/`; installers copy them into the slicer's
+data directory and Orca generation includes them in its vendor folder. Release
+file selections are maintained in `tools/release-files.json`.
 
 ## Actual slicing
 

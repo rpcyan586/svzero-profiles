@@ -114,7 +114,7 @@ def measure(gcode):
 
 def main():
     cfg = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "purge_line.cfg")
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "klipper", "config", "purge_line.cfg")
     varz, tmpl = load(cfg)
     poly = [[60.0, 60.0], [95.0, 60.0], [95.0, 95.0], [60.0, 95.0]]
     ox1, oy0 = 95.0, 60.0

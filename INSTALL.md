@@ -33,7 +33,8 @@ steps require a firmware flash, OTA or Klipper update.
   particular replacement nozzle fits or has been calibrated.
 - Add your own printer connection. PrusaSlicer/SuperSlicer use `moonraker`;
   Orca uses `octoprint` against Moonraker. Public profiles contain no host address.
-- If needed, select `svzero_bed.stl` and `svzero_bed.svg` for the schematic bed preview.
+- If needed, select `assets/svzero_bed.stl` and `assets/svzero_bed.svg` for the
+  schematic bed preview.
 
 Public startup sets the bed target, makes the optional pack calls, waits for the
 bed with `M190` **before** `START_PRINT`, then waits for nozzle temperature before
@@ -71,8 +72,8 @@ into `~/printer_data/config/svzero/` on the printer:
 | 1.3.7 | `svzero-1.3.7.cfg` |
 | 1.4.x (checked against 1.4.7) | `svzero-1.4.x.cfg` |
 
-These are self-contained generated files. The separate `.cfg` files at the
-source root remain available for development; they are not additional install
+These are self-contained generated files. The separate `.cfg` files under
+`klipper/config/` remain available for development; they are not additional install
 steps. Do not load both layouts, both firmware files, or someone else's
 `svzero-personal.cfg`.
 
@@ -112,7 +113,7 @@ No such removal is needed on 1.3.7: the pack merges overrides into the existing
 Restart only while the printer is idle; restarting aborts a print. Validate changed macros
 with `tools/check-macros.py` in the target's Jinja environment before deployment.
 
-Review the brush geometry before using the replacement wipe. `nozzle_brush.cfg`
+Review the brush geometry before using the replacement wipe. `klipper/config/nozzle_brush.cfg`
 contains pad bounds measured on the author's machine; use `BRUSH_STATUS` and the
 file's documented `BRUSH_TEACH` / dry-run procedure to check your own machine.
 Adding the pack is not a substitute for checking physical clearances.
@@ -157,7 +158,7 @@ Install only the helpers you want. For adaptive preheat **and** Spoolman:
 [include svzero/svzero-python.cfg]
 ```
 
-For just one feature, copy the source `chamber_preheat.cfg` or `spool_guard.cfg`
+For just one feature, copy `chamber_preheat.cfg` or `spool_guard.cfg` from `klipper/config/`
 into the printer's `svzero/` directory and include that file instead. Copy that
 feature's module plus `moonraker.py` into `klippy/extras/`. Do not also include `svzero-python.cfg`. Apply your own personal
 settings last, after any sections they override.
@@ -207,7 +208,7 @@ An existing modular install can switch by replacing its firmware entry file
 with the generated file of the same name. Previously copied source files become
 unused unless you still include them explicitly. Remove those duplicate includes.
 
-The individual sources are retained for reading and editing. Rebuild with
+The individual sources remain under `klipper/config/` for reading and editing. Rebuild with
 Python 3 (standard library only), from the unpacked source directory:
 
 ```sh
