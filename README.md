@@ -6,7 +6,7 @@
 [PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-prusaslicer.zip) ·
 [SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-superslicer.zip)
 
-[Complete source](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-source.zip) ·
+[Source in Git](https://github.com/rpcyan586/svzero-profiles) ·
 [Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/SHA256SUMS) ·
 [All releases](https://github.com/rpcyan586/svzero-profiles/releases)
 
@@ -30,8 +30,14 @@ Python helpers are optional. Public startup retains `PURGE_LINE` and a priming
 skirt: stock firmware warns about the missing macro and continues; the skirt
 provides priming. Do not disable it unless another priming routine is installed.
 
-1. Download and unpack the ZIP named for your slicer, or use
-   this checkout. Read [INSTALL.md](INSTALL.md) for the firmware requirements.
+Download the ZIP named for your slicer and follow its included README. Its
+installation layout can differ from the development checkout below. The current
+2.0.2-beta.1 downloads retain the older layout; the next release uses the
+[streamlined download contents](docs/DOWNLOADS.md).
+
+From a **Git checkout**:
+
+1. Read [INSTALL.md](INSTALL.md) for the firmware requirements.
 2. **PrusaSlicer / SuperSlicer:** import the corresponding INI from `bundles/`
    using File → Import → Import Config Bundle.
 3. **OrcaSlicer:** with Orca closed, copy `bundles/orca-vendor/SVZero.json` and
@@ -42,7 +48,8 @@ provides priming. Do not disable it unless another priming routine is installed.
    and inspect the first-layer preview. Old projects can retain old settings;
    explicitly reselect the new presets and re-slice.
 
-For an isolated **Linux trial**, the installer can prepare a new data directory:
+For an isolated **Linux trial from a Git clone**, the installer can prepare a
+new data directory:
 
 ```sh
 python3 tools/install-presets.py orca "$HOME/svzero-beta-orca"
@@ -83,7 +90,7 @@ remove host addresses, API keys and other personal data from attached projects
 and logs. Use the [beta feedback template](.github/ISSUE_TEMPLATE/beta-feedback.md).
 
 - [Build and test](docs/DEVELOPMENT.md)
-- [Download contents and included builders](docs/DOWNLOADS.md)
+- [Download contents](docs/DOWNLOADS.md)
 - [Release workflow](docs/RELEASING.md)
 - [Changes](CHANGELOG.md)
 - [Licences and upstream attribution](NOTICE)

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — installation-only downloads
+
+- Build only three slicer ZIPs; source and build tools remain in Git.
+- Single INI imports for PrusaSlicer/SuperSlicer without duplicate loose presets.
+- Three consolidated optional macro configs instead of the individual sources,
+  with only the three runtime Python modules needed for preheat and Spoolman.
+- Short installation guides and direct archive paths; no profile or macro
+  settings changed. Existing published ZIPs retain their versioned contents.
+
 ## 2.0.2-beta.1 — installation and profile consistency
 
 - Separate OrcaSlicer, PrusaSlicer and SuperSlicer ZIPs, each containing its own

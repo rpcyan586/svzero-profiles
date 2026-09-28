@@ -1,5 +1,10 @@
 # Installation and optional upgrades
 
+This is the full guide for a **Git checkout**. Slicer ZIPs carry their own
+README and a shorter `INSTALL.md` for the consolidated optional macro pack.
+Use the paths in your download when installing from a ZIP. Clone the repository
+for individual feature configurations, development tools or fan/camera extras.
+
 **Start with the slicer profiles. No printer changes or Python modules are
 required for basic printing on stock Sovol Zero 1.3.7 or 1.4.x.** Here “stock”
 means Sovol's shipped Klipper configuration and macros, including `START_PRINT`
@@ -209,7 +214,7 @@ with the generated file of the same name. Previously copied source files become
 unused unless you still include them explicitly. Remove those duplicate includes.
 
 The individual sources remain under `klipper/config/` for reading and editing. Rebuild with
-Python 3 (standard library only), from the unpacked source directory:
+Python 3 (standard library only), from the Git checkout:
 
 ```sh
 python3 tools/build-macros.py

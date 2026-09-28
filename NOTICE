@@ -5,6 +5,10 @@ Third-party material retains its own notices and licensing. This notice is an
 inventory, not a claim that including a licence file resolves every upstream
 permission question.
 
+Paths below describe the Git source tree; installation ZIPs carry only the
+selected runtime files and generated configs. Full source and provenance:
+https://github.com/rpcyan586/svzero-profiles
+
 Public upstream inputs:
 - source/vendor-profiles: selected unmodified profile JSONs from
   Sovol3d/Sovol-OrcaSlicer, with a pinned commit and SHA-256 inventory in

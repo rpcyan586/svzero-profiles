@@ -1,47 +1,39 @@
-# Download contents
+# Slicer downloads
 
-Choose the ZIP named for your slicer. Each contains only that slicer's generated
-profiles, bed preview assets, a short installation README, and the same optional
-printer macro pack. A separate `source` ZIP contains the whole development tree,
-including the profile generator, tests and experimental PrusaSlicer 3 output.
+The next packaging revision provides **three ZIPs**, one per slicer. Each contains
+ready-to-install profiles, the optional consolidated macro pack, instructions and
+licence notices. Development sources and build tools stay in Git.
+Published `2.0.2-beta.1` ZIPs retain their older layout; follow the README inside
+your download. The streamlined layout below applies to the next release.
 
-| Download | Profile import | Optional printer install |
+| Download | Import/copy | Other contents |
 |---|---|---|
-| `orcaslicer` | Complete `bundles/orca-vendor/` vendor | One firmware config from `bundles/klipper/` |
-| `prusaslicer` | `bundles/SVZero_PrusaSlicer.ini` | Same macro pack |
-| `superslicer` | `bundles/SVZero_SuperSlicer.ini` | Same macro pack |
+| `orcaslicer` | `profiles/SVZero.json` and `profiles/SVZero/` into Orca's `system/` directory | Bed previews inside the vendor directory |
+| `prusaslicer` | Import `SVZero_PrusaSlicer.ini` | Bed previews under `assets/` |
+| `superslicer` | Import `SVZero_SuperSlicer.ini` | Bed previews under `assets/` |
 
-The PS/SS individual presets remain included for the optional isolated-directory
-installer. GUI import uses the single INI. Orca's vendor is a directory of JSON
-files because that is its load format; keep the directory intact. No slicer ZIP
-contains the other slicers' generated output or development-only vendor inputs.
+PrusaSlicer and SuperSlicer each use a single INI; individual presets are not
+repeated in their downloads. Orca's separate JSON files are required by its
+vendor format and must stay together. Its bed assets are not duplicated.
 
-The macro pack needs to be installed only once, even if you use several slicers.
-Its generated configs consolidate the separate sources in this download. Follow
-[INSTALL.md](../INSTALL.md): 1.4.x still requires disabling the original exhaust
-temperature-fan section. Python helpers remain optional. The source `.cfg` files
-under `klipper/config/` are supplied for clarity and rebuilding, not as extra
-copy/edit steps. Bed previews and their credits are under `assets/`.
+Every ZIP has an `optional-macros/` directory containing exactly three configs:
+choose **one** native firmware file (`svzero-1.3.7.cfg` or `svzero-1.4.x.cfg`),
+plus `svzero-python.cfg` only if enabling adaptive preheat and Spoolman. The three
+Python modules needed for those enhancements are beside them. The ZIP's
+`INSTALL.md` explains the 1.4.x fan edit, commissioning and rollback. There are
+no individual macro sources or build steps in the download. Fan/camera extras
+and individual-feature configurations remain available from Git.
 
-## Included builders
+`RELEASE.json` records the version, source commit and a hash for every packaged
+file. External `SHA256SUMS` covers the three complete ZIPs. Checksums detect
+changes relative to the record; they do not authenticate a download's origin.
 
-From the extracted download, with Python 3.11 or newer:
+## Source and development
 
-```sh
-python3 tools/build-macros.py --check
-python3 tools/build-release.py
-```
+Clone [the repository](https://github.com/rpcyan586/svzero-profiles) for the
+individual macro sources, profile generators, tests, isolated-directory installer
+and experimental PrusaSlicer 3 output. No separate source ZIP is built.
 
-The macro builder can regenerate `bundles/klipper/` after you edit the individual
-macro sources. The release builder can reproduce the unchanged download into
-`dist/` without Git or network access. `RELEASE.json` records its original source
-commit and SHA-256 for each input; changed inputs fail this reproduction check.
-Checksums detect changes relative to that record; they do not authenticate a
-download's origin. The external `SHA256SUMS` covers each complete ZIP.
-
-To develop and build a **changed release**, use the complete source ZIP or a Git
-checkout. In a checkout, edit the sources, regenerate, verify, then commit before
-running the release builder. Slicer downloads contain ready-made profiles, not
-the full profile generator. Both builders and all inputs to rebuild the macro
-pack are included in every slicer download; all profile-generation inputs are
-in the source ZIP.
+Both `tools/build-macros.py` and `tools/build-release.py` remain in Git. Build
+from a clean committed checkout following [DEVELOPMENT.md](DEVELOPMENT.md);
+release selection and archive paths live in `tools/release-files.json`.

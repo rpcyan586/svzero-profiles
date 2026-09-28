@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build deterministic, slicer-specific ZIPs from a clean checkout or download.
+"""Build three deterministic slicer downloads from a clean Git checkout.
 
-Each slicer ZIP includes the optional, rebuildable macro pack. A source ZIP
-contains the complete profile generator. No network operations are performed.
+Downloads contain ready-to-install profiles and optional consolidated macros.
+Development sources and builders stay in Git. No network operations are performed.
 """
 import argparse
 import hashlib
@@ -32,45 +32,53 @@ def read_file(root, name):
 
 
 def inventory(root):
-    """A Git checkout must be clean; an extracted download must match its record."""
-    if (root / ".git").exists():
-        if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=root).strip():
-            raise ValueError("Commit working-tree changes before packaging; dist/ is ignored")
-        names = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).decode().strip("\0").split("\0")
-        revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root).decode().strip()
-        return {name: read_file(root, name) for name in names}, revision, None
-    record = json.loads(read_file(root, "RELEASE.json"))
-    files = {name: read_file(root, name) for name in record["files"]}
-    for name, data in files.items():
-        if sha(data) != record["files"][name]:
-            raise ValueError("Downloaded input changed: " + name + "; use a source checkout to change releases")
-    return files, record["revision"], record
+    """Build only from a committed checkout, including Git worktrees."""
+    if not (root / ".git").exists():
+        raise ValueError("Build releases from a Git clone; slicer downloads contain installation files only")
+    if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=root).strip():
+        raise ValueError("Commit working-tree changes before packaging; dist/ is ignored")
+    names = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).decode().strip("\0").split("\0")
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root).decode().strip()
+    return {name: read_file(root, name) for name in names}, revision
 
 
-def select_files(files, names):
+def select_files(files, paths):
+    """Map explicitly selected files/trees into the download's installation layout."""
     selected = {}
-    for name in names:
-        matches = [n for n in files if n.startswith(name)] if name.endswith("/") else [name]
+    for source, destination in paths.items():
+        for name in (source, destination):
+            path = PurePosixPath(name)
+            if path.is_absolute() or ".." in path.parts or "\\" in name or not path.parts:
+                raise ValueError("Unsafe release path: " + name)
+        if source.endswith("/") != destination.endswith("/"):
+            raise ValueError("Map directories to directories and files to files: " + source)
+        matches = [n for n in files if n.startswith(source)] if source.endswith("/") else [source]
         if not matches or any(n not in files for n in matches):
-            raise ValueError("Missing release selection: " + name)
-        selected.update((n, files[n]) for n in matches)
+            raise ValueError("Missing release selection: " + source)
+        for name in matches:
+            target = destination + name[len(source):] if source.endswith("/") else destination
+            if target in selected or target == "RELEASE.json":
+                raise ValueError("Duplicate or reserved release destination: " + target)
+            selected[target] = files[name]
     return selected
 
 
 def products(files, manifest, requested=None):
     definitions = manifest["products"]
-    kinds = requested or [*definitions, "source"]
+    kinds = requested or list(definitions)
     result = {}
     for kind in kinds:
-        if kind == "source":
-            result[kind] = dict(files)
-        elif kind in definitions:
-            definition = definitions[kind]
-            selected = select_files(files, manifest["common"] + definition["files"])
-            selected["README.md"] = files[definition["readme"]]
-            result[kind] = selected
-        else:
-            raise ValueError("Unknown release kind: " + kind)
+        if kind not in definitions:
+            raise ValueError("Unknown release kind: " + kind + "; source is available from Git")
+        definition = definitions[kind]
+        selected = select_files(files, manifest["common"])
+        specific = select_files(files, definition["files"])
+        overlap = selected.keys() & specific.keys()
+        if overlap or "README.md" in selected or "README.md" in specific:
+            raise ValueError("Duplicate release destination in " + kind)
+        selected.update(specific)
+        selected["README.md"] = files[definition["readme"]]
+        result[kind] = selected
     return result
 
 
@@ -90,26 +98,20 @@ def write_archive(path, files, version, kind, revision):
 
 def build(root=ROOT, output=None, requested=None):
     root = Path(root).resolve()
-    files, revision, record = inventory(root)
+    files, revision = inventory(root)
     version = files["VERSION"].decode().strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?", version):
         raise ValueError("Invalid release version")
-    if record and record["version"] != version:
-        raise ValueError("Version does not match download record")
-    if record and record["kind"] != "source":
-        if requested and requested != [record["kind"]]:
-            raise ValueError("This download can only rebuild " + record["kind"])
-        chosen = {record["kind"]: files}
-    else:
-        chosen = products(files, json.loads(files["tools/release-files.json"]), requested)
+    chosen = products(files, json.loads(files["tools/release-files.json"]), requested)
     output = Path(output) if output is not None else root / "dist"
+    if output.is_symlink() or (output.exists() and
+                              (not output.is_dir() or any(output.iterdir()))):
+        raise ValueError("Release output must be empty; use --output with a new directory")
     output.mkdir(parents=True, exist_ok=True)
     sums = []
     for kind, members in chosen.items():
         name = "svzero-profiles-" + version + "-" + kind + ".zip"
         path = output / name
-        if path.is_symlink():
-            raise ValueError("Release output symlink refused: " + name)
         write_archive(path, members, version, kind, revision)
         sums.append(sha(path.read_bytes()) + "  " + name)
         print(name, len(members) + 1, "files")

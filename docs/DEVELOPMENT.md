@@ -38,7 +38,11 @@ full suite also renders the consolidated macros and checks a clean rebuild.
 
 Bed preview assets live under `assets/`; installers copy them into the slicer's
 data directory and Orca generation includes them in its vendor folder. Release
-file selections are maintained in `tools/release-files.json`.
+source-to-download path mappings are maintained in `tools/release-files.json`.
+After committing a clean tree, `python tools/build-release.py --output PATH`
+builds only the three slicer ZIPs and `SHA256SUMS`. Sources, builders and the
+isolated-directory installer remain in the Git checkout; downloads use manual
+INI import or Orca vendor copying. See [DOWNLOADS.md](DOWNLOADS.md).
 
 ## Actual slicing
 

@@ -1,48 +1,39 @@
 {
-  "common": [
-    "bundles/klipper/",
-    "tools/build-macros.py",
-    "VERSION",
-    "INSTALL.md",
-    "CHANGELOG.md",
-    "NOTICE",
-    "LICENSE",
-    "LICENSES/",
-    "assets/svzero_bed.stl",
-    "assets/svzero_bed.svg",
-    "assets/svzero_bed.CREDITS.md",
-    "klipper/",
-    ".github/ISSUE_TEMPLATE/beta-feedback.md",
-    "tools/build-release.py",
-    "tools/release-files.json",
-    "tools/install-presets.py",
-    "tools/start_gcode.py",
-    "source/model.json",
-    "docs/VALIDATION.md",
-    "docs/validation-2.0.1-beta.1.json",
-    "docs/DOWNLOADS.md",
-    "docs/RELEASING.md",
-    "tools/check-macros.py"
-  ],
+  "common": {
+    "bundles/klipper/svzero-1.3.7.cfg": "optional-macros/svzero-1.3.7.cfg",
+    "bundles/klipper/svzero-1.4.x.cfg": "optional-macros/svzero-1.4.x.cfg",
+    "bundles/klipper/svzero-python.cfg": "optional-macros/svzero-python.cfg",
+    "klipper/chamber_preheat.py": "optional-macros/chamber_preheat.py",
+    "klipper/spool_guard.py": "optional-macros/spool_guard.py",
+    "klipper/moonraker.py": "optional-macros/moonraker.py",
+    "docs/downloads/macros.txt": "INSTALL.md",
+    "NOTICE": "NOTICE",
+    "LICENSE": "LICENSE",
+    "LICENSES/": "LICENSES/"
+  },
   "products": {
     "orcaslicer": {
-      "files": [
-        "bundles/orca-vendor/"
-      ],
+      "files": {
+        "bundles/orca-vendor/": "profiles/"
+      },
       "readme": "docs/downloads/orcaslicer.txt"
     },
     "prusaslicer": {
-      "files": [
-        "bundles/SVZero_PrusaSlicer.ini",
-        "bundles/ps-presets/"
-      ],
+      "files": {
+        "bundles/SVZero_PrusaSlicer.ini": "SVZero_PrusaSlicer.ini",
+        "assets/svzero_bed.stl": "assets/svzero_bed.stl",
+        "assets/svzero_bed.svg": "assets/svzero_bed.svg",
+        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md"
+      },
       "readme": "docs/downloads/prusaslicer.txt"
     },
     "superslicer": {
-      "files": [
-        "bundles/SVZero_SuperSlicer.ini",
-        "bundles/ss-presets/"
-      ],
+      "files": {
+        "bundles/SVZero_SuperSlicer.ini": "SVZero_SuperSlicer.ini",
+        "assets/svzero_bed.stl": "assets/svzero_bed.stl",
+        "assets/svzero_bed.svg": "assets/svzero_bed.svg",
+        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md"
+      },
       "readme": "docs/downloads/superslicer.txt"
     }
   }

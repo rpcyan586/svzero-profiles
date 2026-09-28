@@ -1,14 +1,29 @@
 # Validation and known limitations
 
-## Candidate 2.0.2-beta.1
+## Unreleased packaging simplification
 
-The offline suite passes 131 tests. The profile repairs retain the native
+The offline suite passes **133 tests**, including seven release-packaging tests.
+The builder produces only three slicer ZIPs from a clean committed checkout;
+two independent builds match byte for byte. Extracted-content tests check the
+single INI import bundles, complete Orca vendor copy, optional macro/module
+dependencies, bed assets, licences, local documentation links and file hashes.
+These tests check the installation files; they do not automate a GUI import.
+
+The planned downloads contain 80 files for Orca and 16 each for PrusaSlicer and
+SuperSlicer, including exactly three consolidated CFGs in each. Source configs,
+builders and the individual PS/SS preset trees remain in Git. The shipped
+profile data, macro settings and runtime helper code are unchanged. A new
+versioned release, final archive checks and publication review are still pending.
+
+## Published 2.0.2-beta.1
+
+The release passed 131 tests. The profile repairs retain the native
 SuperSlicer travel-deceleration option
 and add layer-limit/precision checks. Macro consolidation compares all effective
 settings and renders both firmware configurations under Jinja 2.11.3. Release
-tests extract each slicer ZIP, install into a fresh isolated data directory,
-check macro rebuilds and reproduce the original ZIP byte for byte without Git.
-The complete source archive also reproduces from its extracted contents.
+tests extracted each slicer ZIP, installed into a fresh isolated data directory,
+checked macro rebuilds and reproduced the original ZIP byte for byte without Git.
+That release's complete source archive also reproduced from its extracted contents.
 
 These are offline checks. Physical-print and platform limitations below remain.
 

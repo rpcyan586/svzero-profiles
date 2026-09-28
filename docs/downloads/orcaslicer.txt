@@ -1,30 +1,29 @@
 # SV Zero — OrcaSlicer download
 
-With OrcaSlicer closed, copy `bundles/orca-vendor/SVZero.json` and the entire
-`bundles/orca-vendor/SVZero/` directory into your Orca configuration directory's
-`system/` folder. Keep those files together; they include the inherited machine,
-process and filament definitions. Enable SV Zero in printer selection.
-
-For an isolated Linux trial, run:
-
-```sh
-python3 tools/install-presets.py orca "$HOME/svzero-beta-orca"
-flatpak run com.orcaslicer.OrcaSlicer --datadir "$HOME/svzero-beta-orca"
-```
+With OrcaSlicer closed, copy `profiles/SVZero.json` and the entire
+`profiles/SVZero/` directory into your Orca configuration directory's `system/`
+folder. Keep that directory intact: Orca needs the individual machine, process
+and filament JSON files, including inherited base definitions. The bed preview
+and its credits are already inside it. Enable SV Zero in printer selection.
 
 Select the nozzle actually installed, choose print and filament presets, then
-configure your own printer connection. Profiles alone support stock Sovol Zero
-1.3.7 and 1.4.x startup; retain the fallback skirt. Re-select presets in saved
-projects and re-slice. The installer is intended for a dedicated data directory.
-It replaces SVZero presets and selects defaults; close the slicer first.
+configure your own printer connection. Re-select presets in saved projects and
+re-slice. Profiles alone support stock Sovol Zero 1.3.7 and 1.4.x start/end macros.
+Keep the fallback skirt: the stock firmware warns about missing optional pack
+commands and continues, and the skirt provides priming without the purge macro.
 
-**Optional printer upgrade:** copy one firmware file from `bundles/klipper/` and
-add its include. On 1.4.x also disable the stock exhaust-fan section. Follow
-[INSTALL.md](INSTALL.md) for dependencies, brush commissioning, updates and
-rollback. The `.cfg` files under `klipper/config/` are readable build sources;
-they are not files you have to install individually. Python helpers are opt-in.
+**Optional printer macros:** follow [INSTALL.md](INSTALL.md). Copy only the
+consolidated config for your firmware from `optional-macros/` and add one include.
+The Python enhancements are optional. You do not need to build anything or copy
+individual macro sources. Install the macro pack only once if using several slicers.
 
-[Download contents and rebuilding](docs/DOWNLOADS.md) explains the included
-builders. The version is in `VERSION`, with an exact inventory in `RELEASE.json`.
-See [validation and limits](docs/VALIDATION.md) and [licences](NOTICE). These are
-beta profiles; offline checks do not establish physical print quality.
+These are beta profiles. Offline checks and slicing do not establish physical
+print quality or nozzle suitability. Stock-startup physical commissioning and
+Windows/macOS installation feedback remain pending. The macro pack also needs
+brush-clearance checks; 1.4.x requires an exhaust-fan configuration edit.
+
+See [validation and limitations](https://github.com/rpcyan586/svzero-profiles/blob/main/docs/VALIDATION.md)
+and [licences](NOTICE). `RELEASE.json` records the version, source commit and
+per-file hashes; the release's `SHA256SUMS` covers the complete ZIPs.
+For development, clone [the Git repository](https://github.com/rpcyan586/svzero-profiles),
+which retains the individual macro sources, builders and isolated-directory installer.
