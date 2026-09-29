@@ -52,7 +52,7 @@ values:
     M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\n;  reaches a MINIMUM and calls its own
     G28, which is wrong for PLA where 32C\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive
     materials.\n;  _PREFLIGHT is first so a rejected job costs no heating. It is inert\n;  unless the
-    optional spool_guard extra is installed.\nSVZERO_REQUIRE VERSION=2.0.2-beta.1\n_PREFLIGHT\n;  M140
+    optional spool_guard extra is installed.\nSVZERO_REQUIRE VERSION=2.0.3-beta.1\n_PREFLIGHT\n;  M140
     BEFORE the chamber block, and that order is load-bearing. The\n;  M191 macro reads printer.heater_bed.target
     live and hands it to the\n;  host waiter as BED_TARGET; with no target set yet the waiter is told\n;  0
     and commands the plate OFF for the whole chamber soak. Orca''s\n;  preamble has always had it this

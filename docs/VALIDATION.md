@@ -1,6 +1,6 @@
 # Validation and known limitations
 
-## Unreleased packaging simplification
+## Candidate 2.0.3-beta.1
 
 The offline suite passes **133 tests**, including seven release-packaging tests.
 The builder produces only three slicer ZIPs from a clean committed checkout;
@@ -9,11 +9,12 @@ single INI import bundles, complete Orca vendor copy, optional macro/module
 dependencies, bed assets, licences, local documentation links and file hashes.
 These tests check the installation files; they do not automate a GUI import.
 
-The planned downloads contain 80 files for Orca and 16 each for PrusaSlicer and
+The downloads contain 80 files for Orca and 16 each for PrusaSlicer and
 SuperSlicer, including exactly three consolidated CFGs in each. Source configs,
-builders and the individual PS/SS preset trees remain in Git. The shipped
-profile data, macro settings and runtime helper code are unchanged. A new
-versioned release, final archive checks and publication review are still pending.
+builders and the individual PS/SS preset trees remain in Git. Profile behavior,
+macro settings and runtime helper code are unchanged; the
+release identifiers advance to 2.0.3-beta.1 (PS vendor 2.0.3, Orca 02.00.03.01).
+The release notes record final-archive verification separately.
 
 ## Published 2.0.2-beta.1
 

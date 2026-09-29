@@ -658,7 +658,7 @@ def apply_flow_model(model, ss):
 
 
 PS_TARGET = "2.9.6"          # overwritten from model.json in main()
-PS_CONFIG_VERSION = "2.0.2"  # vendor bundle version; must match the .idx entry
+PS_CONFIG_VERSION = "2.0.3"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
 
 
@@ -2163,7 +2163,7 @@ def emit_orca_vendor(model, ss, out_dir):
         process_list.append({"name": doc["name"], "sub_path": "process/" + f})
 
     idx = collections.OrderedDict([
-        ("name", "SVZero"), ("version", "02.00.02.01"), ("force_update", "0"),
+        ("name", "SVZero"), ("version", "02.00.03.01"), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
         ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]),
         ("process_list", process_list), ("filament_list", filament_list),

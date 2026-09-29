@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — installation-only downloads
+## 2.0.3-beta.1 — installation-only downloads
 
 - Build only three slicer ZIPs; source and build tools remain in Git.
 - Single INI imports for PrusaSlicer/SuperSlicer without duplicate loose presets.

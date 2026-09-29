@@ -1,10 +1,10 @@
 # Slicer downloads
 
-The next packaging revision provides **three ZIPs**, one per slicer. Each contains
+Release `2.0.3-beta.1` provides **three ZIPs**, one per slicer. Each contains
 ready-to-install profiles, the optional consolidated macro pack, instructions and
 licence notices. Development sources and build tools stay in Git.
 Published `2.0.2-beta.1` ZIPs retain their older layout; follow the README inside
-your download. The streamlined layout below applies to the next release.
+your download. The streamlined layout below applies to `2.0.3-beta.1`.
 
 | Download | Import/copy | Other contents |
 |---|---|---|

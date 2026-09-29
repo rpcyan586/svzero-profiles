@@ -1,13 +1,13 @@
 # SV Zero profiles
 
-**[Download the latest prerelease — v2.0.2-beta.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.0.2-beta.1)**
+**[Download the latest prerelease — v2.0.3-beta.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.0.3-beta.1)**
 
-[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-orcaslicer.zip) ·
-[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-prusaslicer.zip) ·
-[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/svzero-profiles-2.0.2-beta.1-superslicer.zip)
+[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-orcaslicer.zip) ·
+[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-prusaslicer.zip) ·
+[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-superslicer.zip)
 
 [Source in Git](https://github.com/rpcyan586/svzero-profiles) ·
-[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.2-beta.1/SHA256SUMS) ·
+[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/SHA256SUMS) ·
 [All releases](https://github.com/rpcyan586/svzero-profiles/releases)
 
 Each ZIP includes its installation guide and the optional printer macro pack.
@@ -31,9 +31,8 @@ skirt: stock firmware warns about the missing macro and continues; the skirt
 provides priming. Do not disable it unless another priming routine is installed.
 
 Download the ZIP named for your slicer and follow its included README. Its
-installation layout can differ from the development checkout below. The current
-2.0.2-beta.1 downloads retain the older layout; the next release uses the
-[streamlined download contents](docs/DOWNLOADS.md).
+installation layout can differ from the development checkout below. See the
+[download contents](docs/DOWNLOADS.md) for its installation files.
 
 From a **Git checkout**:
 

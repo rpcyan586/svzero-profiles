@@ -31,6 +31,6 @@ shortcut does not identify a prerelease. Repository layout changes apply to
 the next release; keep already-published tags and download files unchanged.
 
 Numeric vendor versions cannot express a prerelease suffix. This candidate maps
-release `2.0.2-beta.1` to PS vendor `2.0.2` and Orca vendor `02.00.02.01`.
+release `2.0.3-beta.1` to PS vendor `2.0.3` and Orca vendor `02.00.03.01`.
 Advance vendor versions for each distributed update so loaders see the change.
 The workflow has read-only repository permissions and no publishing credentials.
