@@ -48,6 +48,9 @@ promise the replacement macro's settle-before-calibration sequence. It also
 means public profiles do not depend on overlapping the nozzle wipe with the
 bed's final settling time.
 
+See [Startup sequence](docs/STARTUP.md) for the complete order, the optional
+installation levels, and the division of work between slicer and macros.
+
 **Public profiles retain `PURGE_LINE`.** On stock Klipper an unknown ordinary
 command produces a console warning and execution continues. A minimum one-loop
 skirt, extended to extrude at least **8 mm of filament** (not 8 mm of path),
