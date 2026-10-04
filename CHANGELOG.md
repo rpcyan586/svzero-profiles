@@ -5,6 +5,9 @@
 - Curtain fan (`fan2`) gets `off_below: 0.15`, so an auxiliary-fan request below
   its measured ~14% stall point switches it off instead of leaving it powered
   and stalled. The cooldown assist never asks for less than 0.20.
+- Hotend fan tach: `tachometer_ppr: 2`. Stock says 1, so the UI showed twice the
+  real speed, ~16,700 rpm at full; at 2 it reads 8,350-8,410 rpm against
+  8,130-8,220 from the toolhead accelerometer. Display only.
 
 ## 2.0.3-beta.1 — installation-only downloads
 
