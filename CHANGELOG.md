@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Curtain fan (`fan2`) gets `off_below: 0.15`, so an auxiliary-fan request below
+  its measured ~14% stall point switches it off instead of leaving it powered
+  and stalled. The cooldown assist never asks for less than 0.20.
+
 ## 2.0.3-beta.1 — installation-only downloads
 
 - Build only three slicer ZIPs; source and build tools remain in Git.
