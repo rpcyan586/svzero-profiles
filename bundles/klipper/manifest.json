@@ -4,10 +4,10 @@
     "svzero-1.3.7.cfg": {
       "sources": {
         "klipper/config/cancel_print.cfg": "c9331df0da35a45dc56e9cfe7245ee8e07ebfabf5fb287de044beab3e4b3777c",
-        "klipper/config/chamber_fan.cfg": "2ff4b7352ad7a3b27425d5d21c130dc8984ae914ae164ceea569353ab9b6bffc",
-        "klipper/config/chamber_fan_hw_1.3.7.cfg": "116219db16e9b26e5f57b16b2f3b10f10f59fbcccf9e0fe6d111a4c2edfb0829",
+        "klipper/config/chamber_fan.cfg": "fc7e01ad89a58b3ea601cc14c3ddfd660bd127a4f82e9cb098849d0a48c71ec3",
+        "klipper/config/chamber_fan_hw_1.3.7.cfg": "1268aa4168b385c7e8719b5adabc28ae1ec4c703f6f33053e6a468112399a4fc",
         "klipper/config/chamber_orbit.cfg": "9954dfec03d3dee0f689d93c188ebcc74352d82f4e7689b3e3e43d1aadeae7c4",
-        "klipper/config/cooldown.cfg": "aaccdb2fe2bce1ccd30606ccb65a2419593fb96b8fb7df192fa207867d4575c6",
+        "klipper/config/cooldown.cfg": "a171de21b9ac41fa1570d608281bd7a5f9112a5682d2446f1cb7e3192871c048",
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
         "klipper/config/end_print.cfg": "10e1ce2d261958ea849acad051433af289aad88846758d097e481f89bc7f23e9",
         "klipper/config/filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
@@ -19,15 +19,15 @@
         "klipper/config/svzero-1.3.7.cfg": "3328f292353d848d9f360437d4737e189d94b6733cc3d8eada6c2c4c4de7705a",
         "klipper/config/svzero_pack.cfg": "2bf6e0d2662f1547d12ab88427690aa1273b3ea39812a83341a6f6b3a5de683a"
       },
-      "sha256": "de1e98e0376518aaf7efc528aaf2aa4a350e731a46cd474477e59030b3ccb92c"
+      "sha256": "764d17e90a6ccebd90fdeb759027138c821c512a071ab20a23031144288e6884"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
         "klipper/config/cancel_print.cfg": "c9331df0da35a45dc56e9cfe7245ee8e07ebfabf5fb287de044beab3e4b3777c",
-        "klipper/config/chamber_fan.cfg": "2ff4b7352ad7a3b27425d5d21c130dc8984ae914ae164ceea569353ab9b6bffc",
-        "klipper/config/chamber_fan_hw_1.4.x.cfg": "d9f382a925c75cd2a6354199073aee8236fa41990b624e2b017902a44ff9cbf8",
+        "klipper/config/chamber_fan.cfg": "fc7e01ad89a58b3ea601cc14c3ddfd660bd127a4f82e9cb098849d0a48c71ec3",
+        "klipper/config/chamber_fan_hw_1.4.x.cfg": "0896fd561bdc90b492b90da037c461bce851c5b28354f46928f700eb3d92c464",
         "klipper/config/chamber_orbit.cfg": "9954dfec03d3dee0f689d93c188ebcc74352d82f4e7689b3e3e43d1aadeae7c4",
-        "klipper/config/cooldown.cfg": "aaccdb2fe2bce1ccd30606ccb65a2419593fb96b8fb7df192fa207867d4575c6",
+        "klipper/config/cooldown.cfg": "a171de21b9ac41fa1570d608281bd7a5f9112a5682d2446f1cb7e3192871c048",
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
         "klipper/config/end_print.cfg": "10e1ce2d261958ea849acad051433af289aad88846758d097e481f89bc7f23e9",
         "klipper/config/filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
@@ -38,7 +38,7 @@
         "klipper/config/svzero-1.4.x.cfg": "813c5998aeba0c95b8a8b9b5f42d575b8a60bf91752cae7482f676ae0a2a3d3a",
         "klipper/config/svzero_pack.cfg": "2bf6e0d2662f1547d12ab88427690aa1273b3ea39812a83341a6f6b3a5de683a"
       },
-      "sha256": "2c356440c8dd000cd746205a61c63fb67f4e374983e51bef5a84dee678579543"
+      "sha256": "5808895ed7f2ef0e7f66809c0eca5719ed80c0e1799f597d8455ba979162774b"
     },
     "svzero-python.cfg": {
       "sources": {

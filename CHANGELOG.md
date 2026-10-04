@@ -8,6 +8,13 @@
 - Hotend fan tach: `tachometer_ppr: 2`. Stock says 1, so the UI showed twice the
   real speed, ~16,700 rpm at full; at 2 it reads 8,350-8,410 rpm against
   8,130-8,220 from the toolhead accelerometer. Display only.
+- Exhaust fan defaults made conservative, on the curtain fan's rule of one point
+  above the worst measured floor. `off_below: 0.15` on the exhaust section, so
+  a request below it (a slicer `M106 P3` on 1.3.7, a UI slider) turns the fan
+  off instead of stalling it powered. The chamber loop's known-good floor
+  default goes from 0.13 to 0.15: one unit failed 13% in service and holds 14%.
+  Adaptive floor trials (`ch_floor_autotune`) are now opt-in; they need
+  `off_below: 0.00`. Saved values on an existing install are unaffected.
 
 ## 2.0.3-beta.1 — installation-only downloads
 

@@ -481,8 +481,11 @@ def check(path):
             # path and never render the ramp.
             if "ch_written" not in kw:
                 base["ch_written"] = ch
+            # The assist scenarios' arithmetic is written against a 0.13 exhaust
+            # floor, which was the default until 2026-10-04; pinned so they keep
+            # testing the arithmetic rather than the published default (0.15).
             patch = {"gcode_macro _COOL_STATE": Mock(base),
-                     "save_variables": Mock(variables=Mock(ch_target=ch))}
+                     "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13))}
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the
@@ -550,6 +553,18 @@ def check(path):
                  dict(vent(0.11), **{"gcode_macro _COOL_STATE": Mock(active=1, phase=1)})),
             ]
 
+        elif s == "gcode_macro _CH_ADAPT_BEGIN":
+            # Published defaults since 2026-10-04: nothing saved means the
+            # known-good 0.15 floor and no trial. The trial branch is opt-in.
+            def adapt(**kw):
+                sv = {"ch_target": 32.0}
+                sv.update(kw)
+                return {"save_variables": Mock(variables=Mock(sv))}
+            scenarios = [
+                ("published-defaults", None, "", {}, {}, adapt()),
+                ("opt-in-trial", None, "", {}, {},
+                 adapt(ch_floor_autotune=1, ch_minfan=0.14)),
+            ]
         elif s == "gcode_macro _COOLDOWN_CLEAR":
             # KEEP_POLICY is the whole point of this macro having a parameter,
             # and it is only reachable by passing one. Rendered with the default
@@ -941,6 +956,10 @@ def check(path):
         # branch it was written for is still unrendered. Naming the expected
         # output turns "it rendered" into "it rendered THIS".
         expect = {
+            ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"):
+                "Adaptive floor 0.15, lowering cooldown 0",
+            ("gcode_macro _CH_ADAPT_BEGIN", "opt-in-trial"):
+                "Adaptive floor trial 0.135, known-good 0.14",
             ("gcode_macro _COOLDOWN_START", "heaterless"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             # The cooldown no longer touches the chamber heater at start; the
             # paired forbid proves it, this proves the ramp still armed.
@@ -1140,6 +1159,7 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"): "VARIABLE=trial_active VALUE=1",
                   # A step that cannot be held must emit no arc at all.
                   ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
