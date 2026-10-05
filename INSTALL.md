@@ -66,6 +66,15 @@ warning. Unknown commands being harmless does **not** make errors in an
 installed macro harmless; nor does it apply to commands such as
 `SET_GCODE_VARIABLE` naming a nonexistent target.
 
+**With the pack installed, `SVZERO_REQUIRE` checks two things.**
+- **A different pack version** prints one warning and the job continues.
+- **A different machine mode** refuses the job before any heater is commanded.
+  A mode is a machine configuration selected by an include and a Klipper
+  restart. The pack ships one, `standard`.
+- **Older profiles** name no mode, and their jobs run as standard.
+- **In any mode other than standard**, a job that never identifies itself is
+  refused when it reaches `START_PRINT`.
+
 For an isolated trial, use the public installer with a new data directory;
 see [the quick start](README.md#try-the-profiles). The public installer
 keeps skirts enabled. Configure printer connections in your slicer.

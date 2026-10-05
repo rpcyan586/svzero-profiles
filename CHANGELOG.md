@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — machine mode in the handshake
+
+- **The handshake carries the machine mode:** `SVZERO_REQUIRE VERSION=… MODE=standard`.
+  - A mode mismatch refuses the job before any heater is commanded.
+  - A version mismatch still only warns.
+  - Jobs from older profiles name no mode and run as standard.
+- **Outside standard mode**, a job that never identifies itself is refused at
+  `START_PRINT`.
+- **The pack ships only the standard mode.** This prepares for modes selected
+  by a config include and a Klipper restart.
+- `CANCEL_PRINT` clears a pending handshake, so a job cancelled during heat-up
+  cannot vouch for the next one.
+- Tests check that every slicer bundle emits the same handshake line. The macro
+  checker now asserts refusals.
+
 ## 2.0.3-beta.1 — installation-only downloads
 
 - Build only three slicer ZIPs; source and build tools remain in Git.

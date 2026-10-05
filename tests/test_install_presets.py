@@ -137,7 +137,7 @@ class InstallPresetsTest(unittest.TestCase):
             with self.subTest(block=name):
                 lines = [line for line in block.split("\n")
                          if line and not line.startswith(";")]
-                self.assertEqual(lines[0], "SVZERO_REQUIRE VERSION=" + start_gcode.SVZERO_PACK_VERSION)
+                self.assertEqual(lines[0], start_gcode.SVZERO_REQUIRE_LINE)
                 self.assertEqual(lines[1], "_PREFLIGHT")
                 self.assertTrue(lines[2].startswith("M140 "))
 

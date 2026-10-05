@@ -27,14 +27,21 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
 # as plain strings and a mismatch only warns -- see the note in that file.
 SVZERO_PACK_VERSION = "2.0.3-beta.1"
+# The machine mode these profiles are sliced for, compared with
+# _SVZERO_PACK.mode. Unlike the version, a mismatch REFUSES the job: a mode is
+# a machine configuration selected by an include and a restart, and a job
+# sliced for another one asks for motion the machine was not set up for.
+SVZERO_MODE = "standard"
+SVZERO_REQUIRE_LINE = "SVZERO_REQUIRE VERSION=%s MODE=%s" % (SVZERO_PACK_VERSION, SVZERO_MODE)
 
 ORCA_PREFLIGHT_BLOCK = "\n".join([
-    ";  SVZERO_REQUIRE names the pack this profile was built against. It only",
-    ";  ever WARNS: on a printer without the pack it is an unknown command,",
-    ";  which Klipper reports and steps over, and on a printer with a different",
-    ";  pack version it prints one line. It also tells the pack that a job was",
-    ";  sliced by an SV Zero profile, so START_PRINT can say when one was not.",
-    "SVZERO_REQUIRE VERSION=%s" % SVZERO_PACK_VERSION,
+    ";  SVZERO_REQUIRE names the pack version and machine mode this profile was",
+    ";  built for. On a printer without the pack it is an unknown command,",
+    ";  which Klipper reports and steps over. A different pack version prints",
+    ";  one warning. A different MODE refuses the job here, before any heater.",
+    ";  It also tells the pack that a job was sliced by an SV Zero profile, so",
+    ";  START_PRINT can say when one was not.",
+    SVZERO_REQUIRE_LINE,
     ";  _PREFLIGHT is next so a rejected job costs no heating. It is inert",
     ";  unless the optional spool_guard extra is installed.",
     "_PREFLIGHT",

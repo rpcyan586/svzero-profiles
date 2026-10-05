@@ -6,6 +6,10 @@ and use the same ZIPs and SHA256SUMS on both platforms.
 1. Update `VERSION`, the handshake in `tools/start_gcode.py`, `klipper/config/svzero_pack.cfg`
    and `source/presets.json`, plus numeric vendor versions in the generator.
    Update the changelog and validation record. Regenerate and run the suite.
+   The handshake line also carries `MODE`, which changes only when a profile is
+   built for a different machine mode, never per release.
+   `tests/test_handshake.py` checks that every generated bundle emits the line
+   exactly.
 2. Record current actual-slicer and physical test results. Describe limitations
    explicitly. Resolve the upstream licence questions in `NOTICE` before the
    first public upload; a passing software test is not a licensing decision.

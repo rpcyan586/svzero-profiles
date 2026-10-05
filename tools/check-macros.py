@@ -340,20 +340,50 @@ def check(path):
                 ("blind", params, "", {}, {}, sv(last_nozzle_temp=0.0)),
             ]
         elif s == "gcode_macro SVZERO_REQUIRE":
-            pack = lambda seen=0: {"gcode_macro _SVZERO_PACK":
-                                   Mock(version="1.0.4", seen=seen)}
+            # mode=None leaves the attribute off entirely: a pack section from
+            # before modes existed, which must read as standard.
+            def pack(seen=0, mode=None):
+                fields = dict(version="1.0.4", seen=seen)
+                if mode is not None:
+                    fields["mode"] = mode
+                return {"gcode_macro _SVZERO_PACK": Mock(fields)}
             scenarios = [
+                # Profiles from before modes: VERSION only.
                 ("version-match", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
                  {}, {}, pack()),
                 ("version-mismatch", Mock(VERSION="0.9.0"), "VERSION=0.9.0",
                  {}, {}, pack()),
+                ("mode-match", Mock(VERSION="1.0.4", MODE="standard"),
+                 "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="standard")),
+                ("mode-match-fine", Mock(VERSION="1.0.4", MODE="fine"),
+                 "VERSION=1.0.4 MODE=fine", {}, {}, pack(mode="fine")),
+                ("mode-match-case", Mock(VERSION="1.0.4", MODE="FINE"),
+                 "VERSION=1.0.4 MODE=FINE", {}, {}, pack(mode="fine")),
+                # The version still only warns when the mode agrees.
+                ("version-mismatch-mode-match", Mock(VERSION="0.9.0", MODE="standard"),
+                 "VERSION=0.9.0 MODE=standard", {}, {}, pack(mode="standard")),
+                # Refused in both directions, and a job that names no mode is
+                # a standard job.
+                ("fine-job-standard-printer", Mock(VERSION="1.0.4", MODE="fine"),
+                 "VERSION=1.0.4 MODE=fine", {}, {}, pack(mode="standard")),
+                ("standard-job-fine-printer", Mock(VERSION="1.0.4", MODE="standard"),
+                 "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="fine")),
+                ("legacy-job-fine-printer", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
+                 {}, {}, pack(mode="fine")),
             ]
         elif s == "gcode_macro _SVZERO_CHECK_PROFILE":
+            def pack(seen, mode=None):
+                fields = dict(version="1.0.4", seen=seen)
+                if mode is not None:
+                    fields["mode"] = mode
+                return {"gcode_macro _SVZERO_PACK": Mock(fields)}
             scenarios = [
-                ("no-handshake", params, "", {}, {},
-                 {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=0)}),
-                ("handshake-seen", params, "", {}, {},
-                 {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=1)}),
+                ("no-handshake", params, "", {}, {}, pack(0)),
+                ("handshake-seen", params, "", {}, {}, pack(1)),
+                ("no-handshake-standard", params, "", {}, {}, pack(0, "standard")),
+                # Outside standard mode an unidentified job is refused.
+                ("no-handshake-fine", params, "", {}, {}, pack(0, "fine")),
+                ("handshake-seen-fine", params, "", {}, {}, pack(1, "fine")),
             ]
         elif s == "gcode_macro _CH_PROXY_ANCHOR":
             scenarios = [("valid", params, "", {"proxy_valid": 1}, {})]
@@ -849,6 +879,15 @@ def check(path):
                     ("inferred", params, "S40",
                      {"requested": 0, "control_declined": 0}, {}, {}),
                 ]
+            if s == "gcode_macro CANCEL_PRINT":
+                # A job cancelled before START_PRINT must not leave its
+                # handshake behind for the next one.
+                scenarios += [
+                    ("handshake-pending", params, "S40", {}, {},
+                     {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=1, mode="fine")}),
+                    ("pack-absent", params, "S40", {}, {},
+                     {"gcode_macro _SVZERO_PACK": None}),
+                ]
 
         # The over-budget branches are forced with a deliberately tiny budget
         # rather than with a big request. Trimming the strip from 125 pixels to
@@ -986,9 +1025,16 @@ def check(path):
             ("gcode_macro SET_CLEAN_TEMP", "prefix"): "M104 S170",
             ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
             ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
-            # The handshake WARNS and never refuses, in both directions.
+            # A VERSION mismatch warns and never refuses, in both directions.
+            # A MODE mismatch refuses -- see `refuse` below.
             ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "profile expects pack 0.9.0",
+            ("gcode_macro SVZERO_REQUIRE", "version-mismatch-mode-match"): "profile expects pack 0.9.0",
+            ("gcode_macro SVZERO_REQUIRE", "mode-match"): "VARIABLE=seen VALUE=1",
+            ("gcode_macro SVZERO_REQUIRE", "mode-match-fine"): "VARIABLE=seen VALUE=1",
+            ("gcode_macro SVZERO_REQUIRE", "mode-match-case"): "VARIABLE=seen VALUE=1",
             ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake"): "not sliced by an rpcyan SV Zero profile",
+            ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-standard"): "not sliced by an rpcyan SV Zero profile",
+            ("gcode_macro CANCEL_PRINT", "handshake-pending"): "MACRO=_SVZERO_PACK VARIABLE=seen VALUE=0",
             ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "settling 315/600s",
             # The bed setpoint is commanded in whole degrees: at 460 -> 475 s of
             # a 2.5 C/min bed leg from 110 the line sits at 90.21, which must be
@@ -1154,9 +1200,13 @@ def check(path):
                   ("gcode_macro START_PRINT", "load-cell"): "CAMERA_TUNE",
                   # A matching version must say nothing at all.
                   ("gcode_macro SVZERO_REQUIRE", "version-match"): "profile expects",
+                  ("gcode_macro SVZERO_REQUIRE", "mode-match"): "profile expects",
                   ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen"): "not sliced by",
-                  # Never abort: the whole point is graceful degradation.
+                  ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen-fine"): "not sliced by",
+                  # Never abort on a version: the whole point is graceful
+                  # degradation. (A raise fails any scenario not in `refuse`.)
                   ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "action_raise_error",
+                  ("gcode_macro CANCEL_PRINT", "pack-absent"): "_SVZERO_PACK",
                   # Paired with the "M140 S90" expect: a trailing decimal point
                   # is the failure mode the integer snap exists to prevent, and
                   # a plain substring expect would happily match "M140 S90.21".
@@ -1256,6 +1306,16 @@ def check(path):
                   ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "CHAMBER_OFF",
                   ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
+        # Scenarios that MUST raise, with text the error must carry. Any other
+        # scenario that raises fails, and any of these that renders fails.
+        refuse = {("gcode_macro SVZERO_REQUIRE", "fine-job-standard-printer"):
+                      "sliced for fine mode and the printer is in standard mode",
+                  ("gcode_macro SVZERO_REQUIRE", "standard-job-fine-printer"):
+                      "sliced for standard mode and the printer is in fine mode",
+                  ("gcode_macro SVZERO_REQUIRE", "legacy-job-fine-printer"):
+                      "sliced for standard mode and the printer is in fine mode",
+                  ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-fine"):
+                      "the printer is in fine mode, which runs only jobs sliced for it"}
 
         # Everything defined above without a printer patch gets an empty one.
         if s == "gcode_macro CLEAN_NOZZLE":
@@ -1309,6 +1369,11 @@ def check(path):
                     for ln in out.splitlines():
                         if ln.strip():
                             print("   | %s" % ln.rstrip())
+                if (s, label) in refuse:
+                    bad += 1
+                    print("   FAIL    %s%s -> rendered, but this job must be refused"
+                          % (s, suffix))
+                    continue
                 bad_chars = [(ln.strip()[:70], c)
                              for ln in out.splitlines() if "MSG=" in ln
                              for c in ";#*" if c in ln.split("MSG=", 1)[1]]
@@ -1342,6 +1407,12 @@ def check(path):
                         continue
                 print("   ok      %s%s" % (s, suffix))
             except Exception as e:
+                # action_raise_error throws RuntimeError (see the env setup), so
+                # a refusal is asserted by its message, never by any exception.
+                why = refuse.get((s, label))
+                if why is not None and isinstance(e, RuntimeError) and why in str(e):
+                    print("   ok      %s%s (refused)" % (s, suffix))
+                    continue
                 bad += 1
                 print("   FAIL    %s%s -> %s: %s"
                       % (s, suffix, type(e).__name__, str(e)[:90]))
