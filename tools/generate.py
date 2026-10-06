@@ -1065,9 +1065,10 @@ def ps_absolutise_speeds(kv):
     SuperSlicer means. Name-correct, unit-wrong, and it slices happily.
 
     Accelerations get the same treatment: PrusaSlicer's own bundle uses 201
-    absolute values for perimeter_acceleration and no percentages.
+    absolute values for perimeter_acceleration and no percentages. They resolve
+    along SuperSlicer's own chain (ACCEL_REFERENCE), not all against default.
     """
-    flat = resolve_speeds(kv)          # walks the PCT_REFERENCE chain
+    flat = resolve_speeds(kv)          # walks the PCT_REFERENCE and ACCEL_REFERENCE chains
     kv.update({k: v for k, v in flat.items() if k in kv})
 
     def base(key):
@@ -1508,9 +1509,28 @@ PCT_REFERENCE = {
     "internal_bridge_speed": "bridge_speed",
 }
 
+# Accelerations chain the same way in SuperSlicer, and it is the master's
+# dialect, so its reading is what the master asks for. MEASURED 2026-10-05 from
+# the acceleration in force on each feature in SuperSlicer 2.7.62 G-code (0.4
+# Fine): outer wall 7531 = 83% of inner 9073; internal infill 13151 = 100% of
+# solid; top 3288 = 25% of solid; internal bridge 6575 = 50% of bridge 13151;
+# solid and bridge 13151 = 50% of default 26301. Until then the PrusaSlicer and
+# Orca emitters read every acceleration percentage against default, so from one
+# master they ran outer walls ~2.9x and infill/top 2x what SuperSlicer ran --
+# and Standard's outer wall came out 33200 where stock's is 10000.
+ACCEL_REFERENCE = {
+    "perimeter_acceleration": "default_acceleration",
+    "external_perimeter_acceleration": "perimeter_acceleration",
+    "solid_infill_acceleration": "default_acceleration",
+    "infill_acceleration": "solid_infill_acceleration",
+    "top_solid_infill_acceleration": "solid_infill_acceleration",
+    "bridge_acceleration": "default_acceleration",
+    "internal_bridge_acceleration": "bridge_acceleration",
+}
+
 
 def resolve_speeds(flat, *, round_output=True):
-    """Evaluate the full speed chain before rounding derived outputs to tenths.
+    """Evaluate the full speed and acceleration chains before rounding to tenths.
 
     Orca requests unrounded values because its first-layer approximation still
     needs to multiply them. Its emitter rounds after that final calculation.
@@ -1520,7 +1540,7 @@ def resolve_speeds(flat, *, round_output=True):
     rounds = 0
     while pending and rounds < 6:
         pending, rounds = False, rounds + 1
-        for key, ref in PCT_REFERENCE.items():
+        for key, ref in list(PCT_REFERENCE.items()) + list(ACCEL_REFERENCE.items()):
             v = out.get(key)
             if not isinstance(v, str) or not v.strip().endswith("%"):
                 continue
@@ -1580,8 +1600,10 @@ def orca_absolutise(doc, flat, nozzle):
     from initial_layer_print_height arriving as "62.5%".
 
     The bases are the ones SuperSlicer means: widths and layer heights are
-    percentages of the NOZZLE, accelerations of default_acceleration, speeds of
-    default_speed, and bridge_flow_ratio is a ratio wearing a percent sign.
+    percentages of the NOZZLE, speeds of default_speed, and bridge_flow_ratio
+    is a ratio wearing a percent sign. Accelerations in ACCEL_REFERENCE are
+    already resolved along SuperSlicer's chain by resolve_speeds; any other
+    acceleration percentage falls back to default_acceleration here.
     """
     def num(key, default=0.0):
         try:
@@ -1701,7 +1723,7 @@ def emit_orca(model, ss, keymap, out_dir):
                 flat.setdefault(k, v)
             par = ss[cur].get("inherits", "").strip()
             cur = "print:%s" % par if par else None
-        computed_speeds = {rev[key] for key in PCT_REFERENCE
+        computed_speeds = {rev[key] for key in list(PCT_REFERENCE) + list(ACCEL_REFERENCE)
                            if key in rev and str(flat.get(key, "")).strip().endswith("%")}
         flat = resolve_speeds(flat, round_output=False)
         doc = collections.OrderedDict()

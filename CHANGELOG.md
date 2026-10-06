@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — accelerations honoured in every slicer
+
+- **PrusaSlicer and OrcaSlicer now request the accelerations the master asks for.**
+  - The master is written in SuperSlicer's terms, where an acceleration
+    percentage is measured against a neighbour: outer wall against inner wall,
+    infill and top surfaces against solid infill, internal bridges against
+    bridges.
+  - The PrusaSlicer and OrcaSlicer outputs read every percentage against the
+    default instead. They ran outer walls about 2.9× higher and infill and top
+    surfaces 2× higher than SuperSlicer from the same profile.
+  - Standard's outer wall now comes out at 9,960 mm/s² in all three, which is
+    stock's 10,000 (it was 33,200 in PrusaSlicer and OrcaSlicer).
+  - Each slicer keeps its own features; only the requested values change.
+
 ## Unreleased — 0.2 nozzle anchor, internal bridges, minimum layer time
 
 - **The 0.2 nozzle now runs Sovol SV08's 0.2 wall speed and accelerations.**
