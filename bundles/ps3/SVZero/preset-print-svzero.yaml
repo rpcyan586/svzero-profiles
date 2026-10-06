@@ -65,6 +65,24 @@ variants:
     perimeter_extrusion_width: '0.2'
     solid_infill_extrusion_width: '0.225'
     top_infill_extrusion_width: '0.19'
+- condition: tool.nozzle_diameter == 0.25
+  id: 0KXQJtkXOM5FAKHpJGtJ/g
+  values:
+    external_perimeter_extrusion_width: '0.25'
+    first_layer_extrusion_width: '0.2625'
+    infill_extrusion_width: '0.28125'
+    perimeter_extrusion_width: '0.25'
+    solid_infill_extrusion_width: '0.28125'
+    top_infill_extrusion_width: '0.2375'
+- condition: tool.nozzle_diameter == 0.3
+  id: 1kuc/Qe90Y9AeH7W+FfMjA
+  values:
+    external_perimeter_extrusion_width: '0.3'
+    first_layer_extrusion_width: '0.315'
+    infill_extrusion_width: '0.3375'
+    perimeter_extrusion_width: '0.3'
+    solid_infill_extrusion_width: '0.3375'
+    top_infill_extrusion_width: '0.285'
 - condition: tool.nozzle_diameter == 0.4
   id: sUFQfRMaQUI0CcSGkiDsiQ
   values:

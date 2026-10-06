@@ -9,6 +9,8 @@
     "height": 152.4,
     "nozzles": [
       "0.2",
+      "0.25",
+      "0.3",
       "0.4",
       "0.5",
       "0.6",
@@ -146,7 +148,18 @@
       "Standard": 0.7,
       "Draft": 1.05,
       "Strength": 0.7
-    }
+    },
+    "0.25": {
+      "Fine": 0.06,
+      "Optimal": 0.12,
+      "Standard": 0.18
+    },
+    "0.3": {
+      "Fine": 0.08,
+      "Optimal": 0.16,
+      "Standard": 0.22
+    },
+    "_note_small_nozzles": "0.25 and 0.3 added 2026-10-05 (operator). Same shape as the 0.2 ladder -- 25 / 50 / 75% of the bore -- snapped to whole Z full steps (0.02 mm: 4 mm lead, 200 steps), so no layer ends mid-step: 0.25 -> 0.06 / 0.12 / 0.18, 0.3 -> 0.08 / 0.16 / 0.22. For scale, Prusa's Core One 0.25 runs 0.05/0.07/0.12/0.15 and its 0.3 runs 0.12/0.16/0.20."
   },
   "tier_gaps": {
     "_why": "Deliberate omissions, asserted by tools/validate-bundle.py so they cannot be mistaken for oversights.",
@@ -154,7 +167,15 @@
       "Draft",
       "Strength"
     ],
-    "_why_no_02_strength": "A 0.2 mm nozzle is a detail nozzle and holding 2.4 mm of wall there costs 12 loops. No vendor in OrcaSlicer 2.4.2 ships a 0.2-nozzle Strength profile either -- BBL, Creality and Artillery all start at 0.4."
+    "_why_no_02_strength": "A 0.2 mm nozzle is a detail nozzle and holding 2.4 mm of wall there costs 12 loops. No vendor in OrcaSlicer 2.4.2 ships a 0.2-nozzle Strength profile either -- BBL, Creality and Artillery all start at 0.4.",
+    "0.25": [
+      "Draft",
+      "Strength"
+    ],
+    "0.3": [
+      "Draft",
+      "Strength"
+    ]
   },
   "_deferred": [
     "Filament volumetric caps, per-tier speed ceilings and the (process, filament-assumption) pairing are deliberately NOT modelled yet. Recorded in docs/STATUS.md: both published anchors already ask for speeds their own filament forbids (stock 350/400/500 against a 262 mm/s ceiling; speedBenchy 500 against 400). Revisit before publishing any tier that advertises a speed."
@@ -220,17 +241,6 @@
       "50": "Sovol's published machine rating, and the value the speedBenchy 3MF declares. WEAKER THAN IT LOOKS: the 8m22s speedBenchy was released as gcode and a 3MF, never as a profile, so it was never intended to pair with a stock filament profile. It is a demo artefact, tuned as a whole for one model on one filament. Treat it as evidence that 50 is reachable, not as a profile to interpolate against.",
       "_action": "Both anchors are weak for different reasons. A flow test on a documented spool replaces both and rescales the entire ladder from one number.",
       "_sv08_community_floor": "The SV08 community has measured flow; the Zero's has not. On a STOCK 0.4 hotend: rappetor 24 mm3/s (PLA+), zappes.bpd 30 (Sunlu PETG), skaltura 36. Exclude upgraded hotends (Dragon, CHT, OXC) which range 19-70 and measure a different part. The SV08's heater is 64-72W against the Zero's 85W, so these are a FLOOR for the Zero, not a match. Range narrows from [21,50] to roughly [24,50]. Note promptengineered raised 18->25 mm3/s by increasing extruder motor current to 0.9A, so a flow test measures the whole path, not the hotend."
-    },
-    "motion_anchor_by_nozzle": {
-      "_why": "Where a nozzle is motion-limited (flow never binds), anchor its speeds on a reference machine's wall speed instead of the 500 mm/s motion cap, and derive the cap from our own perimeter ratio so every other feature keeps its proportion. Operator decision 2026-10-05.",
-      "0.2": {
-        "perimeter_speed": 200,
-        "_source": "Sovol SV08 0.2 nozzle, 0.10mm Standard: inner wall 200, outer 160, default/outer/inner acceleration 20000/8000/12000 (archived Sovol-OrcaSlicer profiles f1d3dca). With our 83% outer ratio the outer wall lands at 166.",
-        "default_acceleration": 20000,
-        "perimeter_acceleration": 12000,
-        "external_perimeter_acceleration": 8000,
-        "_accel_note": "Written into every 0.2 nozzle preset in place of the tier ladder's 26-40k; infill, solid, top and bridge keep their percentages of default."
-      }
     }
   },
   "targets": {
@@ -253,6 +263,20 @@
       "renames_that_touch_us": {
         "first_layer_infill_speed": "first_layer_solid_infill_speed"
       }
+    }
+  },
+  "small_nozzles": {
+    "_why": "Rules for every nozzle below 0.4, adopted by the operator on 2026-10-05: a first layer at 80% of the bore (Prusa's own ratio on its Core One 0.25, which runs a 0.2 first layer) and 3 walls (Core One 0.25 runs 3; Bambu, Qidi and Creality run 4 on a 0.2). The motion anchor -- Sovol SV08's 0.2 wall speed and accelerations -- was adopted for the 0.2 and extended to 0.25 and 0.3: below 0.4 the flow model asks for more than the 500 mm/s motion cap at fine layers, which is what put 0.2 walls at 340/282 before. The anchor's cap is its inner-wall speed over our perimeter ratio, so every other feature keeps its proportion; where the flow model asks for less, flow still binds.",
+    "below": 0.4,
+    "first_layer_height": "80%",
+    "perimeters": 3,
+    "motion_anchor": {
+      "perimeter_speed": 200,
+      "_source": "Sovol SV08 0.2 nozzle, 0.10mm Standard: inner wall 200, outer 160, default/outer/inner acceleration 20000/8000/12000 (archived Sovol-OrcaSlicer profiles f1d3dca). With our 83% outer ratio the outer wall lands at 166.",
+      "default_acceleration": 20000,
+      "perimeter_acceleration": 12000,
+      "external_perimeter_acceleration": 8000,
+      "_accel_note": "Written into every 0.2 nozzle preset in place of the tier ladder's 26-40k; infill, solid, top and bridge keep their percentages of default."
     }
   }
 }

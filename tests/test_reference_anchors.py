@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Values adopted from outside references on 2026-10-05, checked in the bundles.
 
-- The 0.2 nozzle runs Sovol SV08's 0.2 wall speed and accelerations
-  (model.json flow_model.motion_anchor_by_nozzle), with every other speed kept
-  in proportion through our own ratios.
+- Every nozzle below 0.4 runs Sovol SV08's 0.2 wall speed as a cap and its
+  accelerations (model.json small_nozzles), with every other speed kept in
+  proportion through our own ratios, a first layer at 80% of the bore and 3
+  walls.
 - Internal bridges run at a percentage of bridge_speed that SuperSlicer and
   Orca read the same way, instead of the 400% that only SuperSlicer received.
 - No filament slows down for layers under 8 s (Prusa's Core One PLA value).
@@ -19,29 +20,41 @@ SPEC = importlib.util.spec_from_file_location("generate", ROOT / "tools/generate
 G = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(G)
 MODEL = G.load("model.json")
-ANCHOR = MODEL["flow_model"]["motion_anchor_by_nozzle"]["0.2"]
+SMALL = MODEL["small_nozzles"]
+ANCHOR = SMALL["motion_anchor"]
 ORCA = ROOT / "bundles/orca-vendor/SVZero/process"
 
 
 class ReferenceAnchorTest(unittest.TestCase):
-    def test_02_nozzle_runs_the_sv08_anchor_in_every_slicer(self):
+    def small_nozzles(self):
+        found = [n for n in MODEL["machine"]["nozzles"] if float(n) < SMALL["below"]]
+        self.assertEqual(found, ["0.2", "0.25", "0.3"])
+        return found
+
+    def test_small_nozzles_run_the_sv08_anchor_in_every_slicer(self):
         ps = G.parse_ini(ROOT / "bundles/SVZero_PrusaSlicer.ini")
-        names = [n for n in ps if n.startswith("print:SV Zero 0.2n - ")]
-        self.assertTrue(names)
-        for name in names:
-            flat = G.flatten(ps, name)
-            with self.subTest(preset=name):
-                self.assertEqual(float(flat["perimeter_speed"]), ANCHOR["perimeter_speed"])
-                for key in ("default_acceleration", "perimeter_acceleration",
-                            "external_perimeter_acceleration"):
-                    self.assertEqual(float(flat[key]), ANCHOR[key])
-        for path in ORCA.glob("*@SV Zero 0.2 nozzle.json"):
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            with self.subTest(preset=doc["name"]):
-                self.assertEqual(float(doc["inner_wall_speed"]), ANCHOR["perimeter_speed"])
-                self.assertEqual(float(doc["default_acceleration"]), ANCHOR["default_acceleration"])
-                self.assertEqual(float(doc["inner_wall_acceleration"]), ANCHOR["perimeter_acceleration"])
-                self.assertEqual(float(doc["outer_wall_acceleration"]), ANCHOR["external_perimeter_acceleration"])
+        for noz in self.small_nozzles():
+            names = [n for n in ps if n.startswith("print:SV Zero %sn - " % noz)]
+            self.assertTrue(names)
+            for name in names:
+                flat = G.flatten(ps, name)
+                with self.subTest(preset=name):
+                    # A cap: where flow binds first (0.3 Standard) it runs slower.
+                    self.assertLessEqual(float(flat["perimeter_speed"]), ANCHOR["perimeter_speed"])
+                    for key in ("default_acceleration", "perimeter_acceleration",
+                                "external_perimeter_acceleration"):
+                        self.assertEqual(float(flat[key]), ANCHOR[key])
+                    self.assertAlmostEqual(float(flat["first_layer_height"]),
+                                           float(SMALL["first_layer_height"].rstrip("%")) / 100 * float(noz))
+                    self.assertEqual(flat["perimeters"], str(SMALL["perimeters"]))
+            for path in ORCA.glob("*@SV Zero %s nozzle.json" % noz):
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                with self.subTest(preset=doc["name"]):
+                    self.assertLessEqual(float(doc["inner_wall_speed"]), ANCHOR["perimeter_speed"])
+                    self.assertEqual(float(doc["default_acceleration"]), ANCHOR["default_acceleration"])
+                    self.assertEqual(float(doc["inner_wall_acceleration"]), ANCHOR["perimeter_acceleration"])
+                    self.assertEqual(float(doc["outer_wall_acceleration"]), ANCHOR["external_perimeter_acceleration"])
+                    self.assertEqual(doc["wall_loops"], str(SMALL["perimeters"]))
 
     def test_other_nozzles_keep_the_tier_ladder(self):
         doc = json.loads((ORCA / "0.20mm Standard @SV Zero 0.4 nozzle.json").read_text(encoding="utf-8"))

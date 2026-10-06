@@ -19,7 +19,7 @@ Automated checks and slicing have passed;
 physical testing of the latest stock-firmware fallback is still pending.
 Read [validation and limitations](docs/VALIDATION.md) before testing.
 
-The profiles cover eight nozzle sizes (0.2–1.4 mm), material settings and
+The profiles cover ten nozzle sizes (0.2–1.4 mm), material settings and
 Fine/Optimal/Standard/Draft/Strength tiers where supported. Added nozzle sizes
 are starting points, not evidence that a nozzle fits or has been flow-calibrated.
 

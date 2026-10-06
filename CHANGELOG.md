@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — 0.25 and 0.3 nozzles, small-nozzle rules
+
+- **New nozzle sizes: 0.25 and 0.3 mm**, each with Fine, Optimal and Standard.
+  - Layers follow the 0.2 ladder (25 / 50 / 75% of the bore), rounded to whole
+    Z steps: 0.06 / 0.12 / 0.18 on the 0.25, and 0.08 / 0.16 / 0.22 on the 0.3.
+- **Every nozzle below 0.4 gets the same three rules:**
+  - a first layer at 80% of the nozzle (0.16 / 0.20 / 0.24 mm)
+  - 3 walls
+  - the Sovol SV08 0.2 speed and acceleration reference: inner walls capped at
+    200 mm/s, accelerations 20,000 / 12,000 / 8,000 mm/s²
+- A first layer or wall count set directly on a preset still wins, and is
+  checked like any other value.
+
 ## Unreleased — accelerations honoured in every slicer
 
 - **PrusaSlicer and OrcaSlicer now request the accelerations the master asks for.**

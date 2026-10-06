@@ -138,6 +138,28 @@
           }
         },
         {
+          "condition": "tool.nozzle_diameter == 0.25",
+          "id": "SV Zero 0.25n",
+          "name": "SV Zero 0.25n",
+          "features": {
+            "nozzle_diameter": "0.25"
+          },
+          "values": {
+            "retract_lift": "0.30"
+          }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.3",
+          "id": "SV Zero 0.3n",
+          "name": "SV Zero 0.3n",
+          "features": {
+            "nozzle_diameter": "0.3"
+          },
+          "values": {
+            "retract_lift": "0.30"
+          }
+        },
+        {
           "condition": "tool.nozzle_diameter == 0.4",
           "id": "SV Zero 0.4n",
           "name": "SV Zero 0.4n",
@@ -654,6 +676,90 @@
               ],
               "values": {
                 "layer_height": "0.15",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            }
+          ]
+        },
+        {
+          "id": "SV Zero 0.25n presets",
+          "condition": "tool.nozzle_diameter == 0.25",
+          "variants": [
+            {
+              "id": "SV Zero 0.25n - 0.06mm (Fine)",
+              "name": "SV Zero 0.25n - 0.06mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.06",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.25n - 0.12mm (Optimal)",
+              "name": "SV Zero 0.25n - 0.12mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.12",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.25n - 0.18mm (Standard)",
+              "name": "SV Zero 0.25n - 0.18mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.18",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            }
+          ]
+        },
+        {
+          "id": "SV Zero 0.3n presets",
+          "condition": "tool.nozzle_diameter == 0.3",
+          "variants": [
+            {
+              "id": "SV Zero 0.3n - 0.08mm (Fine)",
+              "name": "SV Zero 0.3n - 0.08mm (Fine)",
+              "inherits": [
+                "*SV Zero - Fine*"
+              ],
+              "values": {
+                "layer_height": "0.08",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.3n - 0.16mm (Optimal)",
+              "name": "SV Zero 0.3n - 0.16mm (Optimal)",
+              "inherits": [
+                "*SV Zero - Optimal*"
+              ],
+              "values": {
+                "layer_height": "0.16",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.3n - 0.22mm (Standard)",
+              "name": "SV Zero 0.3n - 0.22mm (Standard)",
+              "inherits": [
+                "*SV Zero - Standard*"
+              ],
+              "values": {
+                "layer_height": "0.22",
                 "support_tree_tip_diameter": "0.8",
                 "support_tree_branch_diameter": "2.0"
               }

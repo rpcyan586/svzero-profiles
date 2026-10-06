@@ -390,7 +390,7 @@ def check(model, ss):
     want = {(n, t) for n, t, _ in expected_presets(model)}
     have = {}
     for name in ss:
-        m = re.match(r"print:SV Zero (\d\.\d)n - ([\d.]+)mm \((\w+)\)", name)
+        m = re.match(r"print:SV Zero (\d\.\d+)n - ([\d.]+)mm \((\w+)\)", name)
         if m:
             have[(m.group(1), m.group(3))] = (float(m.group(2)), name)
 
@@ -652,6 +652,51 @@ def apply_scv(model, ss):
     return changed
 
 
+def apply_small_nozzle_rules(model, ss):
+    """First layer and wall count for every nozzle below the threshold.
+
+    Written into each concrete preset, because a concrete preset inherits from
+    its tier base alone -- a value on the nozzle's group never reaches it. A
+    value the preset authors itself wins, and is validated like any other, so a
+    bad authored first layer is refused rather than silently replaced. See
+    model.json small_nozzles.
+    """
+    rules = model.get("small_nozzles")
+    if not rules:
+        return 0
+    changed = 0
+    for name, kv in ss.items():
+        m = re.match(r"print:SV Zero (\d\.\d+)n - ", name)
+        if not m or float(m.group(1)) >= rules["below"]:
+            continue
+        for key, value in (("first_layer_height", rules["first_layer_height"]),
+                           ("perimeters", str(rules["perimeters"]))):
+            if key in kv:
+                continue
+            if kv.get(key) != value:
+                kv[key] = value
+                changed += 1
+    return changed
+
+
+def derive(model, ss, keymap):
+    """Every model-owned derivation, in order, on the flat section view.
+
+    The ONE sequence. tools/slice-harness.py used to repeat it by hand and fell
+    behind once already (2026-10-05: its master pass had no square corner
+    velocity because apply_scv was added here only).
+    """
+    return {
+        "stock": emit_stock_tier(model, ss, keymap, load("tier-anchors.json")),
+        "speed": apply_speed_model(model, ss),
+        "scv": apply_scv(model, ss),
+        "flow": apply_flow_model(model, ss),
+        "small": apply_small_nozzle_rules(model, ss),
+        "shrink": apply_shrinkage(ss, load("filament-shrink.json")),
+        "8m": apply_8m_overrides(ss, load("filament-8m.json")),
+    }
+
+
 def emit_physical_printers(model, ss):
     """PrusaSlicer [physical_printer:] sections, so upload needs no hand-typed IP.
 
@@ -706,7 +751,7 @@ def apply_flow_model(model, ss):
     wr, cap = fm["infill_width_ratio"], float(fm["speed_cap"])
     changed, report = 0, []
     for name, kv in ss.items():
-        m = re.match(r"print:SV Zero (\d\.\d)n - ([\d.]+)mm \((\w+)\)", name)
+        m = re.match(r"print:SV Zero (\d\.\d+)n - ([\d.]+)mm \((\w+)\)", name)
         if not m:
             continue
         noz, tier = float(m.group(1)), m.group(3)
@@ -719,8 +764,9 @@ def apply_flow_model(model, ss):
         limited = "flow"
         # A motion-limited nozzle can be anchored on a reference wall speed;
         # the cap is then that speed over our own perimeter ratio, so every
-        # other feature keeps its proportion. See flow_model.motion_anchor_by_nozzle.
-        anchor = fm.get("motion_anchor_by_nozzle", {}).get("%g" % noz)
+        # other feature keeps its proportion. See model.json small_nozzles.
+        small = model.get("small_nozzles") or {}
+        anchor = small.get("motion_anchor") if noz < small.get("below", 0) else None
         noz_cap = cap
         if anchor:
             ratio = float(model["speed_model"]["ratios_of_base"]["perimeter_speed"].rstrip("%")) / 100
@@ -1710,7 +1756,7 @@ def emit_orca(model, ss, keymap, out_dir):
     written, unmapped, unresolved = 0, collections.Counter(), []
     written_names = []
     for name, kv in ss.items():
-        m = re.match(r"print:SV Zero (\d\.\d)n - ([\d.]+)mm \((\w+)\)", name)
+        m = re.match(r"print:SV Zero (\d\.\d+)n - ([\d.]+)mm \((\w+)\)", name)
         if not m:
             continue
         noz, lh, tier = m.group(1), m.group(2), m.group(3)
@@ -2407,27 +2453,24 @@ def main():
     # It used to run only under `--emit ss` and be persisted into the master,
     # which made the master the carrier: `--emit ps` alone shipped whatever the
     # last `--emit ss` had baked in.
-    anchors = load("tier-anchors.json")
-    nkeys, skipped = emit_stock_tier(model, ss, keymap, anchors)
+    done = derive(model, ss, keymap)
+    nkeys, skipped = done["stock"]
     print("  built *SV Zero - Stock* from anchors: %d keys mapped, %d unmapped and omitted"
           % (nkeys, len(skipped)))
-    n = apply_speed_model(model, ss)
-    print("  applied speed model: %d keys" % n)
-    n = apply_scv(model, ss)
-    print("  applied square corner velocity: %d keys" % n)
-    np_ = emit_physical_printers(model, ss)
-    print("  emitted %d physical printers" % np_)
-    nf, flowrep = apply_flow_model(model, ss)
+    print("  applied speed model: %d keys" % done["speed"])
+    print("  applied square corner velocity: %d keys" % done["scv"])
+    nf, flowrep = done["flow"]
     errs = [r for r in flowrep if r[0] == "RAMP"]
     mot = sorted({r[2] for r in flowrep if r[0] != "RAMP" and r[7] == "motion"})
     print("  applied flow model: %d preset default_speeds derived" % nf)
     if mot:
         print("     motion-limited (flow does not bind) on nozzle(s): %s"
               % ", ".join("%g" % x for x in mot))
-    nsh = apply_shrinkage(ss, load("filament-shrink.json"))
-    print("  applied nominal shrinkage to %d filament presets" % nsh)
-    n8 = apply_8m_overrides(ss, load("filament-8m.json"))
-    print("  applied SV08 MAX toolhead values to %d (8M) presets" % n8)
+    print("  applied small-nozzle rules: %d keys" % done["small"])
+    print("  applied nominal shrinkage to %d filament presets" % done["shrink"])
+    print("  applied SV08 MAX toolhead values to %d (8M) presets" % done["8m"])
+    np_ = emit_physical_printers(model, ss)
+    print("  emitted %d physical printers" % np_)
 
     problems = check(model, ss)
     problems.extend(e[1] for e in errs)

@@ -21,6 +21,10 @@ features:
       user_editable: false
     supports_02_nozzle:
       default: true
+    supports_025_nozzle:
+      default: true
+    supports_03_nozzle:
+      default: true
     supports_04_nozzle:
       default: true
     supports_05_nozzle:
@@ -62,6 +66,10 @@ tool_count: 1
 features:
   supports_02_nozzle:
     default: true
+  supports_025_nozzle:
+    default: true
+  supports_03_nozzle:
+    default: true
   supports_04_nozzle:
     default: true
   supports_05_nozzle:
@@ -85,6 +93,24 @@ condition: printer.supports_02_nozzle
 features:
   nozzle_diameter:
     default: 0.2
+---
+kind: tool
+technology: FFF
+id: '0.25'
+name: '0.25'
+condition: printer.supports_025_nozzle
+features:
+  nozzle_diameter:
+    default: 0.25
+---
+kind: tool
+technology: FFF
+id: '0.3'
+name: '0.3'
+condition: printer.supports_03_nozzle
+features:
+  nozzle_diameter:
+    default: 0.3
 ---
 kind: tool
 technology: FFF

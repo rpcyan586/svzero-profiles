@@ -19,6 +19,14 @@
       "sub_path": "process/0.05mm Fine @SV Zero 0.2 nozzle.json"
     },
     {
+      "name": "0.06mm Fine @SV Zero 0.25 nozzle",
+      "sub_path": "process/0.06mm Fine @SV Zero 0.25 nozzle.json"
+    },
+    {
+      "name": "0.08mm Fine @SV Zero 0.3 nozzle",
+      "sub_path": "process/0.08mm Fine @SV Zero 0.3 nozzle.json"
+    },
+    {
       "name": "0.10mm Fine @SV Zero 0.4 nozzle",
       "sub_path": "process/0.10mm Fine @SV Zero 0.4 nozzle.json"
     },
@@ -31,6 +39,10 @@
       "sub_path": "process/0.125mm Fine @SV Zero 0.5 nozzle.json"
     },
     {
+      "name": "0.12mm Optimal @SV Zero 0.25 nozzle",
+      "sub_path": "process/0.12mm Optimal @SV Zero 0.25 nozzle.json"
+    },
+    {
       "name": "0.15mm Optimal @SV Zero 0.4 nozzle",
       "sub_path": "process/0.15mm Optimal @SV Zero 0.4 nozzle.json"
     },
@@ -39,8 +51,16 @@
       "sub_path": "process/0.15mm Standard @SV Zero 0.2 nozzle.json"
     },
     {
+      "name": "0.16mm Optimal @SV Zero 0.3 nozzle",
+      "sub_path": "process/0.16mm Optimal @SV Zero 0.3 nozzle.json"
+    },
+    {
       "name": "0.175mm Optimal @SV Zero 0.5 nozzle",
       "sub_path": "process/0.175mm Optimal @SV Zero 0.5 nozzle.json"
+    },
+    {
+      "name": "0.18mm Standard @SV Zero 0.25 nozzle",
+      "sub_path": "process/0.18mm Standard @SV Zero 0.25 nozzle.json"
     },
     {
       "name": "0.20mm Fine @SV Zero 0.6 nozzle",
@@ -53,6 +73,10 @@
     {
       "name": "0.20mm Strength @SV Zero 0.4 nozzle",
       "sub_path": "process/0.20mm Strength @SV Zero 0.4 nozzle.json"
+    },
+    {
+      "name": "0.22mm Standard @SV Zero 0.3 nozzle",
+      "sub_path": "process/0.22mm Standard @SV Zero 0.3 nozzle.json"
     },
     {
       "name": "0.25mm Draft @SV Zero 0.4 nozzle",
@@ -237,6 +261,14 @@
     {
       "name": "SV Zero 0.2 nozzle",
       "sub_path": "machine/SV Zero 0.2 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.25 nozzle",
+      "sub_path": "machine/SV Zero 0.25 nozzle.json"
+    },
+    {
+      "name": "SV Zero 0.3 nozzle",
+      "sub_path": "machine/SV Zero 0.3 nozzle.json"
     },
     {
       "name": "SV Zero 0.4 nozzle",
