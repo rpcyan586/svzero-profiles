@@ -276,7 +276,73 @@
       "default_acceleration": 20000,
       "perimeter_acceleration": 12000,
       "external_perimeter_acceleration": 8000,
-      "_accel_note": "Written into every 0.2 nozzle preset in place of the tier ladder's 26-40k; infill, solid, top and bridge keep their percentages of default."
+      "_accel_note": "Every acceleration the SV08 0.2 preset sets, written absolute into each small-nozzle preset so no tier ratio leaks in: default 20000, inner 12000, outer 8000, top 12000, first layer 3000; sparse and solid infill unset there, so Orca's default applies (20000); bridges 100% of the outer wall in Orca's dialect (8000).",
+      "solid_infill_acceleration": 20000,
+      "infill_acceleration": 20000,
+      "top_solid_infill_acceleration": 12000,
+      "bridge_acceleration": 8000,
+      "first_layer_acceleration": 3000
+    }
+  },
+  "accel_model": {
+    "_why": "Option B of notes/acceleration-tiers-2026-10-05.md, chosen by the operator 2026-10-06: keep the tier ramp, re-anchor it. Targets are absolute mm/s2 per feature. apply_accel_model writes them into the SuperSlicer-native master in its own relative form -- default and inner wall absolute, every other feature as a percentage of its chain base (ACCEL_REFERENCE) -- so SuperSlicer stays relative and PrusaSlicer/Orca resolve back to these exact numbers. check() refuses any feature that goes backwards along the ramp. Travel stays on its own 5000 policy.",
+    "features": {
+      "default": "default_acceleration",
+      "inner": "perimeter_acceleration",
+      "outer": "external_perimeter_acceleration",
+      "solid": "solid_infill_acceleration",
+      "infill": "infill_acceleration",
+      "top": "top_solid_infill_acceleration",
+      "bridge": "bridge_acceleration",
+      "first_layer": "first_layer_acceleration"
+    },
+    "internal_bridge": "50%",
+    "tiers": {
+      "Fine": {
+        "default": 3000,
+        "inner": 2500,
+        "outer": 1500,
+        "solid": 4000,
+        "infill": 6000,
+        "top": 2000,
+        "bridge": 1500,
+        "first_layer": 500,
+        "_anchor": "Prusa Core One 0.4 STRUCTURAL (PrusaResearch.ini, PrusaSlicer 2.9.6): default 3000, outer 1500, inner 2500, infill 6000, solid 4000, top 2000, bridge 1500, first layer 500."
+      },
+      "Optimal": {
+        "default": 10000,
+        "inner": 6000,
+        "outer": 5000,
+        "solid": 10000,
+        "infill": 11500,
+        "top": 3000,
+        "bridge": 5000,
+        "first_layer": 500,
+        "_anchor": "The Zero's own measured limits (Zero2 MZV sweep, notes/resonance.md): walls at the Y recommendation (<= 6000), infill at the X recommendation (<= 11500). Bambu X1C and Creality K2 run outer walls at 5000; Bambu's default is 10000. First layer 500, as every reference does."
+      },
+      "Standard": {
+        "default": 40000,
+        "inner": 12000,
+        "outer": 10000,
+        "solid": 20000,
+        "infill": 40000,
+        "top": 5000,
+        "bridge": 20000,
+        "first_layer": 1000,
+        "_anchor": "Sovol's stock Zero process, verbatim: default 40000, inner 12000, outer 10000, solid 50%, sparse infill unset (Orca: 100% of default), top 5000, bridge 50%, first layer 1000. Standard IS stock."
+      },
+      "Draft": {
+        "default": 40000,
+        "inner": 13800,
+        "outer": 11500,
+        "solid": 20000,
+        "infill": 40000,
+        "top": 5000,
+        "bridge": 20000,
+        "first_layer": 1000,
+        "_anchor": "Just above stock: the outer wall at the X recommendation (11500), the inner wall in stock's 83.3% proportion, everything else at stock. Sovol's speedBenchy itself asks 40000 on every wall; that lives on as the hidden speedboat reference, not as a published tier."
+      },
+      "Strength": "Optimal"
     }
   }
 }

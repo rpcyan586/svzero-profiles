@@ -432,7 +432,11 @@ def check(model, ss):
             par = ss[cur].get("inherits", "").strip()
             cur = "print:%s" % par if par else None
         r = resolve_speeds(flat)
-        for k in ("perimeter_speed", "external_perimeter_speed", "infill_speed"):
+        for k in ("perimeter_speed", "external_perimeter_speed", "infill_speed",
+                  "default_acceleration", "perimeter_acceleration",
+                  "external_perimeter_acceleration", "solid_infill_acceleration",
+                  "infill_acceleration", "top_solid_infill_acceleration",
+                  "bridge_acceleration", "first_layer_acceleration"):
             try:
                 ramp[k].append((tier, float(r[k])))
             except (KeyError, TypeError, ValueError):
@@ -652,6 +656,47 @@ def apply_scv(model, ss):
     return changed
 
 
+def apply_accel_model(model, ss):
+    """Write each tier's acceleration targets into its base, SuperSlicer-style.
+
+    Default and inner wall go in absolute; every other feature goes in as a
+    percentage of its ACCEL_REFERENCE base, computed from the targets, so the
+    master stays relative and PrusaSlicer/Orca resolve back to the targets. The
+    percentages are the arithmetic, kept visible: Standard's outer wall is
+    83.3333% of 12000 because stock asks 10000 against 12000.
+    """
+    am = model.get("accel_model")
+    if not am:
+        return 0
+    feats = am["features"]
+    key_of = {k: v for k, v in feats.items()}
+    feat_of = {v: k for k, v in feats.items()}
+    changed = 0
+    for tier, targets in am["tiers"].items():
+        if isinstance(targets, str):
+            targets = am["tiers"][targets]
+        sec = ss.get("print:*SV Zero - %s*" % tier)
+        if sec is None:
+            continue
+        want = {}
+        for feat, value in targets.items():
+            if feat.startswith("_"):
+                continue
+            key = key_of[feat]
+            ref = ACCEL_REFERENCE.get(key)
+            if feat in ("default", "inner", "first_layer") or ref is None:
+                want[key] = "%g" % value
+            else:
+                base = targets[feat_of[ref]]
+                want[key] = "%g%%" % round(100.0 * value / base, 4)
+        want["internal_bridge_acceleration"] = am["internal_bridge"]
+        for key, value in want.items():
+            if sec.get(key) != value:
+                sec[key] = value
+                changed += 1
+    return changed
+
+
 def apply_small_nozzle_rules(model, ss):
     """First layer and wall count for every nozzle below the threshold.
 
@@ -690,6 +735,7 @@ def derive(model, ss, keymap):
         "stock": emit_stock_tier(model, ss, keymap, load("tier-anchors.json")),
         "speed": apply_speed_model(model, ss),
         "scv": apply_scv(model, ss),
+        "accel": apply_accel_model(model, ss),
         "flow": apply_flow_model(model, ss),
         "small": apply_small_nozzle_rules(model, ss),
         "shrink": apply_shrinkage(ss, load("filament-shrink.json")),
@@ -779,7 +825,9 @@ def apply_flow_model(model, ss):
             changed += 1
         # The anchor's accelerations replace the tier ladder's on this nozzle.
         for key in ("default_acceleration", "perimeter_acceleration",
-                    "external_perimeter_acceleration"):
+                    "external_perimeter_acceleration", "solid_infill_acceleration",
+                    "infill_acceleration", "top_solid_infill_acceleration",
+                    "bridge_acceleration", "first_layer_acceleration"):
             # Absolute, not a percentage: SuperSlicer chains an acceleration
             # percentage through its neighbour (outer wall through inner wall)
             # while the PS/Orca emitters read every one against the default,
@@ -2459,6 +2507,7 @@ def main():
           % (nkeys, len(skipped)))
     print("  applied speed model: %d keys" % done["speed"])
     print("  applied square corner velocity: %d keys" % done["scv"])
+    print("  applied acceleration model: %d keys" % done["accel"])
     nf, flowrep = done["flow"]
     errs = [r for r in flowrep if r[0] == "RAMP"]
     mot = sorted({r[2] for r in flowrep if r[0] != "RAMP" and r[7] == "motion"})

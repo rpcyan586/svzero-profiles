@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — re-anchored acceleration ladder
+
+- **The 0.4 tiers keep their ramp, now anchored on outside references** (mm/s²):
+
+  | Tier | Default | Inner | Outer | Solid | Infill | Top | Bridge | First layer | Anchor |
+  |---|---|---|---|---|---|---|---|---|---|
+  | Fine | 3,000 | 2,500 | 1,500 | 4,000 | 6,000 | 2,000 | 1,500 | 500 | Prusa Core One STRUCTURAL |
+  | Optimal | 10,000 | 6,000 | 5,000 | 10,000 | 11,500 | 3,000 | 5,000 | 500 | The Zero's measured resonance limits |
+  | Standard | 40,000 | 12,000 | 10,000 | 20,000 | 40,000 | 5,000 | 20,000 | 1,000 | Sovol stock, exactly |
+  | Draft | 40,000 | 13,800 | 11,500 | 20,000 | 40,000 | 5,000 | 20,000 | 1,000 | Just above stock |
+
+  - Strength uses Optimal's values.
+  - SuperSlicer keeps them as percentages of each other; PrusaSlicer and
+    OrcaSlicer receive the same numbers.
+- **Nozzles below 0.4 now use every acceleration Sovol's SV08 0.2 profile
+  sets:** default 20,000, walls 12,000 / 8,000, infill 20,000, top 12,000,
+  bridges 8,000, first layer 3,000.
+
 ## Unreleased — 0.25 and 0.3 nozzles, small-nozzle rules
 
 - **New nozzle sizes: 0.25 and 0.3 mm**, each with Fine, Optimal and Standard.
