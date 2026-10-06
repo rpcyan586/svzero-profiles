@@ -180,9 +180,11 @@
     },
     "ratios_of_other": {
       "external_perimeter_speed": "83%",
-      "top_solid_infill_speed": "65%"
+      "top_solid_infill_speed": "65%",
+      "internal_bridge_speed": "150%"
     },
-    "_base_speed_strength_note": "Optimal's number, not Standard's, because Strength deliberately gives back the speed Standard takes. Only reaches the tier BASE; every concrete preset's default_speed is derived from its own geometry by the flow model below."
+    "_base_speed_strength_note": "Optimal's number, not Standard's, because Strength deliberately gives back the speed Standard takes. Only reaches the tier BASE; every concrete preset's default_speed is derived from its own geometry by the flow model below.",
+    "_internal_bridge_note": "Internal bridges at 150% of bridge_speed, the default of both SuperSlicer and OrcaSlicer, which define the percentage the same way. Until 2026-10-05 the tiers carried 400-402%: Sovol's stock 200 internal over 50 bridge, kept as a ratio after our bridge_speed became 50% of base -- so internal bridges asked for twice the tier's base speed and SuperSlicer's volumetric limiter set the real speed (21 mm3/s through a nozzle-diameter round strand: 668.5 mm/s on 0.2, 167.1 on 0.4), while Orca, never given the key, ran its own 150%."
   },
   "_flow_design": {
     "_answer": "We are not the first: PrusaSlicer models exactly this split and has since long before us. Print settings -> Speed -> Max volumetric speed is documented as the hotend's capability; Filament settings -> Advanced -> Max volumetric speed is the material's; the lower of the two wins, and 0 disables that one. So the tidy separation exists.",
@@ -218,6 +220,17 @@
       "50": "Sovol's published machine rating, and the value the speedBenchy 3MF declares. WEAKER THAN IT LOOKS: the 8m22s speedBenchy was released as gcode and a 3MF, never as a profile, so it was never intended to pair with a stock filament profile. It is a demo artefact, tuned as a whole for one model on one filament. Treat it as evidence that 50 is reachable, not as a profile to interpolate against.",
       "_action": "Both anchors are weak for different reasons. A flow test on a documented spool replaces both and rescales the entire ladder from one number.",
       "_sv08_community_floor": "The SV08 community has measured flow; the Zero's has not. On a STOCK 0.4 hotend: rappetor 24 mm3/s (PLA+), zappes.bpd 30 (Sunlu PETG), skaltura 36. Exclude upgraded hotends (Dragon, CHT, OXC) which range 19-70 and measure a different part. The SV08's heater is 64-72W against the Zero's 85W, so these are a FLOOR for the Zero, not a match. Range narrows from [21,50] to roughly [24,50]. Note promptengineered raised 18->25 mm3/s by increasing extruder motor current to 0.9A, so a flow test measures the whole path, not the hotend."
+    },
+    "motion_anchor_by_nozzle": {
+      "_why": "Where a nozzle is motion-limited (flow never binds), anchor its speeds on a reference machine's wall speed instead of the 500 mm/s motion cap, and derive the cap from our own perimeter ratio so every other feature keeps its proportion. Operator decision 2026-10-05.",
+      "0.2": {
+        "perimeter_speed": 200,
+        "_source": "Sovol SV08 0.2 nozzle, 0.10mm Standard: inner wall 200, outer 160, default/outer/inner acceleration 20000/8000/12000 (archived Sovol-OrcaSlicer profiles f1d3dca). With our 83% outer ratio the outer wall lands at 166.",
+        "default_acceleration": 20000,
+        "perimeter_acceleration": 12000,
+        "external_perimeter_acceleration": 8000,
+        "_accel_note": "Written into every 0.2 nozzle preset in place of the tier ladder's 26-40k; infill, solid, top and bridge keep their percentages of default."
+      }
     }
   },
   "targets": {

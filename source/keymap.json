@@ -13,6 +13,7 @@
     "initial_layer_speed": "first_layer_speed",
     "gap_infill_speed": "gap_fill_speed",
     "bridge_speed": "bridge_speed",
+    "internal_bridge_speed": "internal_bridge_speed",
     "support_speed": "support_material_speed",
     "travel_speed": "travel_speed",
     "line_width": "extrusion_width",

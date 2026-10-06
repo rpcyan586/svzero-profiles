@@ -717,12 +717,30 @@ def apply_flow_model(model, ss):
         util = fm.get("flow_utilisation", {}).get(tier, 1.0)
         want = (flow * util) / (wr * noz * lh)
         limited = "flow"
-        if want > cap:
-            want, limited = cap, "motion"
+        # A motion-limited nozzle can be anchored on a reference wall speed;
+        # the cap is then that speed over our own perimeter ratio, so every
+        # other feature keeps its proportion. See flow_model.motion_anchor_by_nozzle.
+        anchor = fm.get("motion_anchor_by_nozzle", {}).get("%g" % noz)
+        noz_cap = cap
+        if anchor:
+            ratio = float(model["speed_model"]["ratios_of_base"]["perimeter_speed"].rstrip("%")) / 100
+            noz_cap = anchor["perimeter_speed"] / ratio
+        if want > noz_cap:
+            want, limited = noz_cap, "motion"
         val = computed_motion(want)
         if kv.get("default_speed") != val:
             kv["default_speed"] = val
             changed += 1
+        # The anchor's accelerations replace the tier ladder's on this nozzle.
+        for key in ("default_acceleration", "perimeter_acceleration",
+                    "external_perimeter_acceleration"):
+            # Absolute, not a percentage: SuperSlicer chains an acceleration
+            # percentage through its neighbour (outer wall through inner wall)
+            # while the PS/Orca emitters read every one against the default,
+            # so only an absolute means the same thing in all three.
+            if anchor and key in anchor and kv.get(key) != computed_motion(anchor[key]):
+                kv[key] = computed_motion(anchor[key])
+                changed += 1
         report.append((name, tier, noz, lh, float(val), flow * util,
                        float(val) * wr * noz * lh, limited))
     # The meaningful invariant is no longer raw speed — under the flow model a
@@ -1485,6 +1503,9 @@ PCT_REFERENCE = {
     # SuperSlicer and Orca both express this as a percentage of the internal
     # perimeter speed, so that is the reference.
     "small_perimeter_speed": "perimeter_speed",
+    # Added 2026-10-05. SuperSlicer and Orca both read a percentage here as a
+    # share of bridge_speed. See speed_model._internal_bridge_note.
+    "internal_bridge_speed": "bridge_speed",
 }
 
 

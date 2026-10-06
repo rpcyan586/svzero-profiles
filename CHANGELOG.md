@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased — walls, seams and square corner velocity
+## Unreleased — 0.2 nozzle anchor, internal bridges, minimum layer time
+
+- **The 0.2 nozzle now runs Sovol SV08's 0.2 wall speed and accelerations.**
+  - Inner walls 200 mm/s; outer walls 166 with our 83% ratio.
+  - Accelerations: 20,000 default, 12,000 inner walls, 8,000 outer walls.
+  - This replaces the 500 mm/s motion cap and the 26k–40k tier accelerations.
+    Every other speed keeps its proportion.
+- **Internal bridges at 150% of bridge speed in SuperSlicer and OrcaSlicer.**
+  - SuperSlicer previously got 400% (stock's 200/50 ratio), which asked for
+    twice the tier's base speed and was clamped by the filament flow limit:
+    668.5 mm/s on a 0.2 nozzle.
+  - Orca, never given the setting, ran its default 150%.
+- **Minimum layer time is at least 8 s for every filament,** after Prusa's Core
+  One PLA. PETG keeps its 10 s.
+
 
 - **Arachne is set explicitly in all three slicers.** Before this, PrusaSlicer
   and OrcaSlicer used it only as their default, and SuperSlicer printed classic walls.

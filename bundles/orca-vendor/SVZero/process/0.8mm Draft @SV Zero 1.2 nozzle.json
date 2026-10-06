@@ -68,6 +68,7 @@
   "initial_layer_speed": "3.3",
   "outer_wall_speed": "26.1",
   "top_surface_speed": "20.5",
+  "internal_bridge_speed": "34.7",
   "compatible_printers": [
     "SV Zero 1.2 nozzle"
   ],

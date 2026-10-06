@@ -318,7 +318,6 @@
             "first_layer_infill_speed": "0",
             "infill_acceleration": "100%",
             "internal_bridge_acceleration": "50%",
-            "internal_bridge_speed": "400%",
             "max_print_speed": "53",
             "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
             "overhangs_speed": "100%",
@@ -339,7 +338,6 @@
             "first_layer_infill_speed": "0",
             "infill_acceleration": "100%",
             "internal_bridge_acceleration": "50%",
-            "internal_bridge_speed": "400%",
             "max_print_speed": "60",
             "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
             "overhangs_speed": "100%",
@@ -357,7 +355,6 @@
             "overhangs_speed": "100%",
             "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
             "overhangs_width_speed": "55%",
-            "internal_bridge_speed": "402%",
             "bridge_acceleration": "50%",
             "default_acceleration": "40000",
             "external_perimeter_acceleration": "83%",
@@ -381,7 +378,6 @@
             "first_layer_infill_speed": "0",
             "infill_acceleration": "100%",
             "internal_bridge_acceleration": "50%",
-            "internal_bridge_speed": "400%",
             "max_print_speed": "80",
             "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
             "overhangs_speed": "100%",
@@ -402,7 +398,6 @@
             "first_layer_infill_speed": "0",
             "infill_acceleration": "100%",
             "internal_bridge_acceleration": "50%",
-            "internal_bridge_speed": "400%",
             "max_print_speed": "60",
             "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
             "overhangs_speed": "100%",
@@ -975,7 +970,7 @@
             "filament_notes": "Imported from Orca JSON (SV Zero ABS).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "20",
-            "slowdown_below_layer_time": "5"
+            "slowdown_below_layer_time": "8"
           }
         }
       ]
@@ -1020,7 +1015,7 @@
             "filament_notes": "Imported from Orca JSON (SV Zero PC).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "18",
-            "slowdown_below_layer_time": "5"
+            "slowdown_below_layer_time": "8"
           }
         }
       ]
@@ -1123,7 +1118,7 @@
             "filament_max_volumetric_speed": "21",
             "temperature": "210",
             "first_layer_temperature": "230",
-            "slowdown_below_layer_time": "5",
+            "slowdown_below_layer_time": "8",
             "filament_pressure_advance": "0.032"
           },
           "variants": [
@@ -1150,7 +1145,7 @@
                 "filament_max_volumetric_speed": "15",
                 "temperature": "220",
                 "first_layer_temperature": "245",
-                "slowdown_below_layer_time": "7",
+                "slowdown_below_layer_time": "8",
                 "filament_pressure_advance": "0.029"
               },
               "variants": [
@@ -1160,7 +1155,7 @@
                   "values": {
                     "filament_notes": "Imported from Orca JSON (SV Zero PLA Silk - Steel).",
                     "filament_colour": "#B1B9C5",
-                    "slowdown_below_layer_time": "5",
+                    "slowdown_below_layer_time": "8",
                     "filament_pressure_advance": "0.027"
                   },
                   "variants": []
@@ -1211,7 +1206,7 @@
             "filament_notes": "Imported from Orca JSON (SV Zero TPU).",
             "filament_colour": "#1FA7C1",
             "filament_max_volumetric_speed": "3",
-            "slowdown_below_layer_time": "5"
+            "slowdown_below_layer_time": "8"
           }
         }
       ]
