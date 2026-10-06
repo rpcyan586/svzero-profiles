@@ -260,5 +260,41 @@ class InstallPresetsTest(unittest.TestCase):
                 self.assertEqual(MODULE.disable_personal_skirts(directory, slicer), 1)
                 self.assertEqual(p.read_text(), "skirts = 0\nmin_skirt_length = 0\nperimeters = 3\n")
 
+    def test_accel_cap_holds_through_superslicer_percentages(self):
+        """Every installed preset, resolved the way SuperSlicer reads it, stays under the cap.
+
+        Percentages were skipped until 2026-10-06, and the re-anchored ladder
+        has shares above 100%: Fine's infill resolved to 6000 under a 5000 cap.
+        """
+        sys.path.insert(0, str(PATH.parent))
+        import generate  # noqa: E402
+        for slicer in ("superslicer", "prusa"):
+            with self.subTest(slicer=slicer), tempfile.TemporaryDirectory() as directory:
+                MODULE.install_superslicer(directory) if slicer == "superslicer" else MODULE.install_prusa(directory)
+                MODULE.cap_acceleration(directory, 5000)
+                presets = sorted((pathlib.Path(directory) / "print").glob("SV Zero *.ini"))
+                self.assertGreater(len(presets), 30)
+                for path in presets:
+                    kv = dict(line.split(" = ", 1) for line in path.read_text().splitlines()
+                              if line.split(" = ", 1)[0].endswith("_acceleration"))
+                    for key, value in generate.resolve_speeds(kv, round_output=False).items():
+                        self.assertLessEqual(float(value), 5000, "%s %s" % (path.name, key))
+
+    def test_accel_cap_keeps_a_share_whose_base_is_capped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "print"
+            dest.mkdir()
+            p = dest / "SV Zero test.ini"
+            p.write_text("default_acceleration = 40000\nsolid_infill_acceleration = 200%\n"
+                         "infill_acceleration = 50%\ntop_solid_infill_acceleration = 25%\n")
+            self.assertEqual(MODULE.cap_acceleration(directory, 5000), 1)
+            # Default and solid are capped; infill and top, 2500 and 1250 of the
+            # capped solid, keep their shares.
+            self.assertEqual(p.read_text(), "default_acceleration = 5000\nsolid_infill_acceleration = 5000\n"
+                             "infill_acceleration = 50%\ntop_solid_infill_acceleration = 25%\n")
+            p.write_text("solid_infill_acceleration = 4000\ninfill_acceleration = 150%\n")
+            self.assertEqual(MODULE.cap_acceleration(directory, 5000), 1)
+            self.assertEqual(p.read_text(), "solid_infill_acceleration = 4000\ninfill_acceleration = 5000\n")
+
 if __name__ == "__main__":
     unittest.main()

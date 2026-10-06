@@ -174,25 +174,52 @@ def cap_acceleration_orca(datadir, cap):
 
 
 def cap_acceleration(datadir, cap, kinds=("print",)):
-    """Cap every acceleration in installed presets. See the module docstring."""
+    """Cap every acceleration in installed presets. See the module docstring.
+
+    A SuperSlicer percentage is a share of a neighbouring acceleration
+    (generate.ACCEL_REFERENCE), and some shares exceed 100%: Optimal's infill is
+    115% of its solid infill. Skipping percentages let those resolve above the
+    cap (Fine's infill asked 6000 under a 5000 cap), so each one is resolved
+    against the capped values and written as the cap where it would exceed it.
+    """
+    from generate import ACCEL_REFERENCE, resolve_speeds  # noqa: E402 -- tools/ is on sys.path
     n = 0
     for kind in kinds:
         d = os.path.join(datadir, kind)
         for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
-            path, out, hit = os.path.join(d, f), [], False
-            for line in open(path, encoding="utf-8"):
-                k, _, v = line.partition("=")
-                k, v = k.strip(), v.strip()
-                if k.endswith("_acceleration") and not v.endswith("%"):
-                    try:
-                        if float(v) > cap:
-                            out.append("%s = %g\n" % (k, cap)); hit = True; continue
-                    except ValueError:
-                        pass
-                out.append(line)
-            if hit:
-                open(path, "w", encoding="utf-8").writelines(out); n += 1
+            path = os.path.join(d, f)
+            lines = open(path, encoding="utf-8").readlines()
+            values = {}
+            for line in lines:
+                k, sep, v = line.partition("=")
+                if sep and k.strip().endswith("_acceleration"):
+                    values[k.strip()] = v.strip()
+            capped = set()
+            while True:
+                resolved = resolve_speeds(values, round_output=False)
+                over = {k for k, v in resolved.items() if float_or(v) > cap}
+                # Upstream first: a share of a base that is about to be capped
+                # may fall back under the cap on its own.
+                over -= {k for k in over if ACCEL_REFERENCE.get(k) in over}
+                if not over:
+                    break
+                values.update({k: "%g" % cap for k in over})
+                capped |= over
+            if not capped:
+                continue
+            out = []
+            for line in lines:
+                k = line.partition("=")[0].strip()
+                out.append("%s = %g\n" % (k, cap) if k in capped else line)
+            open(path, "w", encoding="utf-8").writelines(out); n += 1
     return n
+
+
+def float_or(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def install_orca_hosts(datadir):
@@ -695,8 +722,8 @@ if __name__ == "__main__":
             cap = float(sys.argv[sys.argv.index(caps[0]) + 1])
         except (ValueError, IndexError):
             sys.exit("--accel-cap needs a number, e.g. --accel-cap 5000")
-        # Percentage accelerations are skipped by cap_acceleration, which is
-        # what makes it safe on SuperSlicer's dialect as well as PrusaSlicer's.
+        # cap_acceleration resolves SuperSlicer's percentage chain, so it is
+        # safe on that dialect as well as PrusaSlicer's.
         c = (cap_acceleration_orca(datadir, cap) if which == "orca"
              else cap_acceleration(datadir, cap))
         print("capped acceleration at %g in %d presets" % (cap, c))

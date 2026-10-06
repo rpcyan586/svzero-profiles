@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — acceleration cap holds in SuperSlicer
+
+- **`install-presets.py --accel-cap` now caps SuperSlicer's percentage
+  accelerations too.** It used to skip them, and some shares are above 100%: under
+  a 5000 cap, Fine's infill still asked for 6000, and Optimal's and Strength's for
+  5750. Each percentage is now resolved against the capped values and written as
+  the cap only where it would exceed it.
+
 ## Unreleased — re-anchored acceleration ladder
 
 - **The 0.4 tiers keep their ramp, now anchored on outside references** (mm/s²):
