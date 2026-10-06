@@ -26,8 +26,8 @@ values:
   machine_max_feedrate_y: 1200,200
   machine_max_feedrate_z: 30,12
   machine_max_jerk_e: 2.5,2.5
-  machine_max_jerk_x: 5,10
-  machine_max_jerk_y: 5,10
+  machine_max_jerk_x: 9,10
+  machine_max_jerk_y: 9,10
   machine_max_jerk_z: 0.5,0.4
   machine_min_extruding_rate: 0,0
   machine_min_travel_rate: 0,0
@@ -77,15 +77,21 @@ values:
     else''s skew numbers would be worse than shipping\n;  none, and naming a profile that does not exist
     logs a failed load on\n;  every print -- skew_correction.py answers an unknown name with\n;  respond_info,
     so it warns forever rather than failing once.\n;SKEW_PROFILE LOAD=your_skew_profile\n;  Stock START_PRINT
-    does not guarantee a settled plate before calibration.\nM190 S[first_layer_bed_temperature]\nSTART_PRINT\nG90\nG1
-    Z5 F600 ; clearance from the freshly calibrated bed before any XY move\nG92 E0\nSET_GCODE_OFFSET Z_ADJUST=-0.00
-    MOVE=1\nM104 S[first_layer_temperature]\nM83\n;---Purge. PURGE_LINE owns placement and motion; the
-    slicer passes the numbers\n;  only it knows. The old inline math is retired: it collapsed algebraically
-    to\n;  nozzle_diameter/2, ignored the filament''s volumetric ceiling (TPU was driven\n;  3.7x over),
-    and skipped the purge entirely when the part sat near an edge.\n;  See notes/kb/purge-lines.md.\nM109
-    S[first_layer_temperature]\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]
-    NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\nSET_PRINT_STATS_INFO
-    TOTAL_LAYER={total_layer_count}'
+    does not guarantee a settled plate before calibration.\nM190 S[first_layer_bed_temperature]\nSTART_PRINT\n;>>>SCV
+    generated from source/model.json tiers -- do not hand-edit\n;  Square corner velocity is a print-tier
+    setting. The print preset''s\n;  Notes carry it as SVZERO_SCV=<mm/s>mm and this sends it to Klipper.\n;  SET_VELOCITY_LIMIT
+    assigns rather than clamps; END_PRINT and\n;  CANCEL_PRINT restore printer.cfg''s value. A preset
+    without the marker\n;  sends nothing and keeps the printer''s own.\n{if notes=~/.*SVZERO_SCV=3mm.*/}SET_VELOCITY_LIMIT
+    SQUARE_CORNER_VELOCITY=3\n{elsif notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4\n{elsif
+    notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5\n{elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT
+    SQUARE_CORNER_VELOCITY=9{endif}\n;<<<SCV\nG90\nG1 Z5 F600 ; clearance from the freshly calibrated
+    bed before any XY move\nG92 E0\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\nM104 S[first_layer_temperature]\nM83\n;---Purge.
+    PURGE_LINE owns placement and motion; the slicer passes the numbers\n;  only it knows. The old inline
+    math is retired: it collapsed algebraically to\n;  nozzle_diameter/2, ignored the filament''s volumetric
+    ceiling (TPU was driven\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\n;  See
+    notes/kb/purge-lines.md.\nM109 S[first_layer_temperature]\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed]
+    FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width
+    + 2}\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}'
   printer_model: SV Zero
 variants:
 - condition: printer.model == "SVZERO"

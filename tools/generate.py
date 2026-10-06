@@ -563,6 +563,95 @@ def apply_speed_model(model, ss):
     return changed
 
 
+SCV_JERK_KEYS = ("default_jerk", "outer_wall_jerk", "inner_wall_jerk", "infill_jerk",
+                 "top_surface_jerk", "initial_layer_jerk", "travel_jerk")
+
+
+def tier_scv(model):
+    """{tier: square corner velocity} for every tier that declares one."""
+    return {t: v["sqv"] for t, v in model["tiers"].items()
+            if isinstance(v, dict) and v.get("sqv") is not None}
+
+
+def scv_marker(v):
+    return "SVZERO_SCV=%gmm" % v
+
+
+def scv_block(values):
+    """The PrusaSlicer/SuperSlicer start G-code block that sends the tier's SCV.
+
+    The value lives in each print preset's Notes as SVZERO_SCV=<v>mm. `notes` is
+    a print-scope key in PrusaSlicer 2.9, SuperSlicer and PS3 alike, which is
+    the point: print_custom_variables is SuperSlicer-only and is what broke
+    PrusaSlicer in v1.0.2. The `mm` suffix keeps =3mm from matching =13mm.
+    """
+    branches = []
+    for i, v in enumerate(sorted(set(values))):
+        pat = re.escape(scv_marker(v)).replace("\\.", "[.]")
+        branches.append("{%s notes=~/.*%s.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=%g"
+                        % ("if" if i == 0 else "elsif", pat, v))
+    return "\\n".join([
+        ";>>>SCV generated from source/model.json tiers -- do not hand-edit",
+        ";  Square corner velocity is a print-tier setting. The print preset's",
+        ";  Notes carry it as SVZERO_SCV=<mm/s>mm and this sends it to Klipper.",
+        ";  SET_VELOCITY_LIMIT assigns rather than clamps; END_PRINT and",
+        ";  CANCEL_PRINT restore printer.cfg's value. A preset without the marker",
+        ";  sends nothing and keeps the printer's own.",
+    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<SCV"])
+
+
+def apply_scv(model, ss):
+    """Square corner velocity, explicitly, in every PrusaSlicer/SuperSlicer preset.
+
+    Each tier base gets a Notes line naming its SCV, every printer start G-code
+    gets the block that turns that line into SET_VELOCITY_LIMIT, and the
+    machine jerk ceiling is raised to the highest tier so Orca -- which clamps
+    its per-feature jerk to machine_max_jerk_x -- can reach it. Orca's own jerk
+    fields are written by emit_orca. See model.json _sqv_note.
+    """
+    scv = tier_scv(model)
+    if not scv:
+        return 0
+    changed = 0
+    for tier, v in scv.items():
+        sec = ss.get("print:*SV Zero - %s*" % tier)
+        if sec is None:
+            continue
+        note = ("Square corner velocity for this tier: %g mm/s (%s). The start G-code "
+                "sends it to Klipper at print start; edit this value, not the G-code."
+                % (v, scv_marker(v)))
+        if sec.get("notes") != note:
+            sec["notes"] = note; changed += 1
+    block = scv_block(scv.values())
+    ceiling = max(scv.values())
+    for name, sec in ss.items():
+        if not name.startswith("printer:"):
+            continue
+        g = sec.get("start_gcode")
+        if g:
+            if ";>>>SCV" in g:
+                new = re.sub(r";>>>SCV.*?;<<<SCV", lambda m: block, g)
+            else:
+                # After the START_PRINT command line itself -- its own homing,
+                # wipe and mesh keep printer.cfg's SCV -- not after a comment
+                # that merely mentions it.
+                lines = g.split("\\n")
+                if "START_PRINT" not in lines:
+                    raise SystemExit("%s: no START_PRINT line to follow with the SCV block" % name)
+                at = lines.index("START_PRINT") + 1
+                new = "\\n".join(lines[:at] + [block] + lines[at:])
+            if new != g:
+                sec["start_gcode"] = new; changed += 1
+        for axis in ("x", "y"):
+            key = "machine_max_jerk_%s" % axis
+            if key in sec:
+                normal, _, stealth = str(sec[key]).partition(",")
+                want = "%g,%s" % (max(float(normal), ceiling), stealth or "%g" % ceiling)
+                if sec[key] != want:
+                    sec[key] = want; changed += 1
+    return changed
+
+
 def emit_physical_printers(model, ss):
     """PrusaSlicer [physical_printer:] sections, so upload needs no hand-typed IP.
 
@@ -1635,11 +1724,16 @@ def emit_orca(model, ss, keymap, out_dir):
         for key in computed_speeds:
             if key in doc and not str(doc[key]).strip().endswith("%"):
                 doc[key] = computed_motion(float(doc[key]))
-        # NOTE: no _sqv here. It was emitted as an int and Orca rejected the whole
-        # profile with "invalid json type for _sqv" -- Orca requires every value to
-        # be a string or a list of strings, and one bad profile fails the ENTIRE
-        # vendor, so nothing appeared. SQV is passed to START_PRINT anyway; it was
-        # never a slicer field. See model.json _sqv_note.
+        # Square corner velocity through Orca's own per-feature jerk, which on a
+        # Klipper machine it emits as SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY.
+        # Measured on 2.4.2: nothing is emitted while default_jerk is 0, and
+        # every value is clamped to machine_max_jerk_x (raised in apply_scv).
+        # Strings, always: an int `_sqv` once failed the whole vendor with
+        # "invalid json type". See model.json _sqv_note.
+        scv = tier_scv(model).get(tier)
+        if scv is not None:
+            for key in SCV_JERK_KEYS:
+                doc[key] = "%g" % scv
         # Orca is strict: any non-string scalar fails the profile, and one bad
         # profile fails the whole vendor bundle silently from the user's side.
         # Orca-only decisions last, so they cannot be overwritten by a
@@ -2097,6 +2191,16 @@ def emit_orca_vendor(model, ss, out_dir):
         # pin that never reaches the slicer. See the long note at
         # mach["use_relative_e_distances"].
         m["use_relative_e_distances"] = "1"
+        # Orca clamps every per-feature jerk to machine_max_jerk_x (measured,
+        # 2.4.2), and Sovol's base says 5, so without this the faster tiers'
+        # square corner velocity would silently come out as 5. See apply_scv.
+        ceiling = max(tier_scv(model).values(), default=None)
+        if ceiling is not None:
+            for key in ("machine_max_jerk_x", "machine_max_jerk_y"):
+                cur = m.get(key) or ["5"]
+                cur = list(cur) if isinstance(cur, list) else [str(cur)]
+                cur[0] = "%g" % max(float(cur[0]), ceiling)
+                m[key] = cur
         g = m.get("machine_start_gcode", "")
         g = g[0] if isinstance(g, list) else g
         if ORCA_START_CUT in g:
@@ -2266,6 +2370,8 @@ def main():
           % (nkeys, len(skipped)))
     n = apply_speed_model(model, ss)
     print("  applied speed model: %d keys" % n)
+    n = apply_scv(model, ss)
+    print("  applied square corner velocity: %d keys" % n)
     np_ = emit_physical_printers(model, ss)
     print("  emitted %d physical printers" % np_)
     nf, flowrep = apply_flow_model(model, ss)

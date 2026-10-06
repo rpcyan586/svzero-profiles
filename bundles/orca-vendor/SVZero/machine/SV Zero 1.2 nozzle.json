@@ -62,10 +62,10 @@
     "2.5"
   ],
   "machine_max_jerk_x": [
-    "5"
+    "9"
   ],
   "machine_max_jerk_y": [
-    "5"
+    "9"
   ],
   "machine_max_jerk_z": [
     "0.5"

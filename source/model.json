@@ -45,13 +45,13 @@
     "Optimal": {
       "anchor": "derived",
       "derivation": "midpoint of Fine and Standard",
-      "sqv": 5,
+      "sqv": 4,
       "layer_fraction": 0.375
     },
     "Standard": {
       "anchor": "stock",
       "derivation": "verbatim Sovol stock Orca profile (0.20mm Standard @ 0.4 nozzle)",
-      "sqv": 7,
+      "sqv": 5,
       "layer_fraction": 0.5
     },
     "Draft": {
@@ -90,7 +90,7 @@
       "_what_the_delta_is": "Four keys against *SV Zero General*: perimeters (per NOZZLE, in the leaf, because what is held constant is 2.4 mm of wall), fill_density 10% -> 25%, top_solid_layers 4 -> 5, bottom_solid_layers 3 -> 4. All four are in source/keymap.json, so all three emitters promise the same thing. fill_pattern stays grid -- General already sets it, and grid is what Artillery and Creality switch TO for their own Strength profiles. ensure_vertical_shell_thickness is deliberately absent: the keymap has no Orca mapping for it and the value vocabularies differ (bool vs enum), so it would survive two emitters out of three."
     }
   },
-  "_sqv_note": "Square corner velocity is a Klipper property, not a slicer setting. Orca exposes per-feature jerk and PS/SS a single machine jerk; neither maps cleanly, and writing SQV as a slicer field is what caused the PrusaSlicer errors that v1.0.2 removed. So each tier declares an sqv and the generator passes it to START_PRINT as a parameter. The progression 3/5/7/9 comes from the continuity book and is PROPOSED, not measured — faster tiers tolerate higher SQV.",
+  "_sqv_note": "SQUARE CORNER VELOCITY (SCV), per tier, in mm/s. Emitted explicitly to every slicer since 2026-10-05; before that it was declared here and emitted NOWHERE -- the 'passed to START_PRINT' path this note used to describe was never built, so every job ran printer.cfg's 5.0. How each slicer carries it (tools/generate.py apply_scv and emit_orca): PrusaSlicer, SuperSlicer and PS3 put 'SVZERO_SCV=<v>mm' in the print preset's Notes and a generated start G-code block turns it into SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY -- a print-scope key all three define, unlike print_custom_variables, which is what broke PrusaSlicer in v1.0.2. OrcaSlicer gets its native per-feature jerk fields, all set to the tier value; measured 2026-10-05 on Orca 2.4.2 Klipper flavour, it emits nothing while default_jerk is 0 and clamps every value to machine_max_jerk_x, so the machine ceiling is raised to the highest tier. END_PRINT and CANCEL_PRINT restore printer.cfg's value. VALUES: Standard is stock, and stock is 5 (Sovol's Zero process sets every jerk to 5 and printer.cfg says 5.0), so Standard moved 7 -> 5 and Optimal 5 -> 4 to keep the ladder monotonic. Sovol's speedBenchy declares jerk 20 but default_jerk 0, so it never emitted them and ran at 5; Draft keeps 9 as the fast end. References for scale: Orca's common Klipper-vendor default 8 with outer wall 5, Voron and Creality K2 9 / outer 7, Bambu 0.2 nozzle 8 / outer 5, Sovol SV08 0.2 nozzle 8 / outer 5. Still PROPOSED, not measured on a Zero. Stock stays null: Sovol's stock profile emits no SCV, so neither does the reference.",
   "layer_heights": {
     "_note": "Explicit rather than computed from layer_fraction, because the ladder is a design choice per nozzle and 0.2n deliberately breaks proportional scaling. Values are the existing SuperSlicer ladder, which is correct under Standard = stock: 0.4n Standard = 0.20 = stock's only process.",
     "0.2": {

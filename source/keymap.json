@@ -394,7 +394,7 @@
     "wall_direction",
     "wall_sequence"
   ],
-  "_jerk_note": "Every *_jerk key is unmapped on purpose. Orca exposes per-feature jerk; PS/SS expose a single machine-level jerk, and on a Klipper machine both are really square-corner velocity. SQV is handled as a tier property passed to START_PRINT rather than as a slicer setting \u2014 see source/model.json and docs/STATUS.md. v1.0.2 removed SQV from the bundles precisely because writing it as a slicer field caused PrusaSlicer errors.",
+  "_jerk_note": "Every *_jerk key is unmapped on purpose: there is no PS/SS print key to translate FROM. Orca's per-feature jerk is written directly by emit_orca from each tier's square corner velocity (model.json _sqv_note), because on a Klipper machine Orca emits jerk as SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY. PrusaSlicer/SuperSlicer carry the same value in the print preset's Notes and a generated start G-code block (apply_scv). v1.0.2 removed SQV because it was written as print_custom_variables, which PrusaSlicer does not have.",
   "_value_vocabularies_differ_too": "Mapping key NAMES is not enough: the same key can carry different enum values per slicer. PrusaSlicer 2.9.6 rejected brim_type=auto_brim from the Orca-derived Stock tier and substituted outer_only, with a warning dialog on every launch. Checked the rest of the Stock tier's non-numeric values: seam_position=aligned and fill_pattern=grid are valid in both.",
   "value_map": {
     "brim_type": {

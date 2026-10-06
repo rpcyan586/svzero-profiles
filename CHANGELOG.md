@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — walls, seams and square corner velocity
+
+- **Arachne is set explicitly in all three slicers.** Before this, PrusaSlicer
+  and OrcaSlicer used it only as their default, and SuperSlicer printed classic walls.
+- **Scarf seams in PrusaSlicer** on outer contours, matching what OrcaSlicer
+  already shipped. SuperSlicer has no scarf seam option.
+- **Square corner velocity per tier, sent explicitly.**
+  - Values: Fine 3, Optimal 4, Standard 5, Strength 5, Draft 9 mm/s.
+  - PrusaSlicer and SuperSlicer name the value in the print preset's Notes, and
+    the start G-code sends it after `START_PRINT`.
+  - OrcaSlicer carries it in its jerk fields. Its machine jerk ceiling is raised
+    to 9, because Orca clamps jerk to that ceiling.
+  - `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value.
+  - Previously the per-tier value was declared but never sent, so every job ran
+    at `printer.cfg`'s 5.
+- **Standard's square corner velocity is now 5** (it was declared as 7), which
+  is what Sovol's stock profile uses. Optimal moves to 4 to stay between Fine and Standard.
+
 ## Unreleased — machine mode in the handshake
 
 - **The handshake carries the machine mode:** `SVZERO_REQUIRE VERSION=… MODE=standard`.

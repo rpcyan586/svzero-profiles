@@ -204,7 +204,11 @@ def check(path):
                                                        filament_detected=True),
         # _COOLDOWN_START reads idle_timeout.timeout to know what to restore.
         "configfile": Mock(settings=Mock(extruder=Mock(min_extrude_temp=150),
-                                         idle_timeout=Mock(timeout=1800.0))),
+                                         idle_timeout=Mock(timeout=1800.0),
+                                         # END_PRINT and CANCEL_PRINT restore it.
+                                         printer=Mock(square_corner_velocity=5.0,
+                                                      max_accel=40000.0,
+                                                      max_velocity=1200.0))),
         "gcode_move": Mock(absolute_extrude=False, absolute_coordinates=True,
                            gcode_position=Mock(x=0.0, y=0.0, z=0.42),
                            position=Mock(x=0.0, y=0.0, z=0.42)),
@@ -1110,9 +1114,9 @@ def check(path):
             # than that the macro took some other branch entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"):
                 ["assist released", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
-            ("gcode_macro END_PRINT", "cooldown-installed"): "_COOLDOWN_START",
-            ("gcode_macro END_PRINT", "cooldown-absent"): "TURN_OFF_HEATERS",
-            ("gcode_macro CANCEL_PRINT", "cooldown-installed"): "COOLDOWN_ABORT",
+            ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
+            ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
+            ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
             ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"): "CHAMBER_OFF",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
             ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "CHAMBER_OFF",

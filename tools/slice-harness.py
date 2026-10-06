@@ -133,6 +133,7 @@ def build_sections():
     ss = G.sections_from_tree(G.load("presets.json"), model)
     G.emit_stock_tier(model, ss, G.load("keymap.json"), G.load("tier-anchors.json"))
     G.apply_speed_model(model, ss)
+    G.apply_scv(model, ss)
     G.apply_flow_model(model, ss)
     G.apply_shrinkage(ss, G.load("filament-shrink.json"))
     G.apply_8m_overrides(ss, G.load("filament-8m.json"))

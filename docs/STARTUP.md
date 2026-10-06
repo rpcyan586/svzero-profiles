@@ -27,6 +27,7 @@ installed version or measured performance.
 | `START_PRINT` → `CLEAN_NOZZLE` | Home if needed, park over the pad and wait for cleaning temperature. Retract, scrub through cooldown using the taught pad height, wait at probe temperature over the pad, perform the configured final probe and lift. There is no initial brush-datum tap. |
 | `START_PRINT` | Run optional camera tuning, recheck the bed target with `M190`, clear the G-code Z offset and invoke firmware-specific Z calibration. Rehome Z and calibrate the bed mesh. Heater targets remain active through this mesh sequence. |
 | `START_PRINT` | Release any remaining chamber-helper bed carry, park over the pad and return to the slicer. |
+| Slicer | PrusaSlicer/SuperSlicer send the print tier's square corner velocity (`SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY`, from the print preset's Notes); OrcaSlicer sends it with its first printed feature, from its jerk fields. `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value. |
 | Slicer | Lift to Z5, heat/wait for printing temperature, then call `PURGE_LINE` with nozzle/filament dimensions, flow limit and skirt clearance. |
 | `PURGE_LINE` | Place rings or an edge line and return recorded cleaning/end-retract debt at the deposition position before purging. |
 | Slicer | Continue the print; the public skirt remains enabled even with the pack installed. |
