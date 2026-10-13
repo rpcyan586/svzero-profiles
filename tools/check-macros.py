@@ -288,6 +288,13 @@ def check(path):
                  {"gcode_macro _BRUSH": Mock(t_start=800.0),
                   "save_variables": Mock(variables=Mock(wipe_seconds_min=60.0))}),
             ]
+        elif s == "gcode_macro _PREFLIGHT":
+            # The optional start-of-job hook (2026-10-13): called only when a
+            # machine defines it; the pack itself defines none.
+            scenarios = [
+                ("no-hook", None, "", {}, {}, {"gcode_macro _SVZERO_PRINT_START_HOOK": None}),
+                ("hook", None, "", {}, {}, {"gcode_macro _SVZERO_PRINT_START_HOOK": Mock()}),
+            ]
         elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
             # lookup is now ours to get right rather than the emitter's.
@@ -1146,6 +1153,11 @@ def check(path):
                 ("not-run", params, "", {}, {}, light_state(result=dict(status="not-run"))),
                 ("unhomed", params, "", {}, {}, light_state(homed="",last="homed",result=dict(status="selected",white=0.6))),
                 ("unchanged", params, "", {}, {}, light_state(last="homed",result=dict(status="selected",white=0.6))),
+                # A running print is lit before anything homes (2026-10-13), so
+                # the watcher cannot put the unhomed pattern back ahead of M191.
+                ("printing-unhomed", params, "", {}, {},
+                 dict(light_state(homed="", last="unhomed", result=dict(status="not-run")),
+                      print_stats=Mock(state="printing"))),
             ]
         elif s == "gcode_macro LIGHT_PATTERN":
             scenarios = [
@@ -1281,6 +1293,7 @@ def check(path):
             ("gcode_macro SET_CLEAN_TEMP", "prefix"): "M104 S170",
             ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
             ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
+            ("gcode_macro _PREFLIGHT", "hook"): "_SVZERO_PRINT_START_HOOK",
             ("gcode_macro SET_CLEAN_TEMP", "bed-coming-down"):
                 ["M104 S150", "silicone wipe at 195C (abs), nozzle held at 150C until the bed is at its target",
                  "VARIABLE=clean_temp VALUE=195.0"],
@@ -1420,6 +1433,7 @@ def check(path):
             ("gcode_macro _LIGHT_APPLY_STATE", "homed-selected"): "NOZZLE_LIGHT W=0.6",
             ("gcode_macro _LIGHT_APPLY_STATE", "not-run"): "NOZZLE_LIGHT W=0.5",
             ("gcode_macro _LIGHT_APPLY_STATE", "unhomed"): "LIGHT_PATTERN COUNT=33 VALUE=0.15",
+            ("gcode_macro _LIGHT_APPLY_STATE", "printing-unhomed"): ["NOZZLE_LIGHT W=0.5", "VALUE='\"homed\"'"],
             ("gcode_macro _LIGHT_APPLY_STATE", "failed-retains"): "SET_GCODE_VARIABLE MACRO=_LIGHT_STATE",
             # Name the numbers, not just "it rendered". These are the whole
             # claim MAX makes, and an arithmetic slip that still renders is
@@ -1531,6 +1545,7 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): "fan assist on",
                   ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "curtain fan off",
                   ("gcode_macro SET_CLEAN_TEMP", "bed-coming-down"): "M104 S195",
+                  ("gcode_macro _PREFLIGHT", "no-hook"): "_SVZERO_PRINT_START_HOOK",
                   ("gcode_macro SET_CLEAN_TEMP", "exact"): "nozzle held",
                   ("gcode_macro _COOLDOWN_TICK", "ramp-first-tick"): "fan assist on",
                   ("gcode_macro _COOLDOWN_TICK", "assist-heater-holds-integral"): "VARIABLE=assist_i",

@@ -86,6 +86,10 @@ macro pack.
   used to heat straight to the wipe temperature ahead of that `M190`; on the
   test printer the nozzle sat at 195 °C for 1.8 min before the brush. The brush
   sequence's own heat-up takes it the rest of the way.
+- **`_PREFLIGHT` calls `_SVZERO_PRINT_START_HOOK` if one is defined**, at
+  every job's first line before any heating: a place for machine-specific
+  start actions, such as lights, that cannot wait for `START_PRINT` once the
+  M191 soak holds the G-code queue. The pack defines none.
 
 ### Cooldown: one rate, one line per degree
 
