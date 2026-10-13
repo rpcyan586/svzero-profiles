@@ -2,7 +2,7 @@
 
 ## Candidate 2.1.0
 
-The offline suite passes **155 tests**, with macro rendering on Jinja 2.11.3
+The offline suite passes **175 tests**, with macro rendering on Jinja 2.11.3
 and a clean deterministic rebuild. Unlike 2.0.3-beta.1, **profile behaviour
 changes**: accelerations, walls, seams, square corner velocity and two new
 nozzle sizes (see the [changelog](../CHANGELOG.md)). PS vendor `2.1.0`, Orca
@@ -22,6 +22,12 @@ nozzle sizes (see the [changelog](../CHANGELOG.md)). PS vendor `2.1.0`, Orca
   back 64 microsteps and the chopper values, and both clamps held. One part was
   printed in precision mode from the pre-generator prototype profiles.
   1.4.x has not run it.
+- **Cooldown:** the per-degree progress and time-left logic was replayed
+  offline, tick by tick, on five recorded Zero2 cooldowns (1.5 and
+  2.5 °C/min, curtain on): no degree skipped, no rise in the time left, within
+  0.2 min on the two that kept to schedule and 7 to 14 min short at the end of
+  the three that ran over. The published 3 °C/min with the exhaust alone has
+  not been run.
 - **Physical prints:** none yet with these profiles. The 0.25 and 0.3 nozzle
   profiles have been sliced, never printed.
 

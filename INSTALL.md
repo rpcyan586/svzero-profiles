@@ -156,8 +156,9 @@ the qualified nozzle method. An unattainable chamber minimum still needs to be
 changed or the job cancelled; missing Python is not permission to ignore the
 requested minimum.
 
-The native cooldown ramps the **bed target** down; the public chamber-rate
-settings are zero on a heaterless Zero. Exhaust assist is available; curtain-fan
+The native cooldown ramps the **bed target** down at 3 °C/min to 35 °C (30 °C
+for PLA), with one console line per degree; the public chamber-rate settings
+are zero on a heaterless Zero. Exhaust assist is available; curtain-fan
 cooldown assist is **off by default**. These policies and rates are starting
 points, not measured guarantees against warping. `COOLDOWN_CONFIG ENABLE=0`
 disables the ramp; `COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp

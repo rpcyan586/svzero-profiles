@@ -64,6 +64,30 @@ macro pack.
 - The numbers behind the lines are unchanged in the extra's status and in
   `_CH_STATE`.
 
+### Cooldown: one rate, one line per degree
+
+- **The bed cools at 3 °C/min for every material.** The material table used to
+  set its own rate, 1.0 to 5.0 °C/min; it now sets only the endpoint (30 °C for
+  PLA, 35 °C otherwise). `variable_bed_rate` in `_COOLDOWN_CFG` changes it,
+  and `COOLDOWN_ARM BED_RATE=` still overrides one print.
+- **One console line per degree of bed**, every degree, instead of one a
+  minute. Re-sampled once a minute, the recorded ABS cooldowns skipped 19 of
+  their 65 degrees. The prefix is `cooldown:` rather than `cool`, so a line
+  reads `cooldown: bed 73C, about 23 min to 35C, exhaust 30%` instead of
+  `cool cooling to 35C: bed 73C, 23.3min left (measured) of 43.3min (bed now
+  73C), assist demand ...`.
+- **A steadier time left.** It is the slower of the schedule and the plate's
+  own rate over at least 4 minutes, and it never runs past the point where
+  the ramp gives up. The old figure, a 60-second slope, rose between lines on a
+  third of them. Replayed on five recorded cooldowns, the new one never rose.
+  It still cannot predict the slow last few degrees, and reads short there.
+- **The other lines are plain words too**, with minutes instead of seconds. The
+  assist's controller terms are gone from the progress line; fan duties are
+  shown as percentages.
+- **The curtain fan, once on, stays on for the rest of the ramp**, at its floor
+  or above (`curtain_hold`). It used to drop out a minute or so after coming on
+  and come back. The curtain assist remains off by default.
+
 ### Acceleration cap holds in SuperSlicer
 
 - **`install-presets.py --accel-cap` now caps SuperSlicer's percentage

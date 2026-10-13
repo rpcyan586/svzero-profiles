@@ -194,12 +194,12 @@ def check(path):
                              assist_curtain=0.0, assist_exhaust=0.0,
                              ch_written=32.0))
     settings.setdefault("gcode_macro _COOLDOWN_CFG",
-                        Mock(final=35.0, chamber_rate=1.5, bed_rate=5.0,
+                        Mock(final=35.0, chamber_rate=1.5, bed_rate=3.0,
                              chamber_step=1.0, deadband=2.0, settle_min=180,
                              settle_max=600, settle_slope=0.5, settle_tick=15,
                              park_z=100.0, max_seconds=5400, coast_delta=5.0,
                              override_delta=0.5, idle_margin=300,
-                             ramp_tick=15, report_seconds=60))
+                             ramp_tick=15, report_seconds=60, eta_window=240))
     # cooldown.cfg reads the chamber loop's own state -- `running` to decide
     # whether it must restart the loop, `chamber_slope` to gate the settle.
     # print_bed_target defaults to the STRING "None" on the real machine -- the
@@ -574,7 +574,8 @@ def check(path):
                         curtain_latched=0, idle_set=0.0,
                         assist_latched=0, prev_err=0.0, overrun_s=0.0,
                         assist_i=0.0,
-                        eta_bed=0.0, eta_at=0.0,
+                        eta_bed=0.0, eta_at=0.0, eta_bed_b=0.0, eta_at_b=0.0,
+                        meas_rate=0.0, eta_last=0.0, eta_last_at=0.0,
                         ch_written=0.0)
             # `b_at` places the scenario on the tick that commands this bed
             # setpoint, by solving the schedule for elapsed. Assist cases care
@@ -611,6 +612,11 @@ def check(path):
             # The assist scenarios' arithmetic is written against a 0.13 exhaust
             # floor, which was the default until 2026-10-04; pinned so they keep
             # testing the arithmetic rather than the published default (0.15).
+            # The degree already reported is the one the plate is on, so a
+            # scenario says a progress line only when it asks for one, as
+            # last_report did for the per-minute lines.
+            if "last_degree" not in kw:
+                base["last_degree"] = int((base["b_cmd"] + 8.0 if bed_temp is None else bed_temp) // 1)
             patch = {"gcode_macro _COOL_STATE": Mock(base),
                      "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13))}
             # The bed the ramp believes it commanded, coasting a little above
@@ -722,7 +728,28 @@ def check(path):
                 ("ramp-heaterless", params, "", {}, {}, cool()),
                 # Whole-degree commands, and a progress line with an ETA.
                 ("ramp-integer", params, "", {}, {}, cool()),
-                ("ramp-progress", params, "", {}, {}, cool(last_report=0)),
+                # ONE LINE PER DEGREE (2026-10-12). The plate at 99.0 C last
+                # reported 101, so 100 and 99 each get a line. 110 C at the
+                # anchor 475 s ago is 1.389 C/min measured, 45.4 min to 36 C;
+                # that is longer than the 22 min of schedule left plus the
+                # 15 min grace, so the figure is 37 min. The anchors roll.
+                ("ramp-progress", params, "", {}, {},
+                 cool(last_degree=101, eta_bed=110.0, bed_temp=99.0)),
+                # On the degree already reported: nothing said.
+                ("ramp-same-degree", params, "", {}, {},
+                 cool(last_degree=99, eta_bed=110.0, bed_temp=99.0)),
+                # Smoothed: 1500 s said 15 s ago carries as 1485, and the line
+                # moves 30 % of the way to the new 2225 -- 1707 s, 28 min.
+                ("ramp-progress-smoothed", params, "", {}, {},
+                 cool(last_degree=100, eta_bed=110.0, bed_temp=99.0,
+                      eta_last=1500.0, eta_last_at=460.0)),
+                # Inside eta_window of the older anchor the last measured rate
+                # stands: 2.0 C/min from 99.0 to 36 C is 31.5 min, and no
+                # anchor moves.
+                ("ramp-progress-held-rate", params, "", {}, {},
+                 cool(last_degree=100, eta_bed=101.0, eta_at=300.0,
+                      eta_bed_b=100.0, eta_at_b=400.0, meas_rate=2.0,
+                      bed_temp=99.0)),
                 ("ramp-heater", params, "", {}, {},
                  dict(cool(has_heater=1), **heater)),
                 # The endpoint is reached by ELAPSED now: settle 180 plus the
@@ -736,6 +763,10 @@ def check(path):
                 # must HOLD, not finish.
                 ("ramp-overrun", params, "", {}, {},
                  cool(elapsed=1980, bed_temp=40.0)),
+                # finish_grace spent with the plate still out: stop, and say so
+                # rather than "done".
+                ("ramp-gave-up", params, "", {}, {},
+                 cool(elapsed=1980, bed_temp=40.0, overrun_s=900.0)),
                 ("abort-bed-override", params, "", {}, {},
                  dict(cool(), **{"heater_bed": Mock(temperature=108.0,
                                                     target=42.0)})),
@@ -790,7 +821,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -806,7 +837,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -826,7 +857,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -856,6 +887,22 @@ def check(path):
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
                          Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
                                    curtain_enable=1))})),
+                # ONCE ON, IT STAYS ON (2026-10-12). Latched, and the plate back
+                # on the schedule so demand sits on the floor: the shipped
+                # curtain_hold keeps the curtain at its floor...
+                ("curtain-held-on-schedule", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.0,
+                           assist=1, assist_latched=1, curtain_latched=1),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
+                                   curtain_enable=1))})),
+                # ...and curtain_hold: 0 brings the release band back.
+                ("curtain-released-without-hold", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.0,
+                           assist=1, assist_latched=1, curtain_latched=1),
+                      **{"gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
+                                   curtain_enable=1, curtain_hold=0))})),
                 # ...BUT NOT A HEATER STILL WORKING. The same projection with the
                 # bed at 20 % power must not engage: that is the 2026-09-13
                 # early latch at the settle-to-ramp handover, with the plate at
@@ -871,7 +918,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -890,7 +937,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -910,7 +957,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -932,7 +979,7 @@ def check(path):
                                   exhaust_max=1.0, curtain_span=5.0,
                                   curtain_max=1.0, bed_ceiling=60.0,
                                   curtain_strength_factor=1.0,
-                                  curtain_latch=0, curtain_unlatch=0.05,
+                                  curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
@@ -1148,13 +1195,22 @@ def check(path):
                 ["chamber rate 1.0C/min ignored", "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
             ("gcode_macro _COOLDOWN_TAKE_OVER", ""): "CHAMBER_OFF",
             ("gcode_macro _COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
-            ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to ramp",
+            ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to do, the bed is already at or below 35C",
+            # One bed rate for every material (2026-10-12): 110 C to 35 C at
+            # the published 3 C/min is 25 min, and no material was named.
+            ("gcode_macro _COOLDOWN_START", "bed-only"):
+                ["bed 110C to 35C at 3.0C/min, 25 min on schedule (no material named)",
+                 "holding the bed at 110C until the nozzle cools to it, at most 10 min",
+                 "VARIABLE=last_degree VALUE=110"],
             ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "DURATION=15",
             # The ramp begins by switching every chamber controller off.
             ("gcode_macro _COOLDOWN_TICK", "settle-nozzle-cooled"):
-                ["nozzle 95.0C at or below bed", "_COOLDOWN_TAKE_OVER"],
+                ["the nozzle has cooled to the bed (95C) after 1 min, ramp starting",
+                 "_COOLDOWN_TAKE_OVER", "VARIABLE=last_degree VALUE=118",
+                 "VARIABLE=eta_bed_b VALUE=118.0"],
             ("gcode_macro _COOLDOWN_TICK", "settle-cap"):
-                ["settle cap 600s reached with the nozzle still at 250.0C", "_COOLDOWN_TAKE_OVER"],
+                ["the nozzle is still at 250C, above the bed, after 10 min. Ramp starting anyway",
+                 "_COOLDOWN_TAKE_OVER"],
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
             ("gcode_macro START_PRINT", "camera-tuner"): "CAMERA_TUNE STARTUP=1",
             # Arcs, not straight-line approximations, and a full circle has no
@@ -1195,35 +1251,48 @@ def check(path):
             ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake"): "not sliced by an rpcyan SV Zero profile",
             ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-standard"): "not sliced by an rpcyan SV Zero profile",
             ("gcode_macro CANCEL_PRINT", "handshake-pending"): "MACRO=_SVZERO_PACK VARIABLE=seen VALUE=0",
-            ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "settling 315/600s",
+            ("gcode_macro _COOLDOWN_TICK", "settle-progress"):
+                "holding the bed at 118C, nozzle 180C. The ramp starts when the nozzle reaches the bed, 5 min at most.",
             # The bed setpoint is commanded in whole degrees: at 460 -> 475 s of
             # a 2.5 C/min bed leg from 110 the line sits at 90.21, which must be
             # commanded as 90 and not as 90.21.
             ("gcode_macro _COOLDOWN_TICK", "ramp-integer"): "M140 S90",
-            ("gcode_macro _COOLDOWN_TICK", "ramp-progress"): "cooling to 35C",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-progress"):
+                ["bed 100C, about 37 min to 35C, exhaust 100%",
+                 "bed 99C, about 37 min to 35C, exhaust 100%",
+                 "VARIABLE=last_degree VALUE=99", "VARIABLE=meas_rate VALUE=1.389",
+                 "VARIABLE=eta_last VALUE=2225.0", "VARIABLE=eta_at_b VALUE=475",
+                 "the bed (99C) is cooling slower than the schedule (90C), the fans are helping"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-same-degree"): "VARIABLE=elapsed",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-progress-smoothed"):
+                ["bed 99C, about 28 min to 35C", "VARIABLE=eta_last VALUE=1707.0"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-progress-held-rate"):
+                ["bed 99C, about 32 min to 35C", "VARIABLE=last_degree VALUE=99"],
             # The plate arrived: finish.
-            ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "done, bed 35C after 33 min. Heaters off.",
             # The plate did not: hold the assist and say so, rather than
             # declaring victory 5 C short the way it did on 2026-09-07.
             ("gcode_macro _COOLDOWN_TICK", "ramp-overrun"):
-                ["still above 35", "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
+                ["schedule finished with the bed at 40C, waiting up to 15 min for it to reach 36C",
+                 "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-gave-up"):
+                ["stopped with the bed at 40C, 15 min past the schedule. Heaters off.", "_COOLDOWN_FINISH"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "VARIABLE=elapsed",
             ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "VARIABLE=elapsed",
-            ("gcode_macro _COOLDOWN_TICK", "ramp-last-step"): "ramp complete",
-            ("gcode_macro _COOLDOWN_TICK", "abort-bed-override"): "bed target changed",
+            ("gcode_macro _COOLDOWN_TICK", "abort-bed-override"): "the bed target changed to 42C outside the cooldown",
             ("gcode_macro _COOLDOWN_TICK", "chamber-target-ignored"): "VARIABLE=elapsed",
             ("gcode_macro _COOLDOWN_TICK", "chamber-release-ignored"): "VARIABLE=elapsed",
             ("gcode_macro _CHAMBER_VENT", "settle-leaves-vent"): "VARIABLE=vent_active VALUE=1",
-            ("gcode_macro _COOLDOWN_TICK", "watchdog"): "watchdog",
+            ("gcode_macro _COOLDOWN_TICK", "watchdog"): "stopped by the watchdog after 1667 min, heaters off",
             ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "_COOLDOWN_CLEAR KEEP_POLICY=1",
             ("gcode_macro _COOLDOWN_CLEAR", "clears-policy"): "VARIABLE=policy_set VALUE=0",
             ("gcode_macro _CHAMBER_VENT", "floor-set-runs"): "VARIABLE=vent_active VALUE=1",
-            ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "assist engaged",
+            ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "fan assist on at bed 55C, 10.0C behind the schedule: exhaust 100%",
             # Above the ceiling the curtain is gated off, and the exhaust gets
             # its whole range: err 13 saturates it at 1.0.
             ("gcode_macro _COOLDOWN_TICK", "assist-ceiling"):
-                ["assist engaged", "SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0"],
-            ("gcode_macro _COOLDOWN_TICK", "assist-release"): "assist released",
+                ["fan assist on", "SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-release"): "fan assist off at bed 52C, back on schedule",
             # A large error puts the fans at their ceiling. err 10, P alone is
             # 6.75 on 0.13, far past top 2.0: both fans flat out, and no
             # integral banked on top of a saturation.
@@ -1248,13 +1317,17 @@ def check(path):
                 ["SET_FAN_SPEED FAN=exhaust_fan SPEED=0.736", "VARIABLE=assist_i VALUE=0.2313"],
             ("gcode_macro _COOLDOWN_TICK", "assist-integral-bleeds"):
                 ["SET_FAN_SPEED FAN=exhaust_fan SPEED=0.13", "VARIABLE=assist_i VALUE=0.3688"],
-            ("gcode_macro _COOLDOWN_TICK", "assist-lookahead-idle"): "assist engaged",
+            ("gcode_macro _COOLDOWN_TICK", "assist-lookahead-idle"): "fan assist on",
             # Paired with its forbid: proves the ramp branch really rendered,
             # so "no assist engaged" means the heater gate held rather than the
             # scenario landing somewhere else entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-step-held"): "VARIABLE=elapsed",
             ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): ["M140 S45", "VARIABLE=elapsed"],
             ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "SET_FAN_SPEED FAN=fan2 SPEED=0.2",
+            ("gcode_macro _COOLDOWN_TICK", "curtain-held-on-schedule"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.13"],
+            ("gcode_macro _COOLDOWN_TICK", "curtain-released-without-hold"):
+                ["curtain fan off: exhaust 13%", "VARIABLE=curtain_latched VALUE=0"],
             # 0.293, the SAME as with the curtain disabled. Allowing a second
             # fan must not weaken the first: the curtain changes who delivers a
             # demand, never how much is asked for. Under the 2026-09-08 law
@@ -1269,7 +1342,7 @@ def check(path):
             # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
             # than that the macro took some other branch entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"):
-                ["assist released", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
+                ["fan assist off", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
             ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
             ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
             ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
@@ -1403,13 +1476,16 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "assist-curtain-withheld"): "SET_FAN_SPEED FAN=fan2",
                   # A heater still holding the plate must not be overruled by a
                   # projection -- the 2026-09-13 early latch.
-                  ("gcode_macro _COOLDOWN_TICK", "assist-lookahead-held"): "assist engaged",
-                  ("gcode_macro _COOLDOWN_TICK", "assist-step-held"): "assist engaged",
+                  ("gcode_macro _COOLDOWN_TICK", "assist-lookahead-held"): "fan assist on",
+                  ("gcode_macro _COOLDOWN_TICK", "assist-step-held"): "fan assist on",
                   # A nozzle hotter than the bed holds the settle: no ramp start.
                   ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "_COOLDOWN_TAKE_OVER",
                   ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "_COOLDOWN_TAKE_OVER",
-                  ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): "assist engaged",
-                  ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "curtain released",
+                  ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): "fan assist on",
+                  ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "curtain fan off",
+                  ("gcode_macro _COOLDOWN_TICK", "curtain-held-on-schedule"): ["curtain fan off", "VARIABLE=curtain_latched"],
+                  ("gcode_macro _COOLDOWN_TICK", "ramp-same-degree"): ["bed 99C, about", "VARIABLE=last_degree", "VARIABLE=eta_last"],
+                  ("gcode_macro _COOLDOWN_TICK", "ramp-progress-held-rate"): ["VARIABLE=eta_at", "VARIABLE=meas_rate", "bed 100C"],
                   # Anti-windup: a saturated tick banks nothing, so writes nothing.
                   ("gcode_macro _COOLDOWN_TICK", "assist-windup-held"): "VARIABLE=assist_i",
                   # Curtain is off by default, so the default assist scenario
