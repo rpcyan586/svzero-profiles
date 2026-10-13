@@ -1094,7 +1094,12 @@ class ChamberPreheat:
                 % (bed_target, maximum_target)
             )
         available_boost = max(0.0, maximum_target - bed_target)
-        boost_cap = min(max_boost, available_boost)
+        # BOOST=0 means no bed boost, under every policy. It did not: the hold
+        # policy took the plate to the ceiling and the ETA planner climbed it
+        # anyway, because only the opening guess looked at boost_requested.
+        # Measured 2026-10-13: BOOST=0 peaked at 119 C (hold) and 110 C (eta)
+        # on a 100 C target, and Zero2's ABS soak that day went to 120 C.
+        boost_cap = min(max_boost, available_boost) if boost_requested else 0.0
 
         self.active = True
         self.slope = None

@@ -534,6 +534,9 @@ def check(path):
                   "temperature_sensor chamber_temp": Mock(temperature=48.0)}),
                 ("tol-ignored", None, "S45 TOL=5", {}, {},
                  {"chamber_preheat": Mock()}),
+                # Bed boost is the default; BOOST=0 is the way out.
+                ("boost-off", None, "S30 BOOST=0", {}, {},
+                 {"chamber_preheat": Mock()}),
             ]
 
         # cooldown.cfg carries two actuator models and four phases, and an
@@ -1115,7 +1118,9 @@ def check(path):
                 "nozzle wipe starts 55 s before the chamber is due (configured 70 s, shortest wipe so far 68 s)",
             ("gcode_macro M191", "wipe-lead-configured"):
                 "nozzle wipe starts 70 s before the chamber is due",
-            ("gcode_macro M191", "exact-minimum"): "the chamber to reach 30.0C, the slicer's minimum",
+            ("gcode_macro M191", "exact-minimum"): ["the chamber to reach 30.0C, the slicer's minimum",
+                                                    "BOOST=1"],
+            ("gcode_macro M191", "boost-off"): "BOOST=0",
             ("gcode_macro M191", "default-compatibility"): "the floor for a bare M191",
             ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"):
                 "Adaptive floor 0.15, lowering cooldown 0",
@@ -1343,6 +1348,7 @@ def check(path):
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
                   ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],
                   ("gcode_macro M191", "s-beats-r"): "CHAMBER_COOL_WAIT",
+                  ("gcode_macro M191", "boost-off"): "bed boost on",
                   ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"): "VARIABLE=trial_active VALUE=1",
                   ("gcode_macro SET_VELOCITY_LIMIT", "under"): "clamped",
                   ("gcode_macro SET_VELOCITY_LIMIT", "scv-only"): "clamped",

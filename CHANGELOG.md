@@ -27,6 +27,16 @@ macro pack.
   component: a refused job switches the printer once idle and cold, and starts
   again.
 
+### Bed boost on by default; fewer extras in the pack
+
+- **Bed boost is the default** with the preheat helper: the plate runs above
+  its print target while the chamber climbs, and is back before printing.
+  `M191 ... BOOST=0` turns it off for one wait, and now actually does: the
+  shipped hold policy boosted the bed whatever `BOOST` said.
+- **Removed from the published pack:** the orbiting stir (`chamber_orbit.cfg`,
+  `CHAMBER_ORBIT_SWEEP`, `ORBIT_WHINE_SWEEP`) and the fan duty and rpm chart
+  sensors (`fan_duty.py`, `exhaust_duty.cfg`).
+
 ### M191 reads S and R as Marlin does
 
 - **`M191 R<t>` is accepted.** It was refused. As in Marlin, it sets the

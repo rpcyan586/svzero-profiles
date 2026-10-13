@@ -22,7 +22,6 @@ Macro pack preset to maintain.
 | Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation and a bed cooldown ramp | The profiles still print using the stock path above |
 | `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover. `M191 R` above its target is refused, because waiting for it to cool needs the helper |
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
-| `fan_duty.py` + `exhaust_duty.cfg` | Adds commanded exhaust duty and normalized measured RPM traces to the temperature chart | Fan regulation and tachometer checks still work; only the extra chart traces are absent |
 | `svzero-mode-precision.cfg.off` in the pack directory | Precision mode on the 0.4 nozzle: 64 microsteps, 2.4 A, a 300 mm/s ceiling, and its own printer profile with 0.04–0.12 mm layers. Switched by renaming the file and restarting Klipper ([docs/PRECISION.md](docs/PRECISION.md)) | Standard mode only. A job sliced for precision is refused before heating, with the file to rename |
 | `svzero_mode_switch.py` as a Moonraker component | A job sliced for the other mode switches the printer itself: refused, Klipper restarted once idle and cold, the same file started again | Switching is a rename and a restart by hand |
 | `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
@@ -207,9 +206,10 @@ The native macro path then takes over.
 - **Adaptive preheat:** qualifies a previously hot nozzle before trusting it as
   an air sensor. Moonraker temperature history can shorten that qualification;
   if history is absent or unavailable it takes fresh samples instead. Bed boost
-  is enabled explicitly with `M191 ... BOOST=1`, bounded by the configured bed
-  ceiling (120 °C in the public config). Standard generated calls do not enable
-  boost. Timeouts, invalid parameters or a failed qualification remain errors;
+  is on by default: the plate runs above its print target while the chamber
+  climbs, bounded by the configured bed ceiling (120 °C in the public config),
+  and is back at its target before printing. `M191 ... BOOST=0` turns it off for
+  one wait. Timeouts, invalid parameters or a failed qualification remain errors;
   the macro must not pretend the requested chamber condition was reached.
 - **Spool guard:** a 404 specifically on Moonraker's Spoolman endpoint means
   “not configured” and skips the check with one notice per session. A configured
@@ -217,9 +217,6 @@ The native macro path then takes over.
   a material mismatch refuses before heating. Server failures/timeouts also
   refuse. The configured one-shot retry override is described in
   `spool_guard.cfg`; it is an explicit override, not automatic success.
-- **Fan charts:** copy `fan_duty.py` before including `exhaust_duty.cfg`. Select
-  the correct fan name for your firmware in that file. The module only adds
-  telemetry; it is not required for chamber control.
 - **Camera tuning:** the local camera service and lighting macros are separate
   dependencies, not included by the basic macro pack. Service failure is caught
   and printing continues with current/default camera settings. Configure this

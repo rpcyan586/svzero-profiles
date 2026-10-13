@@ -1299,6 +1299,30 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
 
 
 
+class BoostRequestTest(unittest.TestCase):
+    """BOOST=0 leaves the plate at its target, whatever the policy."""
+
+    def _peak(self, boost, policy):
+        def nozzle(now):
+            return 25.9 if now <= 120 else 25.9 + 0.55 * (now - 120) / 60.0
+        unused, unused_reactor, bed, unused_state, unused_fan = controller(
+            nozzle, config_values={"boost_policy": policy, "wipe_lead_seconds": 0.0,
+                                   "max_bed_boost": 25.0, "max_bed_temp": 120.0})
+        ctl = unused
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(FakeGcmd(MINIMUM=29.0, BED_TARGET=100.0, BOOST=boost))
+        return max(t for unused_t, t in bed.commands)
+
+    def test_no_boost_unless_asked(self):
+        for policy in ("hold", "eta"):
+            with self.subTest(policy=policy):
+                self.assertLessEqual(self._peak(0, policy), 100.0 + 0.9)
+
+    def test_boost_when_asked(self):
+        for policy in ("hold", "eta"):
+            with self.subTest(policy=policy):
+                self.assertGreater(self._peak(1, policy), 105.0)
+
+
 class CoolWaitTest(unittest.TestCase):
     """M191 R's cooling wait against Marlin's wait_for_chamber and its defaults:
     window 1 C, hysteresis 3 C, residency 10 s, give up below 1.5 C per 120 s."""
