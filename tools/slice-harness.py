@@ -135,12 +135,26 @@ def build_sections():
     return model, ss
 
 
+# --layer picks one preset of a tier that has several (a machine mode's tiers).
+LAYER = None
+
+
+def layer_glob():
+    return LAYER if LAYER else "*"
+
+
+def printer_name(nozzle, tier, orca=False):
+    """The printer a tier's preset belongs to: a machine mode's, or the nozzle's."""
+    return G.printer_for(G.load("model.json"), nozzle, tier, orca=orca)
+
+
 def preset_names(ss, nozzle, tier):
-    want = re.compile(r"^print:SV Zero %sn - [\d.]+mm \(%s\)$" % (re.escape(nozzle), tier))
+    layer = re.escape(LAYER) if LAYER else r"[\d.]+"
+    want = re.compile(r"^print:SV Zero %sn - %smm \(%s\)$" % (re.escape(nozzle), layer, tier))
     hit = next((k for k in ss if want.match(k)), None)
     if not hit:
         raise SystemExit("no print preset for %s nozzle, %s tier" % (nozzle, tier))
-    return "printer:SV Zero %sn" % nozzle, hit
+    return "printer:%s" % printer_name(nozzle, tier), hit
 
 
 def write_ss_config(ss, printer, prnt, filament, path):
@@ -209,10 +223,11 @@ def merge_ini(paths, out_path):
 
 def slice_ps(work, nozzle, tier, filament, obj):
     d = os.path.join(ROOT, "bundles", "ps-presets")
-    prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - *(%s).ini" % (nozzle, tier)))
+    prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - %smm (%s).ini"
+                                  % (nozzle, layer_glob(), tier)))
     if not prnt:
         return None, "no flattened print preset; run generate.py --emit ps-presets"
-    cfg = merge_ini([os.path.join(d, "printer", "SV Zero %sn.ini" % nozzle),
+    cfg = merge_ini([os.path.join(d, "printer", "%s.ini" % printer_name(nozzle, tier)),
                      prnt[0],
                      os.path.join(d, "filament", "%s.ini" % filament)],
                     os.path.join(work, "ps-config.ini"))
@@ -246,14 +261,15 @@ def slice_orca(work, nozzle, tier, filament, obj):
     subprocess.run([sys.executable, os.path.join(HERE, "install-presets.py"), "orca", d],
                    capture_output=True, text=True)
     v = os.path.join(d, "system", "SVZero")
-    proc = glob.glob(os.path.join(v, "process", "*%s @SV Zero %s nozzle.json" % (tier, nozzle)))
+    machine = printer_name(nozzle, tier, orca=True)
+    proc = glob.glob(os.path.join(v, "process", "%smm %s @%s.json" % (layer_glob(), tier, machine)))
     if not proc:
         return None, "no Orca process for %s/%s; run generate.py --emit orca,orca-vendor" % (nozzle, tier)
     for stale in glob.glob(os.path.join(work, "plate_*.gcode")):
         os.remove(stale)
     p = run(["flatpak", "run", ORCA_ID, "--datadir", d,
              "--load-settings", "%s;%s" % (
-                 os.path.join(v, "machine", "SV Zero %s nozzle.json" % nozzle), proc[0]),
+                 os.path.join(v, "machine", "%s.json" % machine), proc[0]),
              "--load-filaments", os.path.join(v, "filament", "%s.json" % filament),
              "--slice", "0", "--outputdir", work, obj],
             os.path.join(work, "orca.log"))
@@ -539,7 +555,7 @@ def run_matrix(args, model, work, obj, want):
             if w == "ss":
                 art = glob.glob(os.path.join(d_ss, "print",
                                              "SV Zero %sn - *(%s).ini" % (noz, tier)))
-                cfg = merge_ini([os.path.join(d_ss, "printer", "SV Zero %sn.ini" % noz),
+                cfg = merge_ini([os.path.join(d_ss, "printer", "%s.ini" % printer_name(noz, tier)),
                                  art[0], os.path.join(d_ss, "filament", "%s.ini" % fil)],
                                 os.path.join(work, "m-ss.ini")) if art else None
                 path, out = slice_ss(work, cfg, obj) if cfg else (None, "no preset for this pair")
@@ -669,6 +685,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--nozzle", default="0.4")
     ap.add_argument("--tier", default="Standard")
+    ap.add_argument("--layer", help="layer height, for a tier with several (e.g. Precision 0.08)")
     ap.add_argument("--filament", default="SV Zero PLA - Brass")
     ap.add_argument("--slicers", default="ps,ss,orca")
     ap.add_argument("--workdir", default=WORK)
@@ -678,6 +695,8 @@ def main():
     ap.add_argument("--matrix", action="store_true",
                     help="cover every nozzle, tier and filament at least once")
     args = ap.parse_args()
+    global LAYER
+    LAYER = args.layer
 
     work = os.path.expanduser(args.workdir)
     os.makedirs(work, exist_ok=True)
@@ -710,10 +729,11 @@ def main():
         # invisible to a pass that never reads the emitter's output. That gap
         # is why three broken artefacts shipped on 2026-09-06.
         d = os.path.join(ROOT, "bundles", "ss-presets")
-        art = glob.glob(os.path.join(d, "print", "SV Zero %sn - *(%s).ini"
-                                     % (args.nozzle, args.tier)))
+        art = glob.glob(os.path.join(d, "print", "SV Zero %sn - %smm (%s).ini"
+                                     % (args.nozzle, layer_glob(), args.tier)))
         if art:
-            merged = merge_ini([os.path.join(d, "printer", "SV Zero %sn.ini" % args.nozzle),
+            merged = merge_ini([os.path.join(d, "printer", "%s.ini"
+                                             % printer_name(args.nozzle, args.tier)),
                                 art[0],
                                 os.path.join(d, "filament", "%s.ini" % args.filament)],
                                os.path.join(work, "ss-artefact.ini"))

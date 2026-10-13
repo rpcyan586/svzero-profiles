@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -70,7 +71,8 @@ class ProfileGenerationTests(unittest.TestCase):
                    "gap_infill_speed", "initial_layer_speed", "initial_layer_infill_speed",
                    "bridge_speed", "outer_wall_acceleration", "top_surface_acceleration")
         presets = [json.loads(p.read_text()) for p in vendor.glob("* @SV Zero *.json")]
-        self.assertEqual(len(presets), len(G.expected_presets(G.load("model.json"))))
+        model_ = G.load("model.json")
+        self.assertEqual(len(presets), len(G.expected_presets(model_)))
         for preset in presets:
             for key in derived:
                 with self.subTest(preset=preset["name"], key=key):
@@ -82,7 +84,12 @@ class ProfileGenerationTests(unittest.TestCase):
                 continue
             native = G.flatten(ss, name)
             self.assertEqual(native["perimeter_speed"], "68%")
-            self.assertEqual(native["external_perimeter_speed"], "83%")
+            # A mode's outer-wall cap writes an absolute speed where it binds.
+            unused, mode = G.mode_of(model_, re.search(r"\((\w+)\)$", name).group(1))
+            capped = mode and native["external_perimeter_speed"] == G.computed_motion(
+                mode["outer_wall_cap"])
+            if not capped:
+                self.assertEqual(native["external_perimeter_speed"], "83%")
             self.assertEqual(native["first_layer_speed"], "10.5%")
             self.assertRegex(native["default_speed"], r"^\d+\.\d$")
             converted = G.flatten(ps, name)
@@ -91,7 +98,14 @@ class ProfileGenerationTests(unittest.TestCase):
             self.assertEqual(converted["first_layer_speed"], "10.5%")
 
     def test_travel_acceleration_is_5000_in_every_shipped_process(self):
-        expected = len(G.expected_presets(G.load("model.json")))
+        model = G.load("model.json")
+        expected = len(G.expected_presets(model))
+
+        def travel(name):
+            # A mode tier travels at its mode's ceiling, never above it.
+            tier = re.search(r"\(?(\w+)\)? @|\((\w+)\)(?:\.ini)?$", name)
+            unused, mode = G.mode_of(model, next(g for g in tier.groups() if g))
+            return mode["machine"]["max_accel"] if mode else 5000
         bundles = ROOT / "bundles"
         for relative in ("SVZero_SuperSlicer.ini", "SVZero_PrusaSlicer.ini", "ps-vendor/SVZero.ini"):
             sections = G.parse_ini(bundles / relative)
@@ -99,7 +113,8 @@ class ProfileGenerationTests(unittest.TestCase):
             self.assertEqual(len(names), expected)
             for name in names:
                 with self.subTest(bundle=relative, preset=name):
-                    self.assertEqual(float(G.flatten(sections, name)["travel_acceleration"]), 5000)
+                    self.assertEqual(float(G.flatten(sections, name)["travel_acceleration"]),
+                                     travel(name))
                     if relative == "SVZero_SuperSlicer.ini":
                         self.assertEqual(G.flatten(sections, name).get("travel_deceleration_use_target", "1"), "1")
         for relative in ("ps-presets/print", "ss-presets/print"):
@@ -108,7 +123,7 @@ class ProfileGenerationTests(unittest.TestCase):
             for path in files:
                 values = dict(line.split(" = ", 1) for line in path.read_text().splitlines()
                               if " = " in line and not line.startswith("#"))
-                self.assertEqual(float(values["travel_acceleration"]), 5000, str(path))
+                self.assertEqual(float(values["travel_acceleration"]), travel(path.name), str(path))
                 if relative == "ss-presets/print":
                     self.assertEqual(values.get("travel_deceleration_use_target", "1"), "1")
         for relative in ("orca", "orca-vendor/SVZero/process"):
@@ -116,7 +131,8 @@ class ProfileGenerationTests(unittest.TestCase):
             processes = [p for p in processes if "@SV Zero " in p.get("name", "")]
             self.assertEqual(len(processes), expected)
             for process in processes:
-                self.assertEqual(float(process["travel_acceleration"]), 5000, process["name"])
+                self.assertEqual(float(process["travel_acceleration"]), travel(process["name"]),
+                                 process["name"])
         # PS3 has one conditional print tree rather than 38 separate presets.
         document = yaml.safe_load((bundles / "ps3/SVZero/preset-print-svzero.yaml").read_text())
         def check_tree(node, inherited):
@@ -137,29 +153,37 @@ class ProfileGenerationTests(unittest.TestCase):
         def mm(value, nozzle):
             return float(value[:-1]) / 100 * float(nozzle) if value.endswith("%") else float(value)
 
-        for nozzle in model["machine"]["nozzles"]:
-            machine = json.loads((vendor / "machine" / f"SV Zero {nozzle} nozzle.json").read_text())
+        # Per PRINTER: a machine mode's printer shares its nozzle with the
+        # standard one and has a minimum layer of its own.
+        printers = [(f"SV Zero {n}n", f"SV Zero {n} nozzle", n) for n in model["machine"]["nozzles"]]
+        printers += [(m["printer"] % n, m["orca_machine"] % n, n)
+                     for m in G.modes(model).values() for n in m["nozzles"]]
+        for pp_name, orca_name, nozzle in printers:
+            machine = json.loads((vendor / "machine" / f"{orca_name}.json").read_text())
             bounds = tuple(float(machine[k][0]) for k in ("min_layer_height", "max_layer_height"))
             # The public product installs the self-contained vendor bundle;
             # host-dependent private loose machine presets are not emitted.
             # Pin both extremes so a shared conversion error cannot pass by agreement.
-            if nozzle in ("0.2", "1.4"):
+            if pp_name in ("SV Zero 0.2n", "SV Zero 1.4n"):
                 self.assertEqual(bounds, {"0.2": (0.04, 0.16), "1.4": (0.28, 1.12)}[nozzle])
             heights = []
             for slicer, sections in bundles.items():
-                printer = G.flatten(sections, f"printer:SV Zero {nozzle}n")
+                printer = G.flatten(sections, f"printer:{pp_name}")
                 for i, key in enumerate(("min_layer_height", "max_layer_height")):
-                    self.assertAlmostEqual(mm(printer[key], nozzle), bounds[i], msg=(slicer, nozzle, key))
+                    self.assertAlmostEqual(mm(printer[key], nozzle), bounds[i], msg=(slicer, pp_name, key))
                 for name in sections:
-                    if name.startswith(f"print:SV Zero {nozzle}n - "):
+                    if name.startswith("print:SV Zero ") and \
+                            G.flatten(sections, name).get("compatible_printers") == pp_name:
                         preset = G.flatten(sections, name)
                         for key in ("layer_height", "first_layer_height"):
                             heights.append((slicer, name, key, mm(preset[key], nozzle)))
             for preset in processes:
-                if f"SV Zero {nozzle} nozzle" in preset.get("compatible_printers", []):
+                if orca_name in preset.get("compatible_printers", []):
                     for key in ("layer_height", "initial_layer_print_height"):
                         heights.append(("Orca", preset["name"], key, float(preset[key])))
-            count = sum(n == nozzle for n, _, _ in G.expected_presets(model))
+            count = sum(n == nozzle and G.printer_for(model, n, t) == pp_name
+                        for n, t, _ in G.expected_presets(model))
+            self.assertGreater(count, 0, pp_name)
             self.assertEqual(len(heights), count * 3 * 2)
             for slicer, name, key, height in heights:
                 with self.subTest(slicer=slicer, preset=name, key=key):
@@ -222,9 +246,10 @@ class ProfileGenerationTests(unittest.TestCase):
         vendor = ROOT / "bundles/orca-vendor/SVZero"
         processes = [json.loads(p.read_text()) for p in (vendor / "process").glob("*.json")]
         for nozzle, tier, height in G.expected_presets(model):
-            with self.subTest(nozzle=nozzle, tier=tier):
-                matches = [p for p in processes if p.get("name", "").endswith(
-                    f" {tier} @SV Zero {nozzle} nozzle")]
+            with self.subTest(nozzle=nozzle, tier=tier, height=height):
+                suffix = "mm %s @%s" % (tier, G.printer_for(model, nozzle, tier, orca=True))
+                matches = [p for p in processes if p.get("name", "").endswith(suffix)
+                           and abs(float(p["layer_height"]) - height) < 1e-9]
                 self.assertEqual(len(matches), 1)
                 p = matches[0]
                 self.assertEqual(float(p["layer_height"]), height)

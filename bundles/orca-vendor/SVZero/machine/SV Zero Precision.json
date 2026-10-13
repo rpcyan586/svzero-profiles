@@ -1,0 +1,11 @@
+{
+  "type": "machine_model",
+  "name": "SV Zero Precision",
+  "model_id": "SV-ZERO-PRECISION",
+  "nozzle_diameter": "0.4",
+  "machine_tech": "FFF",
+  "family": "SOVOL",
+  "bed_model": "",
+  "bed_texture": "",
+  "default_materials": ""
+}

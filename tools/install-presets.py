@@ -46,7 +46,7 @@ presets were dropped silently. A preset with an unresolvable parent produces no
 error; it simply never appears. Orca also needs the printer model listed in
 `models` in OrcaSlicer.conf, which is what the setup wizard normally writes.
 """
-import collections, json, os, shutil, sys
+import collections, json, os, re, shutil, sys
 
 # The Orca start G-code lives in start_gcode.py so generate.py and
 # install-presets.py cannot drift apart again. Tests load these scripts by path
@@ -643,10 +643,15 @@ def enable_orca_chamber_shadow_test(datadir):
         with open(path, encoding="utf-8") as handle:
             doc = json.load(handle)
         start = doc.get("machine_start_gcode", "")
-        if ORCA_NORMAL_CHAMBER_START not in start:
+        # A machine mode's printer names its mode in the handshake; the block
+        # is otherwise the same, so match it with that mode's line.
+        mode = re.search(r"SVZERO_REQUIRE VERSION=\S+ MODE=(\w+)", start)
+        mode = mode.group(1) if mode else "standard"
+        normal = ORCA_NORMAL_CHAMBER_START.replace("MODE=standard", "MODE=" + mode)
+        shadow = ORCA_SHADOW_CHAMBER_START.replace("MODE=standard", "MODE=" + mode)
+        if normal not in start:
             continue
-        doc["machine_start_gcode"] = start.replace(
-            ORCA_NORMAL_CHAMBER_START, ORCA_SHADOW_CHAMBER_START, 1)
+        doc["machine_start_gcode"] = start.replace(normal, shadow, 1)
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(doc, handle, indent=2)
         changed += 1

@@ -235,6 +235,18 @@
           "values": {
             "retract_lift": "1.4"
           }
+        },
+        {
+          "condition": "tool.nozzle_diameter == 0.4",
+          "id": "SV Zero Precision 0.4n",
+          "name": "SV Zero Precision 0.4n",
+          "features": {
+            "nozzle_diameter": "0.4"
+          },
+          "values": {
+            "retract_lift": "0",
+            "min_layer_height": "0.04"
+          }
         }
       ]
     },
@@ -588,6 +600,22 @@
               }
             }
           ]
+        },
+        {
+          "id": "*SV Zero - Precision*",
+          "values": {
+            "first_layer_infill_speed": "0",
+            "max_print_speed": "120",
+            "overhangs_dynamic_speed": "0:5:0:0x0:25x14:50x9:75x6:100x6",
+            "overhangs_speed": "100%",
+            "overhangs_width_speed": "55%",
+            "travel_speed": "300",
+            "travel_acceleration": "4000",
+            "perimeters": "3",
+            "ironing": "1",
+            "ironing_type": "top",
+            "first_layer_height": "0.2"
+          }
         }
       ]
     },
@@ -782,6 +810,66 @@
               "values": {
                 "layer_height": "0.2",
                 "perimeters": "6",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.04mm (Precision)",
+              "name": "SV Zero 0.4n - 0.04mm (Precision)",
+              "inherits": [
+                "*SV Zero - Precision*"
+              ],
+              "values": {
+                "layer_height": "0.04",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.06mm (Precision)",
+              "name": "SV Zero 0.4n - 0.06mm (Precision)",
+              "inherits": [
+                "*SV Zero - Precision*"
+              ],
+              "values": {
+                "layer_height": "0.06",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.08mm (Precision)",
+              "name": "SV Zero 0.4n - 0.08mm (Precision)",
+              "inherits": [
+                "*SV Zero - Precision*"
+              ],
+              "values": {
+                "layer_height": "0.08",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.10mm (Precision)",
+              "name": "SV Zero 0.4n - 0.10mm (Precision)",
+              "inherits": [
+                "*SV Zero - Precision*"
+              ],
+              "values": {
+                "layer_height": "0.10",
+                "support_tree_tip_diameter": "0.8",
+                "support_tree_branch_diameter": "2.0"
+              }
+            },
+            {
+              "id": "SV Zero 0.4n - 0.12mm (Precision)",
+              "name": "SV Zero 0.4n - 0.12mm (Precision)",
+              "inherits": [
+                "*SV Zero - Precision*"
+              ],
+              "values": {
+                "layer_height": "0.12",
                 "support_tree_tip_diameter": "0.8",
                 "support_tree_branch_diameter": "2.0"
               }

@@ -66,8 +66,9 @@ class AccelChainTest(unittest.TestCase):
             want = expected(G.flatten(self.ss, name))
             noz, rest = name.split("SV Zero ", 1)[1].split("n - ", 1)
             layer, tier = rest.split("mm (")
-            path = ROOT / ("bundles/orca-vendor/SVZero/process/%smm %s @SV Zero %s nozzle.json"
-                           % (layer, tier.rstrip(")"), noz))
+            machine = G.printer_for(G.load("model.json"), noz, tier.rstrip(")"), orca=True)
+            path = ROOT / ("bundles/orca-vendor/SVZero/process/%smm %s @%s.json"
+                           % (layer, tier.rstrip(")"), machine))
             doc = json.loads(path.read_text(encoding="utf-8"))
             for key in ORDER:
                 orca_key = CHAIN[key][0]

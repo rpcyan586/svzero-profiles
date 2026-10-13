@@ -12,6 +12,7 @@ only checks that the version string appears somewhere in each source file.
 These tests check the emitted line itself, in every generated bundle.
 """
 
+import json
 import pathlib
 import re
 import sys
@@ -68,9 +69,18 @@ class HandshakeTest(unittest.TestCase):
                     "ss-presets", "ps-vendor", "orca-vendor", "ps3"}
         seen = {part for path in found for part in path.parts}
         self.assertEqual(families - seen, set())
+        # A machine mode's printer names its own mode; nothing else may differ.
+        modes = json.loads((ROOT / "source/model.json").read_text(encoding="utf-8")).get("modes", {})
+        allowed = {start_gcode.SVZERO_REQUIRE_LINE} | {
+            start_gcode.SVZERO_REQUIRE_LINE.replace("MODE=%s" % start_gcode.SVZERO_MODE,
+                                                    "MODE=%s" % m)
+            for m in modes if not m.startswith("_")}
         for path, lines in found.items():
             with self.subTest(path=str(path)):
-                self.assertEqual(set(lines), {start_gcode.SVZERO_REQUIRE_LINE})
+                self.assertTrue(lines)
+                self.assertLessEqual(set(lines), allowed)
+        # And every mode's line is actually emitted somewhere.
+        self.assertEqual(allowed - {l for lines in found.values() for l in lines}, set())
 
     def test_source_presets_carry_the_line(self):
         text = (ROOT / "source/presets.json").read_text(encoding="utf-8").replace("\\\\n", "\n")

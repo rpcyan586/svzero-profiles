@@ -123,11 +123,17 @@ class InstallPresetsTest(unittest.TestCase):
         paths = sorted(machine_dir.glob("SV Zero *.json"))
         self.assertTrue(paths)
         for path in paths:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if doc.get("type") == "machine_model":
+                continue          # a printer model carries no G-code
             with self.subTest(path=path.name):
-                start = json.loads(path.read_text(encoding="utf-8"))["machine_start_gcode"]
+                start = doc["machine_start_gcode"]
                 if isinstance(start, list):
                     start = start[0]
-                self.assertIn(MODULE.ORCA_NORMAL_CHAMBER_START, start)
+                # A mode's machine carries the same block with its own MODE.
+                mode = "precision" if doc.get("printer_model", "").endswith("Precision") else "standard"
+                self.assertIn(MODULE.ORCA_NORMAL_CHAMBER_START.replace(
+                    "MODE=standard", "MODE=" + mode), start)
 
     def test_both_orca_start_blocks_gate_before_any_heater(self):
         for name, block in (

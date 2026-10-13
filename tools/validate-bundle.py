@@ -30,6 +30,11 @@ MODEL = json.load(open(os.path.join(ROOT, "source", "model.json")))
 MODEL_GAPS = {"%sn" % noz: set(t)
               for noz, t in MODEL["tier_gaps"].items()
               if not noz.startswith("_")}
+# A machine mode's tiers exist only on the nozzles the mode lists.
+for _mode in [m for k, m in MODEL.get("modes", {}).items() if not k.startswith("_")]:
+    for _noz in MODEL["machine"]["nozzles"]:
+        if _noz not in _mode["nozzles"]:
+            MODEL_GAPS.setdefault("%sn" % _noz, set()).update(_mode["tiers"])
 
 
 def parse(path):

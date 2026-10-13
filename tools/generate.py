@@ -347,7 +347,11 @@ def sections_from_tree(doc, model):
                 kv[k] = v
             noz = nozzle_of(condition)
             if kind == "print" and noz and not name.startswith("*"):
-                kv["compatible_printers"] = "SV Zero %sn" % noz
+                # A mode tier belongs to its mode's printer, every other tier to
+                # the nozzle's standard one. Derived, like everything here.
+                base = re.match(r"\*SV Zero - (\w+)\*$", kv.get("inherits", ""))
+                kv["compatible_printers"] = printer_for(
+                    model, noz, base.group(1) if base else None)
             out["%s:%s" % (kind, name)] = kv
             parent_for_children = name
         for child in node.get("variants", []):
@@ -359,14 +363,49 @@ def sections_from_tree(doc, model):
 
 
 def all_tiers(model):
-    """Ramp rungs plus off-ramp variants — every tier that yields presets.
+    """Ramp rungs, off-ramp variants and mode tiers — every tier that yields presets.
 
     `_order` is the RAMP and only the ramp: it is indexed and compared pairwise,
     so anything in it must be monotonic. A variant sits on a rung it names
     (`anchor_tier`) rather than between two of them, so it belongs to preset
-    generation and to nothing that measures a ramp.
+    generation and to nothing that measures a ramp. A mode tier belongs to a
+    machine mode's own printer (model.json modes) and is off the ramp too.
     """
-    return list(model["tiers"]["_order"]) + list(model["tiers"].get("_variants", []))
+    return (list(model["tiers"]["_order"]) + list(model["tiers"].get("_variants", []))
+            + mode_tiers(model))
+
+
+def modes(model):
+    """{mode name: definition} for every machine mode other than standard."""
+    return {k: v for k, v in model.get("modes", {}).items()
+            if not k.startswith("_") and isinstance(v, dict)}
+
+
+def mode_tiers(model):
+    return [t for m in modes(model).values() for t in m.get("tiers", [])]
+
+
+def mode_of(model, tier):
+    """(mode name, definition) for a mode tier, or (None, None) for standard."""
+    for name, m in modes(model).items():
+        if tier in m.get("tiers", []):
+            return name, m
+    return None, None
+
+
+def printer_for(model, nozzle, tier, orca=False):
+    """The one printer a tier's preset on this nozzle is compatible with."""
+    unused, m = mode_of(model, tier)
+    if m:
+        return (m["orca_machine"] if orca else m["printer"]) % nozzle
+    return ("SV Zero %s nozzle" if orca else "SV Zero %sn") % nozzle
+
+
+def layer_list(value):
+    """A tier's layer height(s) on a nozzle: modes carry several, tiers one."""
+    if value is None:
+        return []
+    return list(value) if isinstance(value, list) else [value]
 
 
 def expected_presets(model):
@@ -377,33 +416,35 @@ def expected_presets(model):
         for tier in all_tiers(model):
             if tier in gaps:
                 continue
-            lh = model["layer_heights"][noz].get(tier)
-            if lh is None:
-                continue
-            out.append((noz, tier, lh))
+            for lh in layer_list(model["layer_heights"][noz].get(tier)):
+                out.append((noz, tier, lh))
     return out
 
 
 def check(model, ss):
     """Does the master bundle match the model?"""
     problems = []
-    want = {(n, t) for n, t, _ in expected_presets(model)}
+    want = {(n, t, round(float(lh), 6)) for n, t, lh in expected_presets(model)}
     have = {}
     for name in ss:
         m = re.match(r"print:SV Zero (\d\.\d+)n - ([\d.]+)mm \((\w+)\)", name)
         if m:
-            have[(m.group(1), m.group(3))] = (float(m.group(2)), name)
+            have[(m.group(1), m.group(3), round(float(m.group(2)), 6))] = name
 
     for key in sorted(want - set(have)):
-        problems.append("missing preset: %s nozzle, %s tier" % key)
+        problems.append("missing preset: %s nozzle, %s tier, %g mm" % key)
     for key in sorted(set(have) - want):
-        problems.append("unexpected preset: %s nozzle, %s tier" % key)
-    for (noz, tier), (lh, name) in sorted(have.items()):
-        if (noz, tier) not in want:
+        problems.append("unexpected preset: %s nozzle, %s tier, %g mm" % key)
+    for (noz, tier, lh), name in sorted(have.items()):
+        if (noz, tier, lh) not in want:
             continue
-        wlh = model["layer_heights"][noz][tier]
-        if abs(lh - wlh) > 1e-9:
-            problems.append("%s: layer height %s, model says %s" % (name, lh, wlh))
+        actual = float(ss[name].get("layer_height", lh))
+        if abs(actual - lh) > 1e-9:
+            problems.append("%s: layer height %s, name says %s" % (name, actual, lh))
+        cp = flatten(ss, name).get("compatible_printers")
+        if cp != printer_for(model, noz, tier):
+            problems.append("%s: compatible with %r, model says %r"
+                            % (name, cp, printer_for(model, noz, tier)))
 
     problems.extend(check_layer_limits(model, ss))
 
@@ -740,7 +781,73 @@ def derive(model, ss, keymap):
         "small": apply_small_nozzle_rules(model, ss),
         "shrink": apply_shrinkage(ss, load("filament-shrink.json")),
         "8m": apply_8m_overrides(ss, load("filament-8m.json")),
+        "modes": apply_modes(model, ss),
     }
+
+
+def apply_modes(model, ss):
+    """Give each machine mode's printer the machine it runs, after everything else.
+
+    The printer is authored in presets.json with what is chosen by hand (z-hop
+    off, the minimum layer). What the mode file enforces comes from model.json
+    modes: the motion ceiling, and SVZERO_REQUIRE naming the mode in the start
+    G-code -- which is what lets the handshake refuse a job sliced for the
+    other mode. Then the tier rule a ratio cannot express, the outer-wall cap,
+    and the filaments a mode excludes.
+    """
+    changed = 0
+    sm = model["speed_model"]
+    pct = lambda v: float(str(v).rstrip("%")) / 100.0
+    outer_ratio = pct(sm["ratios_of_base"]["perimeter_speed"]) * pct(
+        sm["ratios_of_other"]["external_perimeter_speed"])
+    printers = []
+    for name, m in sorted(modes(model).items()):
+        mach = m["machine"]
+        for noz in m["nozzles"]:
+            sec_name = "printer:%s" % (m["printer"] % noz)
+            if sec_name not in ss:
+                raise SystemExit("mode %s: %s is not in source/presets.json" % (name, sec_name))
+            printers.append(m["printer"] % noz)
+            flat = flatten(ss, sec_name)
+            g = flat.get("start_gcode", "")
+            if g.count("MODE=standard") != 1:
+                raise SystemExit("%s: expected one SVZERO_REQUIRE ... MODE=standard, found %d"
+                                 % (sec_name, g.count("MODE=standard")))
+            want = {"start_gcode": g.replace("MODE=standard", "MODE=%s" % name)}
+            for key, value in (("machine_max_feedrate_x", mach["max_velocity"]),
+                               ("machine_max_feedrate_y", mach["max_velocity"]),
+                               ("machine_max_acceleration_extruding", mach["max_accel"]),
+                               ("machine_max_acceleration_travel", mach["max_accel"]),
+                               ("machine_max_acceleration_x", mach["max_accel"]),
+                               ("machine_max_acceleration_y", mach["max_accel"])):
+                stealth = str(flat.get(key, "")).partition(",")[2]
+                want[key] = "%g,%s" % (value, stealth) if stealth else "%g" % value
+            for key, value in want.items():
+                if ss[sec_name].get(key) != value:
+                    ss[sec_name][key] = value
+                    changed += 1
+        cap = m.get("outer_wall_cap")
+        for sec_name, kv in ss.items():
+            hit = re.match(r"print:SV Zero (\d\.\d+)n - [\d.]+mm \((\w+)\)$", sec_name)
+            if not cap or not hit or hit.group(2) not in m["tiers"]:
+                continue
+            outer = float(kv.get("default_speed", 0)) * outer_ratio
+            if outer > cap:
+                value = computed_motion(cap)
+                if kv.get("external_perimeter_speed") != value:
+                    kv["external_perimeter_speed"] = value
+                    changed += 1
+        excluded = set(m.get("exclude_filament_types", []))
+        mine = {m["printer"] % noz for noz in m["nozzles"]}
+        for sec_name, kv in ss.items():
+            if not sec_name.startswith("filament:") or "compatible_printers" not in kv:
+                continue
+            if flatten(ss, sec_name).get("filament_type") in excluded:
+                kept = [x for x in kv["compatible_printers"].split(";") if x not in mine]
+                if ";".join(kept) != kv["compatible_printers"]:
+                    kv["compatible_printers"] = ";".join(kept)
+                    changed += 1
+    return changed
 
 
 def emit_physical_printers(model, ss):
@@ -992,9 +1099,9 @@ def layer_mm(value, nozzle):
     return result
 
 
-def printer_layer_limits(ss, nozzle):
+def printer_layer_limits(ss, nozzle, printer_name=None):
     """One source for both Orca machine emitters, including inherited values."""
-    printer = flatten(ss, "printer:SV Zero %sn" % nozzle)
+    printer = flatten(ss, "printer:%s" % (printer_name or "SV Zero %sn" % nozzle))
     return {key: "%g" % layer_mm(printer[key], nozzle)
             for key in ("min_layer_height", "max_layer_height")}
 
@@ -1003,22 +1110,30 @@ def check_layer_limits(model, ss):
     """Reject incompatible authored layers before overwriting any bundles."""
     problems = []
     limits = {}
-    for nozzle in model["machine"]["nozzles"]:
+    # Per PRINTER, not per nozzle: a mode's printer shares a nozzle with the
+    # standard one and has its own minimum layer.
+    printers = [("SV Zero %sn" % n, n) for n in model["machine"]["nozzles"]]
+    printers += [(m["printer"] % n, n) for m in modes(model).values() for n in m["nozzles"]]
+    for printer, nozzle in printers:
         try:
-            bounds = printer_layer_limits(ss, nozzle)
+            bounds = printer_layer_limits(ss, nozzle, printer)
             low, high = (float(bounds[k]) for k in ("min_layer_height", "max_layer_height"))
             if not low <= high <= float(nozzle):
                 raise ValueError("require min <= max <= nozzle diameter")
-            limits[nozzle] = (low, high)
+            limits[printer] = (low, high)
         except (KeyError, TypeError, ValueError) as error:
-            problems.append("%s nozzle: invalid layer limits (%s)" % (nozzle, error))
+            where = ("%s nozzle" % nozzle if printer == "SV Zero %sn" % nozzle
+                     else "%s nozzle (%s)" % (nozzle, printer))
+            problems.append("%s: invalid layer limits (%s)" % (where, error))
     for name in ss:
         match = re.match(r"print:SV Zero ([\d.]+)n - ", name)
-        if not match or match.group(1) not in limits:
+        if not match:
             continue
         nozzle = match.group(1)
-        low, high = limits[nozzle]
         flat = flatten(ss, name)
+        if flat.get("compatible_printers") not in limits:
+            continue
+        low, high = limits[flat["compatible_printers"]]
         for key in ("layer_height", "first_layer_height"):
             try:
                 height = layer_mm(flat[key], nozzle)
@@ -1118,10 +1233,14 @@ PS_RENAME = {"default_fan_speed": "min_fan_speed"}
 
 
 def ps_percent_to_mm(kv, preset):
-    m = re.search(r"SV Zero (\d+\.\d+)n", preset)
-    if not m:
+    # The nozzle token, not "SV Zero <nozzle>n": a mode's printer is named
+    # "SV Zero Precision 0.4n". A printer also states its own nozzle_diameter.
+    m = re.search(r"(?<![\d.])(\d+\.\d+)n\b", preset)
+    noz = m.group(1) if m else str(kv.get("nozzle_diameter", "")).split(",")[0]
+    try:
+        noz, n = float(noz), 0
+    except ValueError:
         return 0
-    noz, n = float(m.group(1)), 0
     for k, v in list(kv.items()):
         if not isinstance(v, str) or not v.strip().endswith("%"):
             continue
@@ -1822,7 +1941,8 @@ def emit_orca(model, ss, keymap, out_dir):
         flat = resolve_speeds(flat, round_output=False)
         doc = collections.OrderedDict()
         doc["type"] = "process"
-        doc["name"] = "%smm %s @SV Zero %s nozzle" % (lh, tier, noz)
+        machine = printer_for(model, noz, tier, orca=True)
+        doc["name"] = "%smm %s @%s" % (lh, tier, machine)
         doc["from"] = "User"
         doc["instantiation"] = "true"
         doc["inherits"] = "fdm_process_common"
@@ -1838,7 +1958,7 @@ def emit_orca(model, ss, keymap, out_dir):
                 doc[rev[k]] = v
             else:
                 unmapped[k] += 1
-        doc["compatible_printers"] = ["SV Zero %s nozzle" % noz]
+        doc["compatible_printers"] = [machine]
         # PROCESS scope, not machine. Orca defines exclude_object in 159 of its
         # own process presets and zero machine presets; putting it on the machine
         # makes Orca drop it with "contains incorrect keys" and silently disables
@@ -2097,6 +2217,8 @@ def emit_orca_filament(model, ss, keymap, out_dir):
         if old_file.endswith(".json"):
             os.remove(os.path.join(out_dir, old_file))
     machines = ["SV Zero %s nozzle" % n for n in model["machine"]["nozzles"]]
+    mode_machines = [(m["orca_machine"] % n, set(m.get("exclude_filament_types", [])))
+                     for m in modes(model).values() for n in m["nozzles"]]
     written, unmapped = [], collections.Counter()
 
     for name in ss:
@@ -2140,7 +2262,8 @@ def emit_orca_filament(model, ss, keymap, out_dir):
         # presets.json now, and PLA's minimum is 25 rather than its own 33 C
         # target: the old derivation made PLA wait for the ceiling it was
         # supposed to be capped at.
-        doc["compatible_printers"] = machines
+        doc["compatible_printers"] = machines + [
+            mm for mm, excluded in mode_machines if ftype not in excluded]
 
         # NEVER emit an empty compatibility value. compatible_prints = [""] does
         # not mean "any process", it means "only a process whose name is the
@@ -2395,6 +2518,49 @@ def emit_orca_vendor(model, ss, out_dir):
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
         machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})
 
+    # MACHINE MODES. Each is a printer model of its own, so it is enabled on its
+    # own in Orca's printer selection, and its machine is the standard nozzle's
+    # with what the mode file enforces: the motion ceiling, the minimum layer,
+    # no z-hop, and SVZERO_REQUIRE naming the mode so the handshake refuses a
+    # job sliced for the other one. Its tiers name this machine and no other.
+    mode_models = []
+    for mode_name, md in sorted(modes(model).items()):
+        mach = md["machine"]
+        mm_mode = collections.OrderedDict(mm)
+        mm_mode["name"] = md["orca_model"]
+        mm_mode["model_id"] = "SV-ZERO-" + mode_name.upper()
+        mm_mode["nozzle_diameter"] = ";".join(md["nozzles"])
+        fn_model = "%s.json" % md["orca_model"]
+        json.dump(mm_mode, open(os.path.join(vend, "machine", fn_model), "w",
+                                encoding="utf-8"), indent=2)
+        mode_models.append({"name": md["orca_model"], "sub_path": "machine/" + fn_model})
+        for noz in md["nozzles"]:
+            std = json.load(open(os.path.join(vend, "machine", "SV Zero %s nozzle.json" % noz),
+                                 encoding="utf-8"), object_pairs_hook=collections.OrderedDict)
+            m = collections.OrderedDict(std)
+            m["name"] = md["orca_machine"] % noz
+            m["printer_model"] = md["orca_model"]
+            printer = "printer:%s" % (md["printer"] % noz)
+            m.update({key: [value] for key, value in
+                      printer_layer_limits(ss, noz, md["printer"] % noz).items()})
+            m["z_hop"] = [str(ss[printer].get("retract_lift", "0"))]
+            for key in ("machine_max_speed_x", "machine_max_speed_y"):
+                m[key] = ["%g" % mach["max_velocity"]] * max(1, len(std.get(key, [0])))
+            for key in ("machine_max_acceleration_x", "machine_max_acceleration_y",
+                        "machine_max_acceleration_extruding",
+                        "machine_max_acceleration_travel"):
+                m[key] = ["%g" % mach["max_accel"]] * max(1, len(std.get(key, [0])))
+            g = m["machine_start_gcode"]
+            if g.count("MODE=standard") != 1:
+                raise SystemExit("%s: expected one MODE=standard in the Orca start G-code" % m["name"])
+            m["machine_start_gcode"] = g.replace("MODE=standard", "MODE=%s" % mode_name)
+            tier = md["tiers"][0]
+            m["default_print_profile"] = "%smm %s @%s" % (
+                format(md["default_layer"], ".2f"), tier, m["name"])
+            fn = "%s.json" % m["name"]
+            json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
+            machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})
+
     for f in sorted(os.listdir(os.path.join(ROOT, "bundles", "orca"))):
         if not f.endswith(".json") or "mm" not in f:
             continue
@@ -2406,7 +2572,8 @@ def emit_orca_vendor(model, ss, out_dir):
     idx = collections.OrderedDict([
         ("name", "SVZero"), ("version", "02.01.00.00"), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
-        ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]),
+        ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]
+         + mode_models),
         ("process_list", process_list), ("filament_list", filament_list),
         ("machine_list", machine_list),
     ])
@@ -2518,6 +2685,7 @@ def main():
     print("  applied small-nozzle rules: %d keys" % done["small"])
     print("  applied nominal shrinkage to %d filament presets" % done["shrink"])
     print("  applied SV08 MAX toolhead values to %d (8M) presets" % done["8m"])
+    print("  applied machine modes: %d keys (%s)" % (done["modes"], ", ".join(sorted(modes(model))) or "none"))
     np_ = emit_physical_printers(model, ss)
     print("  emitted %d physical printers" % np_)
 
