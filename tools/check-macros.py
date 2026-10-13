@@ -444,6 +444,21 @@ def check(path):
                 ("without-python", None, "S30", {}, {},
                  {"chamber_preheat": None}),
                 ("abort", None, "S0", {}, {}),
+                # The wipe-lead line has two branches, learned and configured,
+                # and neither renders without a configured lead.
+                ("wipe-lead-learned", None, "S45", {}, {},
+                 {"chamber_preheat": Mock(),
+                  "configfile": Mock(settings=Mock(dict(
+                      printer.configfile.settings,
+                      chamber_preheat=Mock(wipe_lead_seconds=70.0)))),
+                  "save_variables": Mock(variables=Mock(dict(
+                      printer.save_variables.variables,
+                      wipe_seconds_min=68.4, wipe_lead_autotune=1)))}),
+                ("wipe-lead-configured", None, "S45", {}, {},
+                 {"chamber_preheat": Mock(),
+                  "configfile": Mock(settings=Mock(dict(
+                      printer.configfile.settings,
+                      chamber_preheat=Mock(wipe_lead_seconds=70.0))))}),
             ]
 
         # cooldown.cfg carries two actuator models and four phases, and an
@@ -999,6 +1014,12 @@ def check(path):
         # branch it was written for is still unrendered. Naming the expected
         # output turns "it rendered" into "it rendered THIS".
         expect = {
+            ("gcode_macro M191", "wipe-lead-learned"):
+                "nozzle wipe starts 55 s before the chamber is due (configured 70 s, shortest wipe so far 68 s)",
+            ("gcode_macro M191", "wipe-lead-configured"):
+                "nozzle wipe starts 70 s before the chamber is due",
+            ("gcode_macro M191", "exact-minimum"): "the chamber to reach 30.0C, the slicer's minimum",
+            ("gcode_macro M191", "default-compatibility"): "the floor for a bare M191",
             ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"):
                 "Adaptive floor 0.15, lowering cooldown 0",
             ("gcode_macro _CH_ADAPT_BEGIN", "opt-in-trial"):

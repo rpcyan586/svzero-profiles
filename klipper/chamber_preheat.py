@@ -178,6 +178,10 @@ def approach_eta(samples, target, min_span=60.0, min_samples=12):
     return -tau * math.log((asymptote - target) / (asymptote - now))
 
 
+# Every console line starts with this. Mainsail stamps each line with its minute.
+TAG = "M191:"
+
+
 def boost_for_eta(eta, max_boost, coast_rate, lead_minutes=0.0):
     """Map chamber minutes remaining to bed boost, landing early by `lead`.
 
@@ -619,7 +623,7 @@ class ChamberPreheat:
             "bed_ready_tolerance", 0.5, minval=0.0
         )
         self.report_seconds = config.getfloat(
-            "report_seconds", 30.0, minval=5.0
+            "report_seconds", 60.0, minval=5.0
         )
         # ORBITING STIR, off until it has been watched on hardware.
         #
@@ -828,7 +832,7 @@ class ChamberPreheat:
                 [("history", "/server/temperature_store", None)]
             )["history"]
         except Exception as error:
-            gcmd.respond_info("%s history unavailable (%s)" % (self._stamp(now), error))
+            gcmd.respond_info("%s no temperature history from Moonraker (%s)" % (TAG, error))
             return 0.0
         extruder = (result or {}).get("extruder") or {}
         samples = usable_history(
@@ -843,8 +847,8 @@ class ChamberPreheat:
         drift = abs(samples[-1][1] - current_temp)
         if drift > self.history_match:
             gcmd.respond_info(
-                "%s history rejected, %.1fC from live reading"
-                % (self._stamp(now), drift)
+                "%s temperature history ignored, %.1fC off the live reading"
+                % (TAG, drift)
             )
             return 0.0
         previous = samples[0][0]
@@ -927,13 +931,25 @@ class ChamberPreheat:
         self._set_state(handoff_eventtime=self.reactor.monotonic())
 
     @staticmethod
-    def _stamp(eventtime):
-        """Seconds-within-minute, so Mainsail's minute stamp can be read.
+    def _minutes(value):
+        """An ETA for people: whole minutes, with the unit, or None if unknown.
 
-        Several lines can land inside one console minute and the count varies,
-        which makes the order and spacing unreadable at minute resolution.
+        The console line used to carry a seconds-within-minute stamp and a bare
+        `eta=34.6`; with one status line a minute, Mainsail's own minute stamp
+        orders them, and a number without a unit read as anything.
         """
-        return ":%02d M191" % (int(eventtime) % 60)
+        if value is None:
+            return None
+        return "under 1 min" if value < 1.0 else "about %d min" % round(value)
+
+    @staticmethod
+    def _trend(slope, stderr=None):
+        """" (+0.38 C/min)", " (+0.38 +/- 0.06 C/min)", or nothing without a slope."""
+        if slope is None:
+            return ""
+        if stderr is None:
+            return " (%+.2f C/min)" % slope
+        return " (%+.2f +/- %.2f C/min)" % (slope, stderr)
 
     @staticmethod
     def _num(value, spec="%.1f"):
@@ -1023,8 +1039,8 @@ class ChamberPreheat:
                     print_ready_eventtime=start_time,
                 )
                 gcmd.respond_info(
-                    "%s compat noz=%.1f floor=%.1f"
-                    % (self._stamp(start_time), start_temp, minimum)
+                    "%s nozzle %.1fC is already above the %.1fC floor, no wait"
+                    % (TAG, start_temp, minimum)
                 )
                 return
             self._set_state(
@@ -1057,8 +1073,8 @@ class ChamberPreheat:
             self._set_bed(bed, quantize_target(bed_target + opening))
             if opening > 0.0:
                 gcmd.respond_info(
-                    "%s guess bed %.1f while the nozzle settles"
-                    % (self._stamp(start_time), bed_target + opening)
+                    "%s bed to %.1fC while the nozzle settles"
+                    % (TAG, bed_target + opening)
                 )
             self._set_state(
                 preheat_phase=1,
@@ -1085,12 +1101,12 @@ class ChamberPreheat:
                     proxy_cooling_seen=1 if gate.cooling_seen else 0,
                 )
                 gcmd.respond_info(
-                    "%s history %.0fs slope=%s %s"
+                    "%s %.0f min of temperature history, nozzle%s, %s"
                     % (
-                        self._stamp(start_time),
-                        seeded,
-                        self._num(slope, "%+.2f"),
-                        "qualified" if gate.valid else "settling",
+                        TAG,
+                        seeded / 60.0,
+                        self._trend(slope),
+                        "settled" if gate.valid else "still settling",
                     )
                 )
 
@@ -1133,8 +1149,9 @@ class ChamberPreheat:
                             proxy_anchor=estimate,
                         )
                         gcmd.respond_info(
-                            "%s projected %.1fC >= %.1f, qualified early"
-                            % (self._stamp(eventtime), estimate,
+                            "%s nozzle is heading for %.1fC, above the %.1fC "
+                            "needed, so it is read as the chamber now"
+                            % (TAG, estimate,
                                minimum + self.asymptote_margin)
                         )
                 if not gate.valid and eventtime >= deadline:
@@ -1143,17 +1160,17 @@ class ChamberPreheat:
                         proxy_valid=1, proxy_validity=gate.state
                     )
                     gcmd.respond_info(
-                        "%s unqualified after %.0fs, proceeding"
-                        % (self._stamp(eventtime), self.qualify_timeout)
+                        "%s nozzle did not settle in %.0f min, going ahead"
+                        % (TAG, self.qualify_timeout / 60.0)
                     )
                     break
                 if eventtime >= next_report:
                     gcmd.respond_info(
-                        "%s settle noz=%.1f slope=%s dwell=%.0f/%.0f"
+                        "%s nozzle settling at %.1fC%s, steady for %.0f of %.0f s"
                         % (
-                            self._stamp(eventtime),
+                            TAG,
                             nozzle_temp,
-                            self._num(self.slope, "%+.2f"),
+                            self._trend(self.slope),
                             gate.dwell,
                             self.settle_dwell,
                         )
@@ -1215,14 +1232,16 @@ class ChamberPreheat:
             if planned_boost <= 0.0:
                 self._set_state(bed_ready_eventtime=eventtime)
             gcmd.respond_info(
-                "%s ready noz=%.1f slope=%s+-%s eta=%s boost=%.1f"
+                "%s nozzle settled at %.1fC%s, %s%s"
                 % (
-                    self._stamp(eventtime),
+                    TAG,
                     nozzle_temp,
-                    self._num(self.slope, "%+.2f"),
-                    self._num(self.slope_stderr, "%.2f"),
-                    self._num(self.chamber_eta, "%.1f"),
-                    planned_boost,
+                    self._trend(self.slope, self.slope_stderr),
+                    "chamber already there" if chamber_ready
+                    else "chamber due in " + self._minutes(self.chamber_eta)
+                    if self.chamber_eta is not None
+                    else "chamber not warming yet",
+                    ", bed +%.1fC" % planned_boost if planned_boost > 0.0 else "",
                 )
             )
 
@@ -1330,14 +1349,13 @@ class ChamberPreheat:
                             boost_coast_reason=coast_reason,
                         )
                         gcmd.respond_info(
-                            "%s bed %s %.1f%s"
+                            "%s %s %.1fC"
                             % (
-                                self._stamp(eventtime),
-                                "to ceiling" if rising else "released to",
+                                TAG,
+                                "bed to" if rising
+                                else "chamber minimum reached, bed back to",
                                 bed_target + current_boost,
-                                "" if rising
-                                else " -- chamber minimum crossed",
-                            )
+                            ) + (" to warm the chamber faster" if rising else "")
                         )
                     bed_gated = not chamber_ready
                 elif turn is None and not eta_seen:
@@ -1383,12 +1401,13 @@ class ChamberPreheat:
                         if climbed >= announced + self.min_boost_step:
                             announced = climbed
                             gcmd.respond_info(
-                                "%s bed %.1f climbing to %.1f at %.0fC/min eta=%s"
+                                "%s bed %.1fC, climbing to %.1fC at %.0fC/min, "
+                                "chamber due in %s"
                                 % (
-                                    self._stamp(eventtime),
+                                    TAG,
                                     bed_target + current_boost,
                                     bed_target + turn, rate,
-                                    self._num(live_eta, "%.1f"),
+                                    self._minutes(live_eta) or "--",
                                 )
                             )
                         current_boost = climbed
@@ -1499,11 +1518,11 @@ class ChamberPreheat:
                         wipe_lead_noz=round(nozzle_temp, 2),
                     )
                     gcmd.respond_info(
-                        "%s committing %.0fs early on ETA -- wipe should land "
-                        "on the minimum. noz=%.1f target>=%.1f, NOT confirmed"
+                        "%s starting the wipe %.0f s early so it ends as the "
+                        "chamber reaches %.1fC. Chamber %.1fC now, not confirmed"
                         % (
-                            self._stamp(eventtime),
-                            self.chamber_eta * 60.0, nozzle_temp, minimum,
+                            TAG,
+                            self.chamber_eta * 60.0, minimum, nozzle_temp,
                         )
                     )
                     return
@@ -1515,12 +1534,12 @@ class ChamberPreheat:
                     self._set_bed(bed, quantize_target(carried))
                     self._set_state(print_ready_eventtime=eventtime)
                     gcmd.respond_info(
-                        "%s chamber met, handing %.1fC of bed coast to M190 "
-                        "(eta %s) -- wipe runs now"
+                        "%s chamber reached, wipe runs now. Bed is %.1fC above "
+                        "its print temperature, M190 waits %s for it"
                         % (
-                            self._stamp(eventtime),
+                            TAG,
                             max(bed_temp - carried, 0.0),
-                            self._num(self.bed_eta, "%.1fmin"),
+                            self._minutes(self.bed_eta) or "for it to cool",
                         )
                     )
                     return
@@ -1530,12 +1549,12 @@ class ChamberPreheat:
                     self._set_state(print_ready_eventtime=eventtime)
                     moving = self.hold_minutes + self.fall_minutes
                     gcmd.respond_info(
-                        "%s done noz=%.1f bed=%.1f peak=%.1f held=%s"
+                        "%s done. Chamber %.1fC, bed %.1fC, bed peaked at %.1fC%s"
                         % (
-                            self._stamp(eventtime),
+                            TAG,
                             nozzle_temp, bed_temp,
                             bed_target + self.peak_boost,
-                            "--" if moving <= 0 else "%.0f%%" % (
+                            "" if moving <= 0 else ", held %.0f%% of the way down" % (
                                 100.0 * self.hold_minutes / moving
                             ),
                         )
@@ -1543,14 +1562,19 @@ class ChamberPreheat:
                     return
                 if eventtime >= next_report:
                     gcmd.respond_info(
-                        "%s noz=%.1f eta=%s bed=%.1f>%.1f coast=%s"
+                        "%s chamber %.1fC of %.1fC, %s. Bed %.1fC, set to %.1fC%s"
                         % (
-                            self._stamp(eventtime),
-                            nozzle_temp,
-                            self._num(self.chamber_eta, "%.1f"),
+                            TAG,
+                            nozzle_temp, minimum,
+                            "reached" if chamber_ready
+                            else self._minutes(self.chamber_eta) + " to go"
+                            if self.chamber_eta is not None
+                            else "not warming yet",
                             bed_temp,
                             command,
-                            self._num(self.bed_eta, "%.1f"),
+                            "" if self.bed_eta is None or chamber_ready is False
+                            else ", back to print temperature in "
+                            + self._minutes(self.bed_eta),
                         )
                     )
                     next_report = eventtime + self.report_seconds

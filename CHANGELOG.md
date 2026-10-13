@@ -6,6 +6,18 @@ Versions are now three numbers with no beta suffix. Profile behaviour changes
 in this release: accelerations, walls, seams, square corner velocity and two
 new nozzle sizes. Fan defaults change in the optional macro pack.
 
+### M191 console lines in plain words
+
+- **One status line a minute, without the seconds stamp.** It was every 30 s,
+  each line led by a `:37`-style stamp.
+- **Words and units instead of internal names.** `noz=32.1 eta=24.1
+  bed=99.9>120.0 coast=--` now reads `chamber 32.1C of 45.0C, about 24 min to
+  go. Bed 99.9C, set to 120.0C`. The nozzle's settling phase says `steady for
+  0 of 30 s` rather than `dwell=0/30`, and every ETA carries its unit.
+- An early wipe still says the chamber is not confirmed at temperature.
+- The numbers behind the lines are unchanged in the extra's status and in
+  `_CH_STATE`.
+
 ### Acceleration cap holds in SuperSlicer
 
 - **`install-presets.py --accel-cap` now caps SuperSlicer's percentage

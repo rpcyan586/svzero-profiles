@@ -617,15 +617,26 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         )
         self.assertGreater(len(climbs), 1, "a rate limited climb has stages")
 
-    def test_every_console_line_carries_a_seconds_stamp(self):
-        # Several lines can land inside one Mainsail console minute and the
-        # count varies, so minute resolution alone is unreadable.
+    def test_console_lines_are_plain_and_once_a_minute(self):
+        # Operator, 2026-10-13: one status line a minute, no seconds stamp, no
+        # internal names (dwell, coast, noz=), and an ETA that says it is in
+        # minutes. Mainsail stamps each line with its minute, which is enough
+        # once there is only one status line in it.
         import re
         ctl, unused_reactor, unused_bed, unused_state, gcmd = self._cold_start()
-        self.assertTrue(gcmd.responses)
+        self.assertEqual(ctl.report_seconds, 60.0)
+        status = [m for m in gcmd.responses if " to go" in m]
+        self.assertTrue(status, gcmd.responses)
         for message in gcmd.responses:
             with self.subTest(message=message[:48]):
-                self.assertRegex(message, r"^:[0-5][0-9] M191 ")
+                self.assertTrue(message.startswith("M191: "), message)
+                self.assertNotRegex(message, r"^:[0-5][0-9] ")
+                self.assertNotRegex(message, r"\b(eta|coast|dwell|noz|boost)=")
+                self.assertNotIn("--", message)
+                if "due in" in message:
+                    self.assertRegex(message, r"due in (about \d+ min|under 1 min)")
+                if " to go" in message:
+                    self.assertRegex(message, r"(about \d+ min|under 1 min) to go")
 
     def test_the_turn_does_not_fire_on_a_downward_eta_blip(self):
         """A threshold crossing on a noisy signal fires on its dips.
@@ -992,7 +1003,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         # Qualified from the scrollback, before the live loop ran at all. The
         # command still waits for the nozzle to actually reach the minimum.
         self.assertTrue(
-            any("history" in m and "qualified" in m for m in gcmd.responses),
+            any("history" in m and m.endswith("settled") for m in gcmd.responses),
             gcmd.responses,
         )
         self.assertNotIn(
@@ -1048,7 +1059,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         # Settling alone would have taken many minutes at tau=200 s.
         self.assertLess(reactor.now, 240.0)
         self.assertTrue(
-            any("qualified early" in m for m in gcmd.responses), gcmd.responses
+            any("read as the chamber now" in m for m in gcmd.responses), gcmd.responses
         )
 
     def test_a_nozzle_heading_below_the_minimum_is_not_qualified_early(self):
@@ -1093,7 +1104,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         finally:
             MODULE.moonraker.MoonrakerClient = original
         self.assertTrue(
-            any("history rejected" in m for m in gcmd.responses),
+            any("history ignored" in m for m in gcmd.responses),
             gcmd.responses,
         )
         # A completed soak keeps bed_carry: the plate settles one degree
@@ -1175,7 +1186,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertLessEqual(final, 66.0, "M191 left the boost in place")
         self.assertGreaterEqual(final, 65.0)
         self.assertTrue(
-            any("handing" in r for r in gcmd.responses),
+            any("M190 waits" in r for r in gcmd.responses),
             "the handoff was not announced: %r" % (gcmd.responses,),
         )
 
@@ -1203,7 +1214,7 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         )
         # And it must say the quiet part out loud.
         self.assertTrue(
-            any("NOT confirmed" in r for r in gcmd.responses),
+            any("not confirmed" in r for r in gcmd.responses),
             "the commit was not announced as unconfirmed: %r" % (gcmd.responses,),
         )
         # The plate is still handed over at its carried target.
