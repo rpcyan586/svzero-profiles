@@ -20,7 +20,7 @@ Macro pack preset to maintain.
 |---|---|---|
 | Slicer profiles only | Nozzle-scaled widths and tiers, material settings, configured supports, bed/nozzle waits and a priming skirt | Stock Sovol cleaning, calibration, mesh and end-of-print behavior. No pack chamber soak, spool check, positioned purge or controlled cooldown |
 | Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation and a bed cooldown ramp | The profiles still print using the stock path above |
-| `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover |
+| `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover, and `M191 R` does not wait for cooling |
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
 | `fan_duty.py` + `exhaust_duty.cfg` | Adds commanded exhaust duty and normalized measured RPM traces to the temperature chart | Fan regulation and tachometer checks still work; only the extra chart traces are absent |
 | `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
@@ -141,6 +141,13 @@ Without `[chamber_preheat]`, `M191` parks/stirs and waits for the requested
 minimum on the **rear chamber thermistor**. The fan command is flushed before
 the blocking wait. The bed stays at the print target; there is no boost or early
 handover and the macro does not label the nozzle as a qualified air sensor.
+
+`M191` reads `S` and `R` as Marlin does. `S<t>` sets the chamber target and
+waits only while the chamber is below it. `R<t>` sets it and waits whichever way
+the chamber has to go. When cooling, it gives up and carries on if the chamber
+falls less than 1.5 °C in 2 minutes. With both, `S` wins. A cooling `R` wait
+needs `[chamber_preheat]`. Without it, `R` sets the exhaust ceiling and
+continues rather than waiting on a target the exhaust might never reach.
 The rear sensor is a less representative observation of air at the part than
 the qualified nozzle method. An unattainable chamber minimum still needs to be
 changed or the job cancelled; missing Python is not permission to ignore the

@@ -135,7 +135,8 @@ def check(path):
 
     def expected_tokens(value):
         values = [value] if isinstance(value, str) else value
-        return [v.replace("exhaust_fan SPEED=", exhaust_fan + " SPEED=") for v in values]
+        return [v.replace("exhaust_fan SPEED=", exhaust_fan + " SPEED=")
+                 .replace("FAN=exhaust_fan", "FAN=" + exhaust_fan) for v in values]
 
     # Sovol's own objects, always present at runtime but defined in Macro.cfg
     # rather than in any file we ship. Overriding macros legitimately read them,
@@ -459,6 +460,22 @@ def check(path):
                   "configfile": Mock(settings=Mock(dict(
                       printer.configfile.settings,
                       chamber_preheat=Mock(wipe_lead_seconds=70.0))))}),
+                # Marlin's R: heats like S when the chamber is below, waits for
+                # cooling when it is above, and loses to S when both are given.
+                ("r-heating", None, "R45", {}, {},
+                 {"chamber_preheat": Mock(),
+                  "temperature_sensor chamber_temp": Mock(temperature=30.0)}),
+                ("r-cooling", None, "R35", {}, {},
+                 {"chamber_preheat": Mock(),
+                  "temperature_sensor chamber_temp": Mock(temperature=48.0)}),
+                ("r-cooling-without-python", None, "R35", {}, {},
+                 {"chamber_preheat": None,
+                  "temperature_sensor chamber_temp": Mock(temperature=48.0)}),
+                ("s-beats-r", None, "S45 R35", {}, {},
+                 {"chamber_preheat": Mock(),
+                  "temperature_sensor chamber_temp": Mock(temperature=48.0)}),
+                ("tol-ignored", None, "S45 TOL=5", {}, {},
+                 {"chamber_preheat": Mock()}),
             ]
 
         # cooldown.cfg carries two actuator models and four phases, and an
@@ -1014,6 +1031,15 @@ def check(path):
         # branch it was written for is still unrendered. Naming the expected
         # output turns "it rendered" into "it rendered THIS".
         expect = {
+            ("gcode_macro M191", "r-heating"): ["CHAMBER_PREHEAT_WAIT MINIMUM=45.0",
+                                                "the slicer's target"],
+            ("gcode_macro M191", "r-cooling"): ["M141 S35.0",
+                                                "CHAMBER_COOL_WAIT MAXIMUM=35.0 FAN=exhaust_fan"],
+            ("gcode_macro M191", "r-cooling-without-python"): ["M141 S35.0",
+                                                               "does not wait for it to cool"],
+            ("gcode_macro M191", "s-beats-r"): "CHAMBER_PREHEAT_WAIT MINIMUM=45.0",
+            ("gcode_macro M191", "tol-ignored"): ["TOL is not an M191 argument",
+                                                  "CHAMBER_PREHEAT_WAIT MINIMUM=45.0"],
             ("gcode_macro M191", "wipe-lead-learned"):
                 "nozzle wipe starts 55 s before the chamber is due (configured 70 s, shortest wipe so far 68 s)",
             ("gcode_macro M191", "wipe-lead-configured"):
@@ -1230,6 +1256,9 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],
+                  ("gcode_macro M191", "r-cooling-without-python"): ["CHAMBER_COOL_WAIT", "TEMPERATURE_WAIT", "G28"],
+                  ("gcode_macro M191", "s-beats-r"): "CHAMBER_COOL_WAIT",
                   ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"): "VARIABLE=trial_active VALUE=1",
                   # A step that cannot be held must emit no arc at all.
                   ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",

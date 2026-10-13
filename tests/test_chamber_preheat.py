@@ -213,6 +213,11 @@ class FakeGcmd:
             raise ValueError(name)
         return value
 
+    def get(self, name, default=None):
+        if name not in self.params and default is None:
+            raise ValueError(name)
+        return str(self.params.get(name, default))
+
     def respond_info(self, message):
         self.responses.append(message)
 
@@ -1291,6 +1296,65 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         reactor.now = 123.5
         ctl.cmd_CHAMBER_RECORD_HANDOFF(FakeGcmd())
         self.assertEqual(state.state["handoff_eventtime"], 123.5)
+
+
+
+class CoolWaitTest(unittest.TestCase):
+    """M191 R's cooling wait against Marlin's wait_for_chamber and its defaults:
+    window 1 C, hysteresis 3 C, residency 10 s, give up below 1.5 C per 120 s."""
+
+    def _wait(self, chamber, maximum=35.0):
+        ctl, reactor, unused_bed, unused_state, unused_fan = controller(
+            lambda unused_t: 25.0
+        )
+        exhaust = FakeFan(reactor)
+
+        class Sensor:
+            def get_status(self, eventtime):
+                return {"temperature": chamber(eventtime)}
+
+        objects = {"temperature_sensor chamber_temp": Sensor(),
+                   "fan_generic fan3": FakeFanGeneric(exhaust)}
+        base = ctl.printer.lookup_object
+        ctl.printer.lookup_object = (
+            lambda name: objects[name] if name in objects else base(name)
+        )
+        gcmd = FakeGcmd(MAXIMUM=maximum, FAN="fan3")
+        start = reactor.now
+        ctl.cmd_CHAMBER_COOL_WAIT(gcmd)
+        return reactor.now - start, gcmd.responses, exhaust
+
+    def test_done_ten_seconds_after_reaching_the_window(self):
+        # 48 C falling 2 C/min reaches 36 C, the edge of the 1 C window, at 6 min.
+        took, responses, exhaust = self._wait(lambda t: 48.0 - 2.0 * t / 60.0)
+        self.assertAlmostEqual(took, 360.0 + 10.0, delta=2.0)
+        self.assertIn("cooled to", responses[-1])
+        self.assertEqual(exhaust.commands[0][1], 1.0, "exhaust not driven to full")
+
+    def test_gives_up_when_the_chamber_stops_falling(self):
+        # Flat at 40 C: the first slope check at 120 s sees no fall and carries on.
+        took, responses, unused = self._wait(lambda unused_t: 40.0)
+        self.assertAlmostEqual(took, 120.0, delta=1.5)
+        self.assertIn("too slowly", responses[-1])
+
+    def test_slow_but_real_cooling_is_waited_out(self):
+        # 1.6 C per 2 min clears the 1.5 C stall rule, so it waits to the target.
+        took, responses, unused = self._wait(lambda t: 40.0 - 0.8 * t / 60.0)
+        self.assertIn("cooled to", responses[-1])
+        self.assertGreater(took, 300.0)
+
+    def test_already_in_the_window_waits_a_third_longer(self):
+        # Marlin's first_loop: in the window on the first reading, the residency
+        # timer starts a third of the residency in the future.
+        took, responses, unused = self._wait(lambda unused_t: 35.5)
+        self.assertAlmostEqual(took, 10.0 + 10.0 / 3.0, delta=1.5)
+        self.assertIn("cooled to", responses[-1])
+
+    def test_status_lines_follow_the_console_contract(self):
+        unused, responses, unused_fan = self._wait(lambda t: 48.0 - 1.0 * t / 60.0)
+        self.assertTrue(any("cooling to 35.0C" in m for m in responses), responses)
+        for message in responses:
+            self.assertTrue(message.startswith("M191: "), message)
 
 
 if __name__ == "__main__":

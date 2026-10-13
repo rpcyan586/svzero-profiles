@@ -6,6 +6,21 @@ Versions are now three numbers with no beta suffix. Profile behaviour changes
 in this release: accelerations, walls, seams, square corner velocity and two
 new nozzle sizes. Fan defaults change in the optional macro pack.
 
+### M191 reads S and R as Marlin does
+
+- **`M191 R<t>` is accepted.** It was refused. As in Marlin, it sets the
+  chamber target and waits whichever way the chamber has to go. Below the
+  target it runs the same soak as `S`. Above it, the exhaust runs at full until
+  the chamber has been within 1 °C for 10 s, or gives up and carries on if it
+  falls less than 1.5 °C in 2 minutes (Marlin's defaults). With both `S` and
+  `R`, `S` wins.
+- **The cooling wait needs the Python preheat helper.** Without it, `R` sets the
+  exhaust ceiling and continues, rather than wait on a target the exhaust
+  might never reach.
+- **`TOL` is ignored with a notice** instead of refused.
+- Unchanged: `S` sets the target and waits only while heating, and a bare
+  `M191` keeps the pack's compatibility soak.
+
 ### M191 console lines in plain words
 
 - **One status line a minute, without the seconds stamp.** It was every 30 s,

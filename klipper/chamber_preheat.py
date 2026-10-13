@@ -386,6 +386,10 @@ class ChamberPreheat:
     cmd_CHAMBER_RECORD_HANDOFF_help = (
         "Record chamber observer handoff in the reactor clock domain"
     )
+    cmd_CHAMBER_COOL_WAIT_help = (
+        "M191 R in the cooling direction: wait, as Marlin does, for the "
+        "chamber to fall to MAXIMUM, with the exhaust at FAN driven to full"
+    )
 
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -625,6 +629,30 @@ class ChamberPreheat:
         self.report_seconds = config.getfloat(
             "report_seconds", 60.0, minval=5.0
         )
+        # M191 R, COOLING. Marlin's wait_for_chamber (module/temperature.cpp)
+        # with its shipped defaults: TEMP_CHAMBER_WINDOW 1 C,
+        # TEMP_CHAMBER_HYSTERESIS 3 C and TEMP_CHAMBER_RESIDENCY_TIME 10 s from
+        # Configuration.h, MIN_COOLING_SLOPE_DEG_CHAMBER 1.5 C per
+        # MIN_COOLING_SLOPE_TIME_CHAMBER 120 s from Configuration_adv.h. The
+        # chamber is read from the rear sensor: the nozzle is a chamber
+        # thermometer only after it has settled, which a cooling wait does not
+        # wait for.
+        self.cool_sensor = config.get(
+            "cool_sensor", "temperature_sensor chamber_temp"
+        )
+        self.cool_window = config.getfloat("cool_window", 1.0, above=0.0)
+        self.cool_hysteresis = config.getfloat(
+            "cool_hysteresis", 3.0, above=0.0
+        )
+        self.cool_residency = config.getfloat(
+            "cool_residency_seconds", 10.0, minval=0.0
+        )
+        self.cool_stall_degrees = config.getfloat(
+            "cool_stall_degrees", 1.5, above=0.0
+        )
+        self.cool_stall_seconds = config.getfloat(
+            "cool_stall_seconds", 120.0, above=0.0
+        )
         # ORBITING STIR, off until it has been watched on hardware.
         #
         # The parked nozzle sits in fan0's downdraft for the whole soak and digs
@@ -748,6 +776,11 @@ class ChamberPreheat:
             "CHAMBER_RECORD_HANDOFF",
             self.cmd_CHAMBER_RECORD_HANDOFF,
             desc=self.cmd_CHAMBER_RECORD_HANDOFF_help,
+        )
+        self.gcode.register_command(
+            "CHAMBER_COOL_WAIT",
+            self.cmd_CHAMBER_COOL_WAIT,
+            desc=self.cmd_CHAMBER_COOL_WAIT_help,
         )
 
     @staticmethod
@@ -929,6 +962,71 @@ class ChamberPreheat:
 
     def cmd_CHAMBER_RECORD_HANDOFF(self, gcmd):
         self._set_state(handoff_eventtime=self.reactor.monotonic())
+
+    def cmd_CHAMBER_COOL_WAIT(self, gcmd):
+        """Marlin's M191 R wait, cooling direction.
+
+        Done once the chamber has been within cool_window of MAXIMUM and has
+        not strayed past cool_hysteresis for cool_residency_seconds. A chamber
+        already in the window at the first reading waits a third longer, as
+        Marlin's first_loop does. It gives up and carries on, as Marlin does,
+        when the chamber falls less than cool_stall_degrees in any
+        cool_stall_seconds: a target the exhaust cannot reach must not hang the
+        job. The exhaust is driven directly because the chamber loop is a
+        delayed_gcode, and no G-code runs while this blocks.
+        """
+        maximum = gcmd.get_float("MAXIMUM")
+        fan_name = gcmd.get("FAN")
+        sensor = self.printer.lookup_object(self.cool_sensor)
+        exhaust = self.printer.lookup_object("fan_generic %s" % fan_name).fan
+        poll = min(self.update_seconds, 1.0)
+        eventtime = self.reactor.monotonic()
+        residency_start = None
+        first = True
+        old_temp = None
+        next_stall_check = eventtime
+        next_report = eventtime + self.report_seconds
+        self._set_stir(exhaust, 1.0)
+        while not self.printer.is_shutdown():
+            temp = sensor.get_status(eventtime)["temperature"]
+            diff = abs(maximum - temp)
+            if residency_start is None:
+                if diff < self.cool_window:
+                    residency_start = eventtime + (
+                        self.cool_residency / 3.0 if first else 0.0
+                    )
+            elif diff > self.cool_hysteresis:
+                residency_start = eventtime
+            first = False
+            if (residency_start is not None and
+                    eventtime >= residency_start + self.cool_residency):
+                gcmd.respond_info(
+                    "%s chamber cooled to %.1fC, target %.1fC"
+                    % (TAG, temp, maximum)
+                )
+                return
+            if eventtime >= next_stall_check:
+                if old_temp is not None and (
+                        old_temp - temp < self.cool_stall_degrees):
+                    gcmd.respond_info(
+                        "%s chamber fell %.1fC in %.0f min, too slowly to "
+                        "reach %.1fC, carrying on at %.1fC"
+                        % (TAG, old_temp - temp, self.cool_stall_seconds / 60.0,
+                           maximum, temp)
+                    )
+                    return
+                old_temp = temp
+                next_stall_check = eventtime + self.cool_stall_seconds
+            if eventtime >= next_report:
+                gcmd.respond_info(
+                    "%s chamber %.1fC, cooling to %.1fC, exhaust at 100%%"
+                    % (TAG, temp, maximum)
+                )
+                next_report = eventtime + self.report_seconds
+            # Not _pause: that runs an orbit cycle, and nothing parked the
+            # toolhead for a cooling wait.
+            eventtime = self.reactor.pause(eventtime + poll)
+        raise gcmd.error("Chamber cool wait interrupted by Klipper shutdown")
 
     @staticmethod
     def _minutes(value):
