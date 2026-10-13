@@ -1,18 +1,18 @@
 # SV Zero profiles
 
-**[Download the latest prerelease — v2.0.3-beta.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.0.3-beta.1)**
+**[Download the latest release — v2.1.0](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.1.0)**
 
-[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-orcaslicer.zip) ·
-[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-prusaslicer.zip) ·
-[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/svzero-profiles-2.0.3-beta.1-superslicer.zip)
+[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-orcaslicer.zip) ·
+[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-prusaslicer.zip) ·
+[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-superslicer.zip)
 
 [Source in Git](https://github.com/rpcyan586/svzero-profiles) ·
-[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.0.3-beta.1/SHA256SUMS) ·
+[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/SHA256SUMS) ·
 [All releases](https://github.com/rpcyan586/svzero-profiles/releases)
 
 Each ZIP includes its installation guide and the optional printer macro pack.
 
-An open-beta candidate for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
+Profiles for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
 Sovol Zero. One source generates the profiles for all three slicers.
 
 Automated checks and slicing have passed;
@@ -51,8 +51,8 @@ For an isolated **Linux trial from a Git clone**, the installer can prepare a
 new data directory:
 
 ```sh
-python3 tools/install-presets.py orca "$HOME/svzero-beta-orca"
-flatpak run com.orcaslicer.OrcaSlicer --datadir "$HOME/svzero-beta-orca"
+python3 tools/install-presets.py orca "$HOME/svzero-orca"
+flatpak run com.orcaslicer.OrcaSlicer --datadir "$HOME/svzero-orca"
 ```
 
 Use a dedicated directory: the installer replaces SVZero presets and selects
@@ -60,7 +60,7 @@ its defaults. It is not a general-purpose configuration merger. Keep the data
 directory under your home directory for Flatpak access. It does not launch a
 print or configure a printer connection. `--accel-cap N` caps installed motion
 settings when your machine uses a lower acceleration limit than stock.
-Windows/macOS manual installation needs beta feedback; it has not been tested
+Windows/macOS manual installation needs feedback; it has not been tested
 by this project.
 
 ## Optional enhancements
@@ -86,7 +86,7 @@ modules. Exact dependencies, benefits, removal and fallback behavior are in
 Report the release version, slicer version, firmware, nozzle, filament and
 installation level. Include expected/actual behavior and a small reproducer;
 remove host addresses, API keys and other personal data from attached projects
-and logs. Use the [beta feedback template](.github/ISSUE_TEMPLATE/beta-feedback.md).
+and logs. Use the [feedback template](.github/ISSUE_TEMPLATE/feedback.md).
 
 - [Build and test](docs/DEVELOPMENT.md)
 - [Download contents](docs/DOWNLOADS.md)

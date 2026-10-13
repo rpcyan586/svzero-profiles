@@ -1,5 +1,5 @@
 ---
-name: Beta feedback
+name: Feedback
 about: Installation, slicing or printing feedback
 ---
 

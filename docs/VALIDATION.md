@@ -1,5 +1,23 @@
 # Validation and known limitations
 
+## Candidate 2.1.0
+
+The offline suite passes **155 tests**, with macro rendering on Jinja 2.11.3
+and a clean deterministic rebuild. Unlike 2.0.3-beta.1, **profile behaviour
+changes**: accelerations, walls, seams, square corner velocity and two new
+nozzle sizes (see the [changelog](../CHANGELOG.md)). PS vendor `2.1.0`, Orca
+`02.01.00.00`.
+
+- **Sliced and measured** with `tools/slice-harness.py` on SuperSlicer 2.7.62,
+  PrusaSlicer 2.9.6 and OrcaSlicer 2.4.2: the 0.4 Fine, Optimal, Standard and
+  Draft tiers and a 0.25 Optimal. All three slicers emit the same per-feature
+  accelerations, square corner velocity and handshake line.
+- **Macro handshake called live** on a 1.3.7 Zero: `MODE=standard` accepted, a
+  version mismatch warns and runs, `MODE=fine` refused before heating, no
+  `MODE` accepted as standard.
+- **Physical prints:** none yet with these profiles. The 0.25 and 0.3 nozzle
+  profiles have been sliced, never printed.
+
 ## Candidate 2.0.3-beta.1
 
 The offline suite passes **133 tests**, including seven release-packaging tests.

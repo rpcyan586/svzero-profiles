@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased — acceleration cap holds in SuperSlicer
+## 2.1.0
+
+Versions are now three numbers with no beta suffix. Profile behaviour changes
+in this release: accelerations, walls, seams, square corner velocity and two
+new nozzle sizes. Fan defaults change in the optional macro pack.
+
+### Acceleration cap holds in SuperSlicer
 
 - **`install-presets.py --accel-cap` now caps SuperSlicer's percentage
   accelerations too.** It used to skip them, and some shares are above 100%: under
@@ -8,7 +14,7 @@
   5750. Each percentage is now resolved against the capped values and written as
   the cap only where it would exceed it.
 
-## Unreleased — re-anchored acceleration ladder
+### Re-anchored acceleration ladder
 
 - **The 0.4 tiers keep their ramp, now anchored on outside references** (mm/s²):
 
@@ -26,7 +32,7 @@
   sets:** default 20,000, walls 12,000 / 8,000, infill 20,000, top 12,000,
   bridges 8,000, first layer 3,000.
 
-## Unreleased — 0.25 and 0.3 nozzles, small-nozzle rules
+### 0.25 and 0.3 nozzles, small-nozzle rules
 
 - **New nozzle sizes: 0.25 and 0.3 mm**, each with Fine, Optimal and Standard.
   - Layers follow the 0.2 ladder (25 / 50 / 75% of the bore), rounded to whole
@@ -39,7 +45,7 @@
 - A first layer or wall count set directly on a preset still wins, and is
   checked like any other value.
 
-## Unreleased — accelerations honoured in every slicer
+### Accelerations honoured in every slicer
 
 - **PrusaSlicer and OrcaSlicer now request the accelerations the master asks for.**
   - The master is written in SuperSlicer's terms, where an acceleration
@@ -53,7 +59,7 @@
     stock's 10,000 (it was 33,200 in PrusaSlicer and OrcaSlicer).
   - Each slicer keeps its own features; only the requested values change.
 
-## Unreleased — 0.2 nozzle anchor, internal bridges, minimum layer time
+### 0.2 nozzle anchor, internal bridges, minimum layer time
 
 - **The 0.2 nozzle now runs Sovol SV08's 0.2 wall speed and accelerations.**
   - Inner walls 200 mm/s; outer walls 166 with our 83% ratio.
@@ -85,7 +91,7 @@
 - **Standard's square corner velocity is now 5** (it was declared as 7), which
   is what Sovol's stock profile uses. Optimal moves to 4 to stay between Fine and Standard.
 
-## Unreleased — machine mode in the handshake
+### Machine mode in the handshake
 
 - **The handshake carries the machine mode:** `SVZERO_REQUIRE VERSION=… MODE=standard`.
   - A mode mismatch refuses the job before any heater is commanded.
@@ -100,7 +106,7 @@
 - Tests check that every slicer bundle emits the same handshake line. The macro
   checker now asserts refusals.
 
-## Unreleased — fan defaults
+### Fan defaults
 
 - Curtain fan (`fan2`) gets `off_below: 0.15`, so an auxiliary-fan request below
   its measured ~14% stall point switches it off instead of leaving it powered

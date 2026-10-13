@@ -19,7 +19,7 @@ consolidated config for your firmware from `optional-macros/` and add one includ
 The Python enhancements are optional. You do not need to build anything or copy
 individual macro sources. Install the macro pack only once if using several slicers.
 
-These are beta profiles. Offline checks and slicing do not establish physical
+Offline checks and slicing do not establish physical
 print quality or nozzle suitability. Stock-startup physical commissioning and
 Windows/macOS installation feedback remain pending. The macro pack also needs
 brush-clearance checks; 1.4.x requires an exhaust-fan configuration edit.

@@ -22,19 +22,18 @@ and use the same ZIPs and SHA256SUMS on both platforms.
    pack. Builders and individual sources stay in Git; no source ZIP is built.
    Use a fresh output directory (`--output PATH`) and review file lists and
    extracted installation. Never upload a stale source ZIP from an older build.
-5. Create the matching GitHub prerelease tag and attach the files. The workflow
+5. Create the matching GitHub release tag and attach the files. The workflow
    validates builds; it does **not** automatically publish a release or post an
-   announcement. Obtain community feedback on the GitHub prerelease first.
+   announcement. Obtain community feedback on the GitHub release first.
 6. When that version is selected for Printables, upload those exact archives,
    repeat the version and link the GitHub release. Do not rebuild or edit an
    archive for Printables. Record the mirrored version in the release notes.
 
 After a release is published, update the prominent README tag and direct ZIP
-links to that release. Use its explicit tag URL: GitHub's stable-release
-shortcut does not identify a prerelease. Repository layout changes apply to
+links to that release. Use its explicit tag URL so the README names the version it links. Repository layout changes apply to
 the next release; keep already-published tags and download files unchanged.
 
-Numeric vendor versions cannot express a prerelease suffix. This candidate maps
-release `2.0.3-beta.1` to PS vendor `2.0.3` and Orca vendor `02.00.03.01`.
+Versions are three numbers, `MAJOR.MINOR.PATCH`, with no prerelease suffix.
+Release `2.1.0` maps to PS vendor `2.1.0` and Orca vendor `02.01.00.00`.
 Advance vendor versions for each distributed update so loaders see the change.
 The workflow has read-only repository permissions and no publishing credentials.
