@@ -23,7 +23,12 @@ def load_config(path, cp=None):
         if match and match.group("header").startswith("include "):
             cp.read_string("\n".join(buffer))
             buffer.clear()
-            load_config(path.parent / match.group("header")[8:].strip(), cp)
+            child = match.group("header")[8:].strip()
+            # A wildcard is Klipper's glob: sorted, and matching nothing is not
+            # an error. The pack has one, the machine-mode include.
+            for target in (sorted(path.parent.glob(child)) if any(c in child for c in "*?[")
+                           else [path.parent / child]):
+                load_config(target, cp)
         else:
             buffer.append(line)
     cp.read_string("\n".join(buffer))

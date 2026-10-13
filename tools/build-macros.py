@@ -19,11 +19,16 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+# The only include passed through rather than inlined. See svzero-1.3.7.cfg.
+MODE_INCLUDE = "svzero-mode-*.cfg"
+
+
 def expand(root, relative, inputs, stack=()):
     """Expand explicit includes in place, retaining later section overrides.
 
     Wildcards are intentionally unsupported: release contents must not depend
     on an unlisted optional or personal file appearing in the source directory.
+    MODE_INCLUDE is the one exception, and it is passed through, not expanded.
     """
     path = root / relative
     if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != root):
@@ -44,6 +49,11 @@ def expand(root, relative, inputs, stack=()):
         section = match.group("header") if match else ""
         if section.startswith("include "):
             child = section[8:].strip()
+            if child == MODE_INCLUDE:
+                # Left for Klipper: the machine mode is whichever mode file the
+                # operator has enabled beside the pack, decided at runtime.
+                lines.append(line)
+                continue
             if not child or any(c in child for c in "*?["):
                 raise ValueError("Include must name one explicit file: " + name)
             child_path = Path(child)

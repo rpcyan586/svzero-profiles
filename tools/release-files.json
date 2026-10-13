@@ -3,6 +3,7 @@
     "bundles/klipper/svzero-1.3.7.cfg": "optional-macros/svzero-1.3.7.cfg",
     "bundles/klipper/svzero-1.4.x.cfg": "optional-macros/svzero-1.4.x.cfg",
     "bundles/klipper/svzero-python.cfg": "optional-macros/svzero-python.cfg",
+    "klipper/modes/svzero-mode-precision.cfg": "optional-macros/svzero-mode-precision.cfg.off",
     "klipper/chamber_preheat.py": "optional-macros/chamber_preheat.py",
     "klipper/spool_guard.py": "optional-macros/spool_guard.py",
     "klipper/moonraker.py": "optional-macros/moonraker.py",

@@ -51,7 +51,7 @@ def main():
     run('-m','unittest','discover','-s','tests','-p','test_*.py')
     run('tools/validate-bundle.py')
     macros=['nozzle_brush.cfg','chamber_fan.cfg','start_print.cfg','end_print.cfg','cancel_print.cfg','cooldown.cfg','purge_line.cfg','svzero_pack.cfg','filament_load.cfg','orca_compat.cfg','chamber_orbit.cfg']
-    run('tools/check-macros.py',*['klipper/config/'+name for name in macros])
+    run('tools/check-macros.py',*['klipper/config/'+name for name in macros],'klipper/modes/svzero-mode-precision.cfg')
     run('tools/build-macros.py','--check')
     run('tools/check-macros.py','bundles/klipper/svzero-1.3.7.cfg','bundles/klipper/svzero-1.4.x.cfg')
     run('tools/check-purge-geometry.py')

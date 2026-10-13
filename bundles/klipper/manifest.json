@@ -16,10 +16,10 @@
         "klipper/config/probe_pressure_1.3.7.cfg": "cf082257ec367c339ee72c87b92da57939ffd6cdb0e4ff82d971531337ff33ab",
         "klipper/config/purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "klipper/config/start_print.cfg": "bb4cf03294e0721605cbe127f94701a08261371f400648be2464f331bcbcb68b",
-        "klipper/config/svzero-1.3.7.cfg": "3328f292353d848d9f360437d4737e189d94b6733cc3d8eada6c2c4c4de7705a",
-        "klipper/config/svzero_pack.cfg": "11c1bd2ece22b50b60f91ef2ca0016eca46b98a11172e18756a4de6628b291b4"
+        "klipper/config/svzero-1.3.7.cfg": "97a90098613dffb47fdb2338d281950a6d50f5fc0f32deeeabb87494b4fbc169",
+        "klipper/config/svzero_pack.cfg": "b8a823aea50e8604e4e3be35c3203d904bf10314271ca7fdfa043c84ba7cae57"
       },
-      "sha256": "64192a092bd1acd6d63e6e38f1b50ecb36de06af7bd7e550b315f1f2384350d4"
+      "sha256": "c48ca9b4b5617e852678a7928e8013f51440593680fd77b4bf2212ce381a6b3c"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
@@ -35,10 +35,10 @@
         "klipper/config/orca_compat.cfg": "566f903ec02eaba35cd760015695787b7a68935b03e74e9bc55006a16a7e4e72",
         "klipper/config/purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "klipper/config/start_print.cfg": "bb4cf03294e0721605cbe127f94701a08261371f400648be2464f331bcbcb68b",
-        "klipper/config/svzero-1.4.x.cfg": "813c5998aeba0c95b8a8b9b5f42d575b8a60bf91752cae7482f676ae0a2a3d3a",
-        "klipper/config/svzero_pack.cfg": "11c1bd2ece22b50b60f91ef2ca0016eca46b98a11172e18756a4de6628b291b4"
+        "klipper/config/svzero-1.4.x.cfg": "3017382a3f0cbbaa18e661914ed83af4fa39f6166143c53e417f50c5acd132de",
+        "klipper/config/svzero_pack.cfg": "b8a823aea50e8604e4e3be35c3203d904bf10314271ca7fdfa043c84ba7cae57"
       },
-      "sha256": "8f606652bd3a9b760a14d0c9ac3e04e3af6065294a0b66ee3ade439a83bed222"
+      "sha256": "57e7f1db66e7fb7c5979e31be981b507897894b0bfef13c99a4dcf0b8da8fbfa"
     },
     "svzero-python.cfg": {
       "sources": {

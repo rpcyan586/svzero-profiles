@@ -57,7 +57,12 @@ class ReleaseBundles(unittest.TestCase):
                 for name in ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg", "svzero-python.cfg"):
                     content = files["optional-macros/" + name]
                     self.assertEqual(content, self.files["bundles/klipper/" + name])
-                    self.assertNotRegex(content.decode(), r"(?m)^\s*\[include ")
+                    # Self-contained except for the machine-mode include, which
+                    # Klipper resolves at runtime against the mode file present.
+                    self.assertNotRegex(content.decode(),
+                                        r"(?m)^\s*\[include (?!svzero-mode-\*\.cfg\])")
+                self.assertEqual(files["optional-macros/svzero-mode-precision.cfg.off"],
+                                 self.files["klipper/modes/svzero-mode-precision.cfg"])
                 for name in ("chamber_preheat.py", "spool_guard.py", "moonraker.py"):
                     self.assertEqual(files["optional-macros/" + name], self.files["klipper/" + name])
 

@@ -103,8 +103,28 @@ def check(path):
     env.globals["action_raise_error"] = lambda m: (_ for _ in ()).throw(RuntimeError(m))
     # Klipper's other action_* callables. They return a string that is emitted
     # into the rendered G-code, so model them as producing nothing.
-    for _fn in ("action_respond_info", "action_emergency_stop", "action_call_remote_method"):
+    for _fn in ("action_respond_info", "action_emergency_stop"):
         env.globals[_fn] = lambda *a, **k: ""
+    # A remote call happens at render time and leaves nothing in the output, and
+    # a refusal raises right after it, so record the calls to assert on them.
+    remote_calls = []
+    env.globals["action_call_remote_method"] = (
+        lambda method, **kw: remote_calls.append(
+            "%s %s" % (method, " ".join("%s=%s" % i for i in sorted(kw.items())))) or "")
+
+    def remote_ok(s, label, suffix):
+        if (s, label) not in remote:
+            return True
+        want = remote[(s, label)]
+        if want is None and remote_calls:
+            print("   FAIL    %s%s -> remote call it must not make: %s"
+                  % (s, suffix, remote_calls[0]))
+            return False
+        if want is not None and want not in remote_calls:
+            print("   FAIL    %s%s -> no remote call %r, got %r"
+                  % (s, suffix, want, remote_calls))
+            return False
+        return True
     cp = configparser.RawConfigParser(strict=False, inline_comment_prefixes=('#', ';'))
     cp.read_string('\n'.join(l.split('#')[0] for l in open(path, encoding="utf-8")))
 
@@ -347,11 +367,21 @@ def check(path):
         elif s == "gcode_macro SVZERO_REQUIRE":
             # mode=None leaves the attribute off entirely: a pack section from
             # before modes existed, which must read as standard.
-            def pack(seen=0, mode=None):
+            def pack(seen=0, mode=None, switch=None, steps=None, have=None):
                 fields = dict(version="1.0.4", seen=seen)
                 if mode is not None:
                     fields["mode"] = mode
-                return {"gcode_macro _SVZERO_PACK": Mock(fields)}
+                if switch is not None:
+                    fields["mode_switch"] = switch
+                if steps is not None:
+                    fields["mode_microsteps"] = steps
+                out = {"gcode_macro _SVZERO_PACK": Mock(fields),
+                       "print_stats": Mock(filename="job.gcode")}
+                if have is not None:
+                    out["configfile"] = Mock(settings=Mock(dict(
+                        printer.configfile.settings,
+                        stepper_x=Mock(microsteps=have))))
+                return out
             scenarios = [
                 # Profiles from before modes: VERSION only.
                 ("version-match", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
@@ -375,6 +405,34 @@ def check(path):
                  "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="precision")),
                 ("legacy-job-precision-printer", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
                  {}, {}, pack(mode="precision")),
+                # With switching on, the refusal hands the job to the helper.
+                ("precision-job-standard-printer-switch", None, "VERSION=1.0.4 MODE=precision",
+                 {}, {}, pack(mode="standard", switch=True)),
+                ("standard-job-precision-printer-switch", None, "VERSION=1.0.4 MODE=standard",
+                 {}, {}, pack(mode="precision", switch=True)),
+                ("mode-match-switch", None, "VERSION=1.0.4 MODE=precision",
+                 {}, {}, pack(mode="precision", switch=True)),
+                # Without the component the refusal names the rename, both ways.
+                ("manual-into-precision", None, "VERSION=1.0.4 MODE=precision",
+                 {}, {}, pack(mode="standard", switch=False)),
+                ("manual-back-to-standard", None, "VERSION=1.0.4 MODE=standard",
+                 {}, {}, pack(mode="precision", switch=False, steps=64, have=64)),
+                # A mode file that did not take effect: printer.cfg's own
+                # stepper sections came after the pack and won.
+                ("precision-not-applied", None, "VERSION=1.0.4 MODE=precision",
+                 {}, {}, pack(mode="precision", steps=64, have=16)),
+                ("precision-applied", None, "VERSION=1.0.4 MODE=precision",
+                 {}, {}, pack(mode="precision", steps=64, have=64)),
+            ]
+        elif s == "gcode_macro SVZERO_MODE":
+            def pack(mode, switch):
+                return {"gcode_macro _SVZERO_PACK": Mock(
+                    version="1.0.4", seen=0, mode=mode, mode_switch=switch)}
+            scenarios = [
+                ("report", None, "", {}, {}, pack("standard", True)),
+                ("already", None, "MODE=standard", {}, {}, pack("standard", True)),
+                ("off", None, "MODE=precision", {}, {}, pack("standard", False)),
+                ("ask", None, "MODE=PRECISION", {}, {}, pack("standard", True)),
             ]
         elif s == "gcode_macro _SVZERO_CHECK_PROFILE":
             def pack(seen, mode=None):
@@ -1024,6 +1082,21 @@ def check(path):
                 # 0.0217 and there is nothing left to buy colour with.
                 ("max-starved", Mock(MAX="1"), "MAX=1", {}, {}, starved),
             ]
+        elif s == "gcode_macro SET_VELOCITY_LIMIT":
+            # Precision mode's ceiling clamp. Params come from the raw text, as
+            # Klipper builds them, so the clamp sees the strings it will see.
+            scenarios = [
+                ("under", None, "VELOCITY=200 ACCEL=3000", {}, {}),
+                ("over", None, "VELOCITY=500 ACCEL=10000 SQUARE_CORNER_VELOCITY=3", {}, {}),
+                ("scv-only", None, "SQUARE_CORNER_VELOCITY=5", {}, {}),
+            ]
+        elif s == "gcode_macro M204":
+            # Traditional G-code: S10000 reaches the macro as {"S": "10000"}.
+            scenarios = [
+                ("under", None, "S3000", {}, {}),
+                ("over", None, "S10000", {}, {}),
+                ("over-pt", None, "P6000 T8000", {}, {}),
+            ]
 
         # An optional 7th element: a string the rendered output MUST contain.
         # Jinja only evaluates the branch it takes, so a scenario that quietly
@@ -1048,6 +1121,20 @@ def check(path):
                 "Adaptive floor 0.15, lowering cooldown 0",
             ("gcode_macro _CH_ADAPT_BEGIN", "opt-in-trial"):
                 "Adaptive floor trial 0.135, known-good 0.14",
+            ("gcode_macro SVZERO_MODE", "report"): "machine mode standard, automatic switching on",
+            ("gcode_macro SVZERO_MODE", "already"): "already in standard mode",
+            ("gcode_macro SVZERO_MODE", "off"): "automatic switching is off",
+            ("gcode_macro SVZERO_MODE", "ask"): "asked svzero_mode_switch for precision mode",
+            ("gcode_macro SVZERO_REQUIRE", "mode-match-switch"): "VARIABLE=seen VALUE=1",
+            ("gcode_macro SVZERO_REQUIRE", "precision-applied"): "VARIABLE=seen VALUE=1",
+            ("gcode_macro SET_VELOCITY_LIMIT", "under"): "_SVZERO_SVL_BASE VELOCITY=200 ACCEL=3000",
+            ("gcode_macro SET_VELOCITY_LIMIT", "over"): [
+                "_SVZERO_SVL_BASE VELOCITY=300.0 ACCEL=4000.0 SQUARE_CORNER_VELOCITY=3",
+                "precision mode clamped VELOCITY=500>300.0 ACCEL=10000>4000.0"],
+            ("gcode_macro SET_VELOCITY_LIMIT", "scv-only"): "_SVZERO_SVL_BASE SQUARE_CORNER_VELOCITY=5",
+            ("gcode_macro M204", "under"): "M99204 S3000",
+            ("gcode_macro M204", "over"): ["M99204 S4000.0", "precision mode clamped M204 S=10000>4000.0"],
+            ("gcode_macro M204", "over-pt"): "M99204 P4000.0 T4000.0",
             ("gcode_macro _COOLDOWN_START", "heaterless"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             # The cooldown no longer touches the chamber heater at start; the
             # paired forbid proves it, this proves the ramp still armed.
@@ -1257,6 +1344,9 @@ def check(path):
                   ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],
                   ("gcode_macro M191", "s-beats-r"): "CHAMBER_COOL_WAIT",
                   ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"): "VARIABLE=trial_active VALUE=1",
+                  ("gcode_macro SET_VELOCITY_LIMIT", "under"): "clamped",
+                  ("gcode_macro SET_VELOCITY_LIMIT", "scv-only"): "clamped",
+                  ("gcode_macro M204", "under"): "clamped",
                   # A step that cannot be held must emit no arc at all.
                   ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
@@ -1379,7 +1469,13 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
         # scenario that raises fails, and any of these that renders fails.
-        refuse = {("gcode_macro M191", "r-cooling-without-python"):
+        refuse = {("gcode_macro SVZERO_REQUIRE", "manual-into-precision"):
+                      "rename svzero-mode-precision.cfg.off to svzero-mode-precision.cfg",
+                  ("gcode_macro SVZERO_REQUIRE", "manual-back-to-standard"):
+                      "rename svzero-mode-precision.cfg to svzero-mode-precision.cfg.off",
+                  ("gcode_macro SVZERO_REQUIRE", "precision-not-applied"):
+                      "stepper_x runs 16 microsteps, not the 64 it sets",
+                  ("gcode_macro M191", "r-cooling-without-python"):
                       "waiting for it to cool needs the Python preheat helper",
                   ("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer"):
                       "sliced for precision mode and the printer is in standard mode",
@@ -1387,8 +1483,23 @@ def check(path):
                       "sliced for standard mode and the printer is in precision mode",
                   ("gcode_macro SVZERO_REQUIRE", "legacy-job-precision-printer"):
                       "sliced for standard mode and the printer is in precision mode",
+                  ("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer-switch"):
+                      "svzero_mode_switch restarts Klipper in precision mode and starts this job again",
+                  ("gcode_macro SVZERO_REQUIRE", "standard-job-precision-printer-switch"):
+                      "svzero_mode_switch restarts Klipper in standard mode and starts this job again",
                   ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-precision"):
                       "the printer is in precision mode, which runs only jobs sliced for it"}
+
+        # Remote calls a scenario must make (a string) or must not make (None).
+        remote = {("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer-switch"):
+                      "svzero_mode_switch filename=job.gcode mode=precision",
+                  ("gcode_macro SVZERO_REQUIRE", "standard-job-precision-printer-switch"):
+                      "svzero_mode_switch filename=job.gcode mode=standard",
+                  ("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer"): None,
+                  ("gcode_macro SVZERO_REQUIRE", "mode-match-switch"): None,
+                  ("gcode_macro SVZERO_MODE", "ask"): "svzero_mode_switch filename= mode=precision",
+                  ("gcode_macro SVZERO_MODE", "off"): None,
+                  ("gcode_macro SVZERO_MODE", "already"): None}
 
         # Everything defined above without a printer patch gets an empty one.
         if s == "gcode_macro CLEAN_NOZZLE":
@@ -1424,6 +1535,7 @@ def check(path):
                         printer.pop(k, None)
                     else:
                         printer[k] = v
+                del remote_calls[:]
                 effective = scenario_params
                 if effective is None:
                     effective = klipper_params(
@@ -1478,12 +1590,18 @@ def check(path):
                         print("   FAIL    %s%s -> took the wrong branch, %s present"
                               % (s, suffix, ", ".join(repr(h) for h in hit)))
                         continue
+                if not remote_ok(s, label, suffix):
+                    bad += 1
+                    continue
                 print("   ok      %s%s" % (s, suffix))
             except Exception as e:
                 # action_raise_error throws RuntimeError (see the env setup), so
                 # a refusal is asserted by its message, never by any exception.
                 why = refuse.get((s, label))
                 if why is not None and isinstance(e, RuntimeError) and why in str(e):
+                    if not remote_ok(s, label, suffix):
+                        bad += 1
+                        continue
                     print("   ok      %s%s (refused)" % (s, suffix))
                     continue
                 bad += 1
