@@ -20,15 +20,22 @@ Public upstream inputs:
 - Source tables retain stock numerical reference settings used for comparisons.
   They are development inputs, not selectable Stock presets.
 
-UNRESOLVED BEFORE FIRST PUBLIC UPLOAD:
-The earlier pack identified cancel_print.cfg, end_print.cfg, filament_load.cfg
-and nozzle_brush.cfg (now under klipper/config/) as derived from
-Sovol3d/SOVOL-ZERO Macro.cfg. That source's
-applicable licence has not been established in this review. These files remain
-in the local candidate for review; no new licence is asserted over Sovol's
-contributions. Source: https://github.com/Sovol3d/SOVOL-ZERO (reviewed 2026-09-18).
-Confirm permission/applicable terms, or replace/omit affected
-material and revalidate, before publishing the candidate.
+Sovol-derived Klipper macros:
+klipper/config/cancel_print.cfg, end_print.cfg, filament_load.cfg,
+nozzle_brush.cfg and start_print.cfg carry text from Sovol's Macro.cfg. The
+Zero's copy (https://github.com/Sovol3d/SOVOL-ZERO) has no licence file, but
+Sovol publishes the same macros under GPL-3.0 in
+https://github.com/Sovol3d/SV08 -- commit a60644875f8c,
+home/sovol/printer_data/config/Macro.cfg, blob e584b9d1c2a2 -- and that text
+is used here under that licence. Compared line by line (2026-10-13):
+LOAD_FILAMENT and UNLOAD_FILAMENT are identical in both, and every Sovol line
+in filament_load.cfg and nozzle_brush.cfg is in the SV08 file. The few lines
+with no GPL-3.0 source are calls to Sovol macros by name (ALL_FAN_OFF,
+CHANG_ROOT_MAIN, save_last_file), standard Klipper commands, the Zero's pin
+assignments and park position, and three M117 status messages. Sovol states
+that the Zero is "fully open-source (including hardware, firmware, and
+structure)" under "the open-source guidelines of Voron and Klipper" (SOVOL-ZERO
+README).
 
 The bed SVG and two-triangle STL are original schematic previews, GPL-3.0.
 They are not derived from the third-party assets used in earlier private builds.
