@@ -563,6 +563,25 @@ def check(path):
                                                         target=60.0)}
         hot_bed = {"heater_bed": Mock(temperature=108.0, target=110.0)}
 
+        # THE SPLIT'S ARITHMETIC IN DUTY, ON PURPOSE (2026-10-13). The assist
+        # now blends in each fan's rpm with a measured k(Z); these scenarios
+        # test the split, the latch and the integral, whose numbers were
+        # written for k = 1 and fans linear in duty. An identity curve and a
+        # flat strength table give exactly that, so their expectations still
+        # name the branch they were written for. The rpm and k(Z) behaviour
+        # has its own scenarios, against the shipped curves and fit (assist-rpm-*).
+        LINEAR_FANS = dict(exhaust_w0=1.0, exhaust_w_per_mm=0.0, curtain_w_far=1.0,
+                           curtain_w_near=0.0, curtain_w_mm=1.0, strength_duty=1.0,
+                           exhaust_curve_duty=[0.0, 1.0], exhaust_curve_rpm=[0.0, 1.0],
+                           curtain_curve_duty=[0.0, 1.0], curtain_curve_rpm=[0.0, 1.0])
+
+        def th_at(z):
+            """The base toolhead with the plate at a given height."""
+            return Mock(max_accel=5000.0, homed_axes="", position=[0, 0, z, 0],
+                        estimated_print_time=123.456,
+                        axis_minimum=Mock(x=0.0, y=0.0, z=0.0),
+                        axis_maximum=Mock(x=200.0, y=200.0, z=250.0))
+
         def cool(ch=None, bed_temp=None, bed_power=0.0, **kw):
             """A _COOL_STATE mid-ramp on the PC policy: 110/60 to 35 at 2.5.
 
@@ -642,7 +661,9 @@ def check(path):
             if "last_degree" not in kw:
                 base["last_degree"] = int((base["b_cmd"] + 8.0 if bed_temp is None else bed_temp) // 1)
             patch = {"gcode_macro _COOL_STATE": Mock(base),
-                     "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13))}
+                     "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13)),
+                     "gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], **LINEAR_FANS))}
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the
@@ -859,7 +880,7 @@ def check(path):
                 ("assist-curtain-withheld", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.2),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -875,7 +896,7 @@ def check(path):
                 ("assist-ceiling", params, "", {}, {},
                  dict(cool(b_at=95.0, c_step=0.0, c_rate=0.0, bed_temp=108.0),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -895,7 +916,7 @@ def check(path):
                 ("assist-curtain", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=55.0),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -931,7 +952,7 @@ def check(path):
                            assist=1, assist_latched=1, curtain_latched=1,
                            prev_err=-0.1),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], **LINEAR_FANS,
                                    curtain_enable=1))})),
                 # ONCE ON, IT STAYS ON (2026-10-12). Latched, and the plate back
                 # on the schedule so demand sits on the floor: the shipped
@@ -940,14 +961,14 @@ def check(path):
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.0,
                            assist=1, assist_latched=1, curtain_latched=1),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], **LINEAR_FANS,
                                    curtain_enable=1))})),
                 # ...and curtain_hold: 0 brings the release band back.
                 ("curtain-released-without-hold", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.0,
                            assist=1, assist_latched=1, curtain_latched=1),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"],
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], **LINEAR_FANS,
                                    curtain_enable=1, curtain_hold=0))})),
                 # ...BUT NOT A HEATER STILL WORKING. The same projection with the
                 # bed at 20 % power must not engage: that is the 2026-09-13
@@ -957,7 +978,7 @@ def check(path):
                  dict(cool(elapsed=1731, c_step=0.0, c_rate=0.0, bed_temp=45.1,
                            prev_err=-0.5, bed_power=0.2),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -976,7 +997,7 @@ def check(path):
                 ("assist-latch-handover", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.25),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -996,7 +1017,7 @@ def check(path):
                 ("assist-shared-climb", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=46.07),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -1007,6 +1028,33 @@ def check(path):
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
                                   finish_tolerance=1.0, finish_grace=900.0)})),
+                # IN RPM, WITH k MEASURED AT THE PLATE'S HEIGHT (2026-10-13). The
+                # shipped curves and fit, the curtain enabled, a 0.13 exhaust
+                # floor. The numbers come from an independent model of the same
+                # arithmetic, not from this render. At Z 22 (a 12 mm part plus
+                # END_PRINT's 10) k is 3.06 and the knee 1.15, so 0.6 C behind --
+                # demand 0.795 -- is still the exhaust's alone: 0.702, no curtain.
+                ("assist-rpm-low-z-exhaust-alone", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.6),
+                      **{"toolhead": th_at(22.0),
+                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
+                # The same error with the plate at Z 160 (fitted at 155), where k
+                # is 1.49 and the knee 0.72: the curtain latches, both fans on
+                # their floors plus the shared increment -- exhaust 0.161,
+                # curtain 0.221.
+                ("assist-rpm-high-z-curtain", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.6),
+                      **{"toolhead": th_at(160.0),
+                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
+                # 2 C behind at Z 22: demand 1.93, past the knee, and the split
+                # conserves it in rpm -- exhaust 0.342, curtain 0.336 in duty.
+                ("assist-rpm-low-z-shared", params, "", {}, {},
+                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=47.0),
+                      **{"toolhead": th_at(22.0),
+                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
                 # ANTI-WINDUP. over 15, already engaged with I 1.5: 0.13 + P 11.25
                 # + 1.5 is far past top 2.0, so both fans run flat out AND the
                 # integral must not grow -- it is left exactly where it was, so
@@ -1018,7 +1066,7 @@ def check(path):
                            assist=1, assist_latched=1, curtain_latched=1,
                            assist_i=1.5, prev_err=15.0),
                       **{"gcode_macro _COOLDOWN_ASSIST_CFG":
-                             Mock(exhaust_enable=1, curtain_enable=1,
+                             Mock(**LINEAR_FANS, exhaust_enable=1, curtain_enable=1,
                                   lead=0.25, error_on=0.0, error_off=0.3,
                                   assist_kp=0.75, assist_ki=0.25,
                                   authority_power=0.02, exhaust_min=0.0,
@@ -1359,6 +1407,13 @@ def check(path):
             # claim of the 2026-09-08 revision.
             ("gcode_macro _COOLDOWN_TICK", "assist-latch-handover"):
                 ["SET_FAN_SPEED FAN=fan2 SPEED=0.202", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.132"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-exhaust-alone"): "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.702",
+            ("gcode_macro _COOLDOWN_TICK", "assist-rpm-high-z-curtain"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.221", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.161",
+                 "(k 1.49 at Z 160.0)"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-shared"):
+                ["SET_FAN_SPEED FAN=fan2 SPEED=0.336", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.342",
+                 "(k 3.06 at Z 22.0)"],
             ("gcode_macro _COOLDOWN_TICK", "assist-shared-climb"):
                 ["SET_FAN_SPEED FAN=fan2 SPEED=0.535", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.465"],
             # Saturated and held: flat out, and the integral left alone (see
@@ -1480,6 +1535,8 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  # The curtain's floor alone outweighs this demand at Z 22.
+                  ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-exhaust-alone"): "FAN=fan2",
                   ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],
                   ("gcode_macro M191", "s-beats-r"): "CHAMBER_COOL_WAIT",
                   ("gcode_macro M191", "boost-off"): "bed boost on",
