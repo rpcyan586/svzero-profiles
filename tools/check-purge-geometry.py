@@ -14,6 +14,10 @@ environment and then measures the emitted moves as a plotter would:
   * start and end are read off the moves and checked to be antipodal
   * every nozzle the pack ships, across a grid of part positions, must lay at
     least one full lap and a half
+  * the prime is ROLLED IN along the outer circle and never extruded standing
+    still (2026-10-13): no E-only move before the first arc, the roll ends at
+    the ring start, carries prime + tip, and is no richer per mm than the ring
+    while within roll_halves_max -- checked with and without a debt to repay
 
 Klipper builds its environment as Environment('{%', '%}', '{', '}') with no
 extensions (gcode_macro.py:74) -- SINGLE braces for variables -- so the same
@@ -55,12 +59,12 @@ def load(path):
     return varz, tmpl
 
 
-def render(tmpl, varz, noz, obj_poly, vol_max=10.0):
+def render(tmpl, varz, noz, obj_poly, vol_max=10.0, scrub=0.0, owed=0.0):
     env = jinja2.Environment("{%", "%}", "{", "}", undefined=jinja2.StrictUndefined)
     env.globals["printer"] = Obj({
         "gcode_macro _PURGE": Obj(varz),
-        "gcode_macro _BRUSH": Obj({"retracted": 0.0, "owed_max": 6.0, "retract_f": 2700}),
-        "save_variables": Obj({"variables": Obj({"end_retract": 0.0})}),
+        "gcode_macro _BRUSH": Obj({"retracted": scrub, "owed_max": 6.0, "retract_f": 2700}),
+        "save_variables": Obj({"variables": Obj({"end_retract": owed})}),
         "exclude_object": Obj({"objects": [Obj({"polygon": obj_poly})]}) if obj_poly else None,
         "toolhead": Obj({"max_accel": 5000.0}),
     })
@@ -74,9 +78,26 @@ def render(tmpl, varz, noz, obj_poly, vol_max=10.0):
 NUM = r"(-?\d+\.?\d*)"
 
 
-def measure(gcode):
-    """Walk the emitted moves. Returns arc length, extrusion, and the ends."""
+def roll_split(gcode):
+    """The roll's RESPOND line, and whether any E-only move precedes the first arc."""
+    roll = re.search(r"roll halves=(\d+) len=" + NUM + r" e=" + NUM + r" e_mm=" + NUM + r" ring_e_mm=" + NUM, gcode)
+    still = False
+    for line in gcode.splitlines():
+        line = line.strip()
+        if re.match(r"^G[23]\b", line):
+            break
+        if re.match(r"^G1\b", line) and re.search(r"[ ]E" + NUM, line) and not re.search(r"[ ][XY]" + NUM, line):
+            still = True
+    return roll, still
+
+
+def measure(gcode, skip_arcs=0):
+    """Walk the emitted moves. Returns arc length, extrusion, and the ends.
+    The first skip_arcs arcs -- the rolled prime -- are walked but not counted."""
     x = y = None
+    roll_ext = 0.0
+    roll_end = None
+    seen_arcs = 0
     arc = ext = 0.0
     first_xy = last_xy = None
     sweeps = []
@@ -97,8 +118,12 @@ def measure(gcode):
         # prime, the `tip` seating advance, the `retract_after` pullback -- are
         # filament bookkeeping, not bead, and counting them made every nozzle
         # read 0.48 mm3 light (0.2 mm of filament: tip 0.2 minus retract 0.4).
+        rolling = code in (2, 3) and seen_arcs < skip_arcs
         if ge and code in (1, 2, 3) and (gx or gy):
-            ext += float(ge.group(1))
+            if rolling:
+                roll_ext += float(ge.group(1))
+            else:
+                ext += float(ge.group(1))
         if code in (2, 3) and gi and gj and x is not None:
             # gcode_arcs.py planArc, line for line: what Klipper will draw,
             # not what the macro meant.
@@ -114,6 +139,11 @@ def measure(gcode):
             if sweep == 0. and x == nx and y == ny:
                 sweep = TAU
             sweep = abs(sweep)
+            seen_arcs += 1
+            if rolling:
+                roll_end = (nx, ny)
+                x, y = nx, ny
+                continue
             arc += r * sweep
             sweeps.append(sweep)
             if first_xy is None:
@@ -123,7 +153,7 @@ def measure(gcode):
             arc += math.hypot(nx - x, ny - y)     # the radial step-ins extrude too
         if nx is not None:
             x, y = nx, ny
-    return arc, ext, first_xy, last_xy, sweeps
+    return arc, ext, first_xy, last_xy, sweeps, roll_ext, roll_end
 
 
 def main():
@@ -141,10 +171,15 @@ def main():
     for noz in (0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4):
         worst = None
         fails = set()
-        for x0, y0 in corners:
+        for (x0, y0), (scrub, owed) in [(c, d) for c in corners for d in ((0.0, 0.0), (3.0, 4.0))]:
             ox1, oy1 = x0 + 35.0, y0 + 35.0
             poly = [[x0, y0], [ox1, y0], [ox1, oy1], [x0, oy1]]
-            out = render(tmpl, varz, noz, poly)
+            out = render(tmpl, varz, noz, poly, scrub=scrub, owed=owed)
+            roll, still = roll_split(out)
+            if not roll:
+                fails.add("no roll at %s,%s" % (x0, y0))
+                continue
+            halves = int(roll.group(1))
             info = re.search(r"ring n=(\d+) cx=" + NUM + r" cy=" + NUM + r" r_out=" + NUM
                              + r" r_in=" + NUM + r" step=" + NUM + r" bead=" + NUM + r"x" + NUM
                              + r" vol=" + NUM, out)
@@ -154,7 +189,8 @@ def main():
             n = int(info.group(1)); cx = float(info.group(2)); cy = float(info.group(3))
             r_out = float(info.group(4)); r_in = float(info.group(5))
             bead = float(info.group(7)) * float(info.group(8)); laid = float(info.group(9))
-            arc, ext, s_xy, e_xy, sweeps = measure(out)
+            arc, ext, s_xy, e_xy, sweeps, roll_ext, roll_end = measure(out, skip_arcs=halves)
+            owe = scrub + owed + varz["tip"]
             want = varz["vol_b"] + varz["vol_k"] * noz * noz
             got = ext * math.pi / 4 * 1.75 ** 2
             laps = sum(sweeps) / TAU
@@ -171,6 +207,11 @@ def main():
                 "sep": abs(sep - 180.0) < 0.5,
                 "dir": d_e < d_s,
                 "r": r_out <= varz["r_max"] + 1e-6 and r_in >= varz["r_min"] - 1e-6,
+                "stationary prime": not still,
+                "roll ends off the start": roll_end is not None and math.hypot(roll_end[0] - s_xy[0], roll_end[1] - s_xy[1]) < 2e-3,
+                "roll E": abs(roll_ext - owe) < 0.002 * max(halves, 1) + 1e-3,
+                "roll richer than ring": halves >= varz["roll_halves_max"]
+                    or float(roll.group(4)) <= float(roll.group(5)) + 1e-4,
             }
             fails.update(k for k, ok in checks.items() if not ok)
             if worst is None or laps < worst[1]:
