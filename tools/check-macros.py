@@ -1035,8 +1035,6 @@ def check(path):
                                                 "the slicer's target"],
             ("gcode_macro M191", "r-cooling"): ["M141 S35.0",
                                                 "CHAMBER_COOL_WAIT MAXIMUM=35.0 FAN=exhaust_fan"],
-            ("gcode_macro M191", "r-cooling-without-python"): ["M141 S35.0",
-                                                               "does not wait for it to cool"],
             ("gcode_macro M191", "s-beats-r"): "CHAMBER_PREHEAT_WAIT MINIMUM=45.0",
             ("gcode_macro M191", "tol-ignored"): ["TOL is not an M191 argument",
                                                   "CHAMBER_PREHEAT_WAIT MINIMUM=45.0"],
@@ -1257,7 +1255,6 @@ def check(path):
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
                   ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],
-                  ("gcode_macro M191", "r-cooling-without-python"): ["CHAMBER_COOL_WAIT", "TEMPERATURE_WAIT", "G28"],
                   ("gcode_macro M191", "s-beats-r"): "CHAMBER_COOL_WAIT",
                   ("gcode_macro _CH_ADAPT_BEGIN", "published-defaults"): "VARIABLE=trial_active VALUE=1",
                   # A step that cannot be held must emit no arc at all.
@@ -1382,7 +1379,9 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
         # scenario that raises fails, and any of these that renders fails.
-        refuse = {("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer"):
+        refuse = {("gcode_macro M191", "r-cooling-without-python"):
+                      "waiting for it to cool needs the Python preheat helper",
+                  ("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer"):
                       "sliced for precision mode and the printer is in standard mode",
                   ("gcode_macro SVZERO_REQUIRE", "standard-job-precision-printer"):
                       "sliced for standard mode and the printer is in precision mode",

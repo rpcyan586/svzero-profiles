@@ -14,9 +14,9 @@ new nozzle sizes. Fan defaults change in the optional macro pack.
   the chamber has been within 1 °C for 10 s, or gives up and carries on if it
   falls less than 1.5 °C in 2 minutes (Marlin's defaults). With both `S` and
   `R`, `S` wins.
-- **The cooling wait needs the Python preheat helper.** Without it, `R` sets the
-  exhaust ceiling and continues, rather than wait on a target the exhaust
-  might never reach.
+- **The cooling wait needs the Python preheat helper.** Without it, an `R` that
+  would have to cool is refused before anything changes, rather than skipped.
+  An `R` below its target still waits on the rear sensor, as `S` does.
 - **`TOL` is ignored with a notice** instead of refused.
 - Unchanged: `S` sets the target and waits only while heating, and a bare
   `M191` keeps the pack's compatibility soak.
