@@ -87,6 +87,21 @@ macro pack.
 - **The curtain fan, once on, stays on for the rest of the ramp**, at its floor
   or above (`curtain_hold`). It used to drop out a minute or so after coming on
   and come back. The curtain assist remains off by default.
+- **The ramp starts the moment the nozzle has cooled to the bed**, with its
+  first one-degree step at once. Settling checks every 5 s instead of 15, and
+  the first step used to come up to a minute later.
+- **The bed is aimed ahead of the schedule, not behind it.** The whole-degree
+  target now steps as soon as the schedule line reaches a degree, so it sits
+  up to 1 °C below the line; it used to round, up to 0.5 °C above it. The fan
+  assist aims a quarter degree ahead of the line and comes on as soon as the
+  heater has let go and the bed is behind that aim. It used to wait until the
+  bed was 1 °C behind, and then hold it there: on Zero2's five recorded
+  cooldowns the bed ran more than 0.2 °C behind the line for 67–73% of the
+  ramp, a fan at full for almost none of it.
+- **The bed heater is the measure of enough cooling.** While it fires, the
+  assist does not push harder, and each progress line shows its average duty
+  since the last one: a heater that blips now and then means the fans are
+  keeping up.
 
 ### Acceleration cap holds in SuperSlicer
 
