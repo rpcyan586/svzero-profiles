@@ -13,7 +13,7 @@ nozzle sizes (see the [changelog](../CHANGELOG.md)). PS vendor `2.1.0`, Orca
   Draft tiers and a 0.25 Optimal. All three slicers emit the same per-feature
   accelerations, square corner velocity and handshake line.
 - **Macro handshake called live** on a 1.3.7 Zero: `MODE=standard` accepted, a
-  version mismatch warns and runs, `MODE=fine` refused before heating, no
+  version mismatch warns and runs, a job naming another mode refused before heating, no
   `MODE` accepted as standard.
 - **Physical prints:** none yet with these profiles. The 0.25 and 0.3 nozzle
   profiles have been sliced, never printed.

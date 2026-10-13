@@ -359,21 +359,21 @@ def check(path):
                  {}, {}, pack()),
                 ("mode-match", Mock(VERSION="1.0.4", MODE="standard"),
                  "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="standard")),
-                ("mode-match-fine", Mock(VERSION="1.0.4", MODE="fine"),
-                 "VERSION=1.0.4 MODE=fine", {}, {}, pack(mode="fine")),
-                ("mode-match-case", Mock(VERSION="1.0.4", MODE="FINE"),
-                 "VERSION=1.0.4 MODE=FINE", {}, {}, pack(mode="fine")),
+                ("mode-match-precision", Mock(VERSION="1.0.4", MODE="precision"),
+                 "VERSION=1.0.4 MODE=precision", {}, {}, pack(mode="precision")),
+                ("mode-match-case", Mock(VERSION="1.0.4", MODE="PRECISION"),
+                 "VERSION=1.0.4 MODE=PRECISION", {}, {}, pack(mode="precision")),
                 # The version still only warns when the mode agrees.
                 ("version-mismatch-mode-match", Mock(VERSION="0.9.0", MODE="standard"),
                  "VERSION=0.9.0 MODE=standard", {}, {}, pack(mode="standard")),
                 # Refused in both directions, and a job that names no mode is
                 # a standard job.
-                ("fine-job-standard-printer", Mock(VERSION="1.0.4", MODE="fine"),
-                 "VERSION=1.0.4 MODE=fine", {}, {}, pack(mode="standard")),
-                ("standard-job-fine-printer", Mock(VERSION="1.0.4", MODE="standard"),
-                 "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="fine")),
-                ("legacy-job-fine-printer", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
-                 {}, {}, pack(mode="fine")),
+                ("precision-job-standard-printer", Mock(VERSION="1.0.4", MODE="precision"),
+                 "VERSION=1.0.4 MODE=precision", {}, {}, pack(mode="standard")),
+                ("standard-job-precision-printer", Mock(VERSION="1.0.4", MODE="standard"),
+                 "VERSION=1.0.4 MODE=standard", {}, {}, pack(mode="precision")),
+                ("legacy-job-precision-printer", Mock(VERSION="1.0.4"), "VERSION=1.0.4",
+                 {}, {}, pack(mode="precision")),
             ]
         elif s == "gcode_macro _SVZERO_CHECK_PROFILE":
             def pack(seen, mode=None):
@@ -386,8 +386,8 @@ def check(path):
                 ("handshake-seen", params, "", {}, {}, pack(1)),
                 ("no-handshake-standard", params, "", {}, {}, pack(0, "standard")),
                 # Outside standard mode an unidentified job is refused.
-                ("no-handshake-fine", params, "", {}, {}, pack(0, "fine")),
-                ("handshake-seen-fine", params, "", {}, {}, pack(1, "fine")),
+                ("no-handshake-precision", params, "", {}, {}, pack(0, "precision")),
+                ("handshake-seen-precision", params, "", {}, {}, pack(1, "precision")),
             ]
         elif s == "gcode_macro _CH_PROXY_ANCHOR":
             scenarios = [("valid", params, "", {"proxy_valid": 1}, {})]
@@ -903,7 +903,7 @@ def check(path):
                 # handshake behind for the next one.
                 scenarios += [
                     ("handshake-pending", params, "S40", {}, {},
-                     {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=1, mode="fine")}),
+                     {"gcode_macro _SVZERO_PACK": Mock(version="1.0.4", seen=1, mode="precision")}),
                     ("pack-absent", params, "S40", {}, {},
                      {"gcode_macro _SVZERO_PACK": None}),
                 ]
@@ -1053,7 +1053,7 @@ def check(path):
             ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "profile expects pack 0.9.0",
             ("gcode_macro SVZERO_REQUIRE", "version-mismatch-mode-match"): "profile expects pack 0.9.0",
             ("gcode_macro SVZERO_REQUIRE", "mode-match"): "VARIABLE=seen VALUE=1",
-            ("gcode_macro SVZERO_REQUIRE", "mode-match-fine"): "VARIABLE=seen VALUE=1",
+            ("gcode_macro SVZERO_REQUIRE", "mode-match-precision"): "VARIABLE=seen VALUE=1",
             ("gcode_macro SVZERO_REQUIRE", "mode-match-case"): "VARIABLE=seen VALUE=1",
             ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake"): "not sliced by an rpcyan SV Zero profile",
             ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-standard"): "not sliced by an rpcyan SV Zero profile",
@@ -1226,7 +1226,7 @@ def check(path):
                   ("gcode_macro SVZERO_REQUIRE", "version-match"): "profile expects",
                   ("gcode_macro SVZERO_REQUIRE", "mode-match"): "profile expects",
                   ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen"): "not sliced by",
-                  ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen-fine"): "not sliced by",
+                  ("gcode_macro _SVZERO_CHECK_PROFILE", "handshake-seen-precision"): "not sliced by",
                   # Never abort on a version: the whole point is graceful
                   # degradation. (A raise fails any scenario not in `refuse`.)
                   ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "action_raise_error",
@@ -1332,14 +1332,14 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
         # scenario that raises fails, and any of these that renders fails.
-        refuse = {("gcode_macro SVZERO_REQUIRE", "fine-job-standard-printer"):
-                      "sliced for fine mode and the printer is in standard mode",
-                  ("gcode_macro SVZERO_REQUIRE", "standard-job-fine-printer"):
-                      "sliced for standard mode and the printer is in fine mode",
-                  ("gcode_macro SVZERO_REQUIRE", "legacy-job-fine-printer"):
-                      "sliced for standard mode and the printer is in fine mode",
-                  ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-fine"):
-                      "the printer is in fine mode, which runs only jobs sliced for it"}
+        refuse = {("gcode_macro SVZERO_REQUIRE", "precision-job-standard-printer"):
+                      "sliced for precision mode and the printer is in standard mode",
+                  ("gcode_macro SVZERO_REQUIRE", "standard-job-precision-printer"):
+                      "sliced for standard mode and the printer is in precision mode",
+                  ("gcode_macro SVZERO_REQUIRE", "legacy-job-precision-printer"):
+                      "sliced for standard mode and the printer is in precision mode",
+                  ("gcode_macro _SVZERO_CHECK_PROFILE", "no-handshake-precision"):
+                      "the printer is in precision mode, which runs only jobs sliced for it"}
 
         # Everything defined above without a printer patch gets an empty one.
         if s == "gcode_macro CLEAN_NOZZLE":

@@ -17,9 +17,9 @@
         "klipper/config/purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "klipper/config/start_print.cfg": "bb4cf03294e0721605cbe127f94701a08261371f400648be2464f331bcbcb68b",
         "klipper/config/svzero-1.3.7.cfg": "3328f292353d848d9f360437d4737e189d94b6733cc3d8eada6c2c4c4de7705a",
-        "klipper/config/svzero_pack.cfg": "120d04a2b4c0735b5302e8a499d5bece2424620220f4fe576b0da11373373c63"
+        "klipper/config/svzero_pack.cfg": "11c1bd2ece22b50b60f91ef2ca0016eca46b98a11172e18756a4de6628b291b4"
       },
-      "sha256": "25e4a687ccf81ee82bbf66cfda8d1ac084739d6e53c373b05b24acefdc8a2f0b"
+      "sha256": "4ccaa40c40e2b263f46117956f3a1d814539644c947a3b2b2bfbcc2c5c7a947c"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
@@ -36,9 +36,9 @@
         "klipper/config/purge_line.cfg": "8abf24dd76a76a058a53fac1642769b2aeeecc8db6090e7c776b33751fd88418",
         "klipper/config/start_print.cfg": "bb4cf03294e0721605cbe127f94701a08261371f400648be2464f331bcbcb68b",
         "klipper/config/svzero-1.4.x.cfg": "813c5998aeba0c95b8a8b9b5f42d575b8a60bf91752cae7482f676ae0a2a3d3a",
-        "klipper/config/svzero_pack.cfg": "120d04a2b4c0735b5302e8a499d5bece2424620220f4fe576b0da11373373c63"
+        "klipper/config/svzero_pack.cfg": "11c1bd2ece22b50b60f91ef2ca0016eca46b98a11172e18756a4de6628b291b4"
       },
-      "sha256": "9fb79ad801b699caa2fb42a9971ca700226a4c64ea8c15b444bacf0d9a67748d"
+      "sha256": "d8cc126fdf399e535e2875fc1feb56fbbe35529106903814fbda8e0c9e3c60d7"
     },
     "svzero-python.cfg": {
       "sources": {
