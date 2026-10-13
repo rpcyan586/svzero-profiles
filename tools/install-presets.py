@@ -584,11 +584,19 @@ def install_orca(datadir):
     d = json.load(open(conf, encoding="utf-8")) if os.path.exists(conf) else {}
     models = d.get("models", [])
     models = [m for m in models if m.get("vendor") != "SVZero"]
-    models.insert(0, {"model": "SV Zero",
-                      "nozzle_diameter": "0.2;0.4;0.6;0.8;1.0",
-                      "vendor": "SVZero"})
-    models.insert(1, {"model": "SOVOL ZERO", "nozzle_diameter": "0.4",
-                      "vendor": "Sovol"})
+    # Every printer model in the vendor bundle, with every nozzle it declares.
+    # This is where Orca's printer selection records (model, nozzle) pairs, and
+    # the hand-kept list it replaces had gone stale: 0.2;0.4;0.6;0.8;1.0 while
+    # the bundle had grown 0.25, 0.3, 0.5, 1.2 and 1.4, and no entry at all for
+    # a machine mode's printer model.
+    index = json.load(open(os.path.join(ours, "SVZero.json"), encoding="utf-8"))
+    ours_models = []
+    for entry in index.get("machine_model_list", []):
+        mm = json.load(open(os.path.join(ours, "SVZero", entry["sub_path"]), encoding="utf-8"))
+        ours_models.append({"model": mm["name"], "nozzle_diameter": mm["nozzle_diameter"],
+                            "vendor": "SVZero"})
+    models = ours_models + [{"model": "SOVOL ZERO", "nozzle_diameter": "0.4",
+                             "vendor": "Sovol"}] + models
     d["models"] = models
     # Orca calls the process preset "print" in the conf. Left unset it opens on
     # nothing, which reads as "our profiles are missing" even when they loaded.
