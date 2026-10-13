@@ -4,7 +4,28 @@
 
 Versions are now three numbers with no beta suffix. Profile behaviour changes
 in this release: accelerations, walls, seams, square corner velocity and two
-new nozzle sizes. Fan defaults change in the optional macro pack.
+new nozzle sizes, and a new precision mode. Fan defaults change in the optional
+macro pack.
+
+### Precision mode
+
+- **A second machine configuration for slow, quiet, fine-detail printing on the
+  0.4 nozzle** ([docs/PRECISION.md](docs/PRECISION.md)): 64 microsteps with
+  interpolation off, 2.4 A, corgi108's chopper recipe, and a 300 mm/s /
+  4000 mm/s² ceiling enforced by clamping `SET_VELOCITY_LIMIT` and `M204`.
+- **Its own printer in every slicer**, `SV Zero Precision 0.4n` (Orca: the
+  `SV Zero Precision` printer model), with five tiers, 0.04–0.12 mm over a
+  0.20 first layer: 2 mm³/s through the normal ratios, outer walls at most
+  45 mm/s, Prusa Core One 0.25 DETAIL accelerations, 3 walls, ironing, no
+  z-hop, no TPU.
+- **Selected by a file**, `svzero-mode-precision.cfg.off` beside the pack:
+  rename it and restart Klipper. The firmware files end with
+  `[include svzero-mode-*.cfg]`, so printer.cfg is not edited.
+- **The handshake refuses the wrong mode before heating**, naming the file to
+  rename, and refuses a precision job whose mode file did not take effect.
+- **Optional automatic switching** with the `svzero_mode_switch` Moonraker
+  component: a refused job switches the printer once idle and cold, and starts
+  again.
 
 ### M191 reads S and R as Marlin does
 

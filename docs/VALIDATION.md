@@ -15,6 +15,13 @@ nozzle sizes (see the [changelog](../CHANGELOG.md)). PS vendor `2.1.0`, Orca
 - **Macro handshake called live** on a 1.3.7 Zero: `MODE=standard` accepted, a
   version mismatch warns and runs, a job naming another mode refused before heating, no
   `MODE` accepted as standard.
+- **Precision mode:** sliced in all three slicers at 0.04 and 0.08 mm with
+  identical per-feature speeds, peak acceleration 4000, outer walls 45.0 at
+  0.04, `MODE=precision`, SCV 3 and no z-hop. On a 1.3.7 Zero the mode file was
+  deployed and switched into and out of automatically: driver registers read
+  back 64 microsteps and the chopper values, and both clamps held. One part was
+  printed in precision mode from the pre-generator prototype profiles.
+  1.4.x has not run it.
 - **Physical prints:** none yet with these profiles. The 0.25 and 0.3 nozzle
   profiles have been sliced, never printed.
 

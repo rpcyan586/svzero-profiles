@@ -23,6 +23,8 @@ Macro pack preset to maintain.
 | `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover. `M191 R` above its target is refused, because waiting for it to cool needs the helper |
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
 | `fan_duty.py` + `exhaust_duty.cfg` | Adds commanded exhaust duty and normalized measured RPM traces to the temperature chart | Fan regulation and tachometer checks still work; only the extra chart traces are absent |
+| `svzero-mode-precision.cfg.off` in the pack directory | Precision mode on the 0.4 nozzle: 64 microsteps, 2.4 A, a 300 mm/s ceiling, and its own printer profile with 0.04–0.12 mm layers. Switched by renaming the file and restarting Klipper ([docs/PRECISION.md](docs/PRECISION.md)) | Standard mode only. A job sliced for precision is refused before heating, with the file to rename |
+| `svzero_mode_switch.py` as a Moonraker component | A job sliced for the other mode switches the printer itself: refused, Klipper restarted once idle and cold, the same file started again | Switching is a rename and a restart by hand |
 | `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
 
 The macro pack changes printer behavior, not MCU firmware. None of these
@@ -222,6 +224,16 @@ The native macro path then takes over.
   dependencies, not included by the basic macro pack. Service failure is caught
   and printing continues with current/default camera settings. Configure this
   only if that camera/lighting setup exists on your machine.
+
+## 4. Optional precision mode
+
+Needs the macro pack. Copy `optional-macros/svzero-mode-precision.cfg.off` into
+the pack's `svzero/` directory unchanged; the printer stays in standard mode.
+Rename it to `svzero-mode-precision.cfg` and restart Klipper to enter precision
+mode, and rename it back to leave. Slice with the `SV Zero Precision` printer.
+For automatic switching, install `svzero_mode_switch.py` as a Moonraker
+component. What changes, what refuses and the limits are in
+[docs/PRECISION.md](docs/PRECISION.md).
 
 ## Updating and rebuilding the macro bundle
 

@@ -79,6 +79,20 @@ To enable just one helper, use the individual feature configuration from Git;
 the [advanced installation guide](https://github.com/rpcyan586/svzero-profiles/blob/main/INSTALL.md)
 also covers separately configured fan/camera features.
 
+## 3. Optional precision mode
+
+Copy `svzero-mode-precision.cfg.off` into the same `svzero/` directory,
+unchanged: the printer stays in standard mode. Rename it to
+`svzero-mode-precision.cfg` and restart Klipper while idle to enter precision
+mode (0.4 nozzle, 64 microsteps, a 300 mm/s ceiling); rename it back to leave.
+Slice with the `SV Zero Precision` printer. A job sliced for the other mode is
+refused before heating and names the file to rename.
+
+For automatic switching, copy `svzero_mode_switch.py` to
+`~/moonraker/moonraker/components/`, add `[svzero_mode_switch]` to
+`moonraker.conf` and restart Moonraker. A refused job then switches the printer
+once it is idle and cold, and starts again.
+
 ## Updates and rollback
 
 Replace the same consolidated file when updating; keep your personal tuning in
