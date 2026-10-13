@@ -3,6 +3,7 @@
 
 import ast
 import importlib.util
+import math
 import re
 import pathlib
 import unittest
@@ -117,21 +118,34 @@ class FakeGcode:
             self.state[fields["VARIABLE"]] = value
 
 
+class FakeSaveVariables:
+    def __init__(self, variables=None):
+        self.allVariables = dict(variables or {})
+
+
+_MISSING = object()
+
+
 class FakePrinter:
     def __init__(self, reactor, heaters, gcode, fan):
         self.reactor = reactor
         self.heaters = heaters
         self.gcode = gcode
         self.fan = fan
+        self.save_variables = None
 
     def get_reactor(self):
         return self.reactor
 
-    def lookup_object(self, name):
+    def lookup_object(self, name, default=_MISSING):
         if name == "gcode":
             return self.gcode
         if name == "fan_generic fan0":
             return FakeFanGeneric(self.fan)
+        if name == "save_variables" and self.save_variables is not None:
+            return self.save_variables
+        if default is not _MISSING:
+            return default
         raise KeyError(name)
 
     def load_object(self, config, name):
@@ -1379,6 +1393,101 @@ class CoolWaitTest(unittest.TestCase):
         self.assertTrue(any("cooling to 35.0C" in m for m in responses), responses)
         for message in responses:
             self.assertTrue(message.startswith("M191: "), message)
+
+
+class LearnedEtaTest(unittest.TestCase):
+    """The M191 ETA learned from past waits (2026-10-13)."""
+
+    @staticmethod
+    def _approach(seconds):
+        # A chamber closing on 50 C with a 10 min time constant, from 25 C.
+        return 50.0 - 25.0 * math.exp(-seconds / 600.0)
+
+    def test_a_wait_becomes_minutes_to_go_per_degree(self):
+        trace = [(t, self._approach(t)) for t in range(0, 1200, 5)]
+        arrival = -600.0 * math.log(5.0 / 25.0)          # 45 C at 965.7 s
+        profile = MODULE.learn_eta_profile(trace, 45.0, arrival)
+        for k in (1, 3, 8, 15):
+            reached = -600.0 * math.log((5.0 + k) / 25.0)
+            self.assertAlmostEqual(profile[k], (arrival - reached) / 60.0, delta=0.15)
+        # 20 C short is colder than the trace ever was: not learned.
+        self.assertNotIn(20, profile)
+
+    def test_blending_averages_the_first_waits_then_follows_at_the_weight(self):
+        old, new = {1: 2.0, 2: 4.0}, {1: 4.0, 3: 9.0}
+        first = MODULE.blend_eta_profile({}, new, 0, 0.33)
+        self.assertEqual(first, new)
+        second = MODULE.blend_eta_profile(old, new, 1, 0.33)
+        self.assertAlmostEqual(second[1], 3.0)            # mean of two waits
+        self.assertEqual(second[2], 4.0)                  # untouched degree kept
+        self.assertEqual(second[3], 9.0)                  # new degree taken
+        later = MODULE.blend_eta_profile(old, new, 9, 0.33)
+        self.assertAlmostEqual(later[1], 2.0 + 0.33 * 2.0)
+
+    def test_reading_the_profile_between_and_beyond_its_degrees(self):
+        profile = {1: 1.0, 2: 2.5, 4: 6.0}
+        self.assertEqual(MODULE.profile_eta(profile, 0.0), 0.0)
+        self.assertAlmostEqual(MODULE.profile_eta(profile, 0.5), 0.5)
+        self.assertAlmostEqual(MODULE.profile_eta(profile, 1.5), 1.75)
+        self.assertAlmostEqual(MODULE.profile_eta(profile, 3.0), 4.25)
+        self.assertAlmostEqual(MODULE.profile_eta(profile, 5.0), 7.75)
+        self.assertIsNone(MODULE.profile_eta({}, 5.0))
+
+    def _wait(self, saved):
+        ctl, reactor, bed, gcode, fan = controller(
+            lambda seconds: self._approach(seconds) - 1.0, bed_max=150.0,
+            config_values={"boost_policy": "hold", "max_bed_temp": 124.0})
+        ctl.printer.save_variables = FakeSaveVariables(saved)
+        gcmd = FakeGcmd(MINIMUM=40.0, BED_TARGET=100.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        return ctl, gcmd, gcode
+
+    def test_a_learned_profile_gives_the_first_eta_and_is_updated(self):
+        saved = {"ch_eta_profile": [[k, 1.2 * k] for k in range(1, 21)],
+                 "ch_eta_waits": 4}
+        ctl, gcmd, gcode = self._wait(saved)
+        first = next(m for m in gcmd.responses if "nozzle settled at" in m)
+        self.assertIn("(from 4 past waits)", first)
+        saves = [s for s in gcode.scripts if s.startswith("SAVE_VARIABLE VARIABLE=ch_eta_profile")]
+        self.assertEqual(len(saves), 1, gcode.scripts)
+        self.assertIn("VARIABLE=ch_eta_waits VALUE=5", saves[0])
+
+    def test_hold_releases_the_plate_early_on_a_learned_eta(self):
+        saved = {"ch_eta_profile": [[k, 1.2 * k] for k in range(1, 21)],
+                 "ch_eta_waits": 4}
+        ctl, reactor, bed, gcode, fan = controller(
+            lambda seconds: self._approach(seconds) - 1.0, bed_max=150.0,
+            config_values={"boost_policy": "hold", "max_bed_temp": 124.0})
+        ctl.printer.save_variables = FakeSaveVariables(saved)
+        gcmd = FakeGcmd(MINIMUM=40.0, BED_TARGET=100.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        self.assertTrue(any("so it is there when the soak ends" in m for m in gcmd.responses),
+                        gcmd.responses)
+        ready = gcode.state["chamber_ready_eventtime"]
+        peak = max(t for unused, t in bed.commands)
+        released = [when for when, t in bed.commands if t < peak - 5.0 and when > 0.0]
+        self.assertTrue(released and released[0] < ready, (bed.commands, ready))
+
+    def test_without_a_learned_profile_hold_keeps_the_ceiling_to_the_end(self):
+        ctl, reactor, bed, gcode, fan = controller(
+            lambda seconds: self._approach(seconds) - 1.0, bed_max=150.0,
+            config_values={"boost_policy": "hold", "max_bed_temp": 124.0})
+        gcmd = FakeGcmd(MINIMUM=40.0, BED_TARGET=100.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        ready = gcode.state["chamber_ready_eventtime"]
+        peak = max(t for unused, t in bed.commands)
+        released = [when for when, t in bed.commands if t < peak - 5.0 and when > 0.0]
+        self.assertTrue(released and released[0] >= ready, (bed.commands, ready))
+
+    def test_without_save_variables_the_live_fit_runs_and_nothing_is_saved(self):
+        ctl, reactor, bed, gcode, fan = controller(
+            lambda seconds: self._approach(seconds) - 1.0, bed_max=150.0,
+            config_values={"boost_policy": "hold", "max_bed_temp": 124.0})
+        gcmd = FakeGcmd(MINIMUM=40.0, BED_TARGET=100.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        first = next(m for m in gcmd.responses if "nozzle settled at" in m)
+        self.assertNotIn("past waits", first)
+        self.assertFalse(any(s.startswith("SAVE_VARIABLE") for s in gcode.scripts))
 
 
 if __name__ == "__main__":

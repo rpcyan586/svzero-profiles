@@ -291,14 +291,21 @@ def check(path):
         elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
             # lookup is now ours to get right rather than the emitter's.
+            # The bed at its target, so the lookup is what is tested; the
+            # bed-moving hold has its own scenario below.
+            settled = {"heater_bed": Mock(temperature=100.0, target=100.0)}
             scenarios = [
-                ("exact", Mock(MATERIAL="ABS"), "MATERIAL=ABS", {}, {}),
+                ("exact", Mock(MATERIAL="ABS"), "MATERIAL=ABS", {}, {}, settled),
                 # Prefix match over `order`: "PLA+" must land on pla.
-                ("prefix", Mock(MATERIAL="PLA+"), "MATERIAL=PLA+", {}, {}),
+                ("prefix", Mock(MATERIAL="PLA+"), "MATERIAL=PLA+", {}, {}, settled),
                 # Unknown material takes Sovol's flat 200, not a guess.
-                ("fallback", Mock(MATERIAL="Nylon"), "MATERIAL=Nylon", {}, {}),
+                ("fallback", Mock(MATERIAL="Nylon"), "MATERIAL=Nylon", {}, {}, settled),
                 ("explicit", Mock(MATERIAL="ABS", TEMP="150"),
-                 "MATERIAL=ABS TEMP=150", {}, {}),
+                 "MATERIAL=ABS TEMP=150", {}, {}, settled),
+                # The plate still coming down from a preheat boost: the nozzle
+                # waits at probe_temp, not at the wipe temperature (2026-10-13).
+                ("bed-coming-down", Mock(MATERIAL="ABS"), "MATERIAL=ABS", {}, {},
+                 {"heater_bed": Mock(temperature=118.0, target=100.0)}),
             ]
         elif s == "gcode_macro START_PRINT":
             scenarios = [
@@ -1274,6 +1281,9 @@ def check(path):
             ("gcode_macro SET_CLEAN_TEMP", "prefix"): "M104 S170",
             ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
             ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
+            ("gcode_macro SET_CLEAN_TEMP", "bed-coming-down"):
+                ["M104 S150", "silicone wipe at 195C (abs), nozzle held at 150C until the bed is at its target",
+                 "VARIABLE=clean_temp VALUE=195.0"],
             # A VERSION mismatch warns and never refuses, in both directions.
             # A MODE mismatch refuses -- see `refuse` below.
             ("gcode_macro SVZERO_REQUIRE", "version-mismatch"): "profile expects pack 0.9.0",
@@ -1520,6 +1530,8 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "settle-progress"): "_COOLDOWN_TAKE_OVER",
                   ("gcode_macro _COOLDOWN_TICK", "assist-ignores-step-sawtooth"): "fan assist on",
                   ("gcode_macro _COOLDOWN_TICK", "curtain-holds-in-band"): "curtain fan off",
+                  ("gcode_macro SET_CLEAN_TEMP", "bed-coming-down"): "M104 S195",
+                  ("gcode_macro SET_CLEAN_TEMP", "exact"): "nozzle held",
                   ("gcode_macro _COOLDOWN_TICK", "ramp-first-tick"): "fan assist on",
                   ("gcode_macro _COOLDOWN_TICK", "assist-heater-holds-integral"): "VARIABLE=assist_i",
                   ("gcode_macro _COOLDOWN_TICK", "curtain-held-on-schedule"): ["curtain fan off", "VARIABLE=curtain_latched"],

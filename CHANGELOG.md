@@ -64,6 +64,29 @@ macro pack.
 - The numbers behind the lines are unchanged in the extra's status and in
   `_CH_STATE`.
 
+### M191: an ETA learned from past waits, and less hot waiting before the brush
+
+- **The chamber ETA comes from the printer's own past waits.** Each completed
+  wait saves how many minutes it still had to go at each whole degree short of
+  its minimum (`ch_eta_profile` in `save_variables`, blended across waits), and
+  the next wait reads its ETA off that from the first minute, scaled by its own
+  pace once the bed is hot. The live fit had nothing to go on while the bed was
+  still heating: on the test printer one wait opened at 134 min, then 49, 91 and
+  29, for a 17 min soak. Predicting each of six recorded waits from the other
+  five, the learned profile was out by 0.67 min on average. Without
+  `[save_variables]`, or before a wait has completed, the live fit runs as
+  before; `eta_learn: False` turns it off.
+- **The plate comes back down before the soak ends.** Under the default hold
+  policy the bed stayed on its ceiling until the chamber arrived, and the
+  slicer's `M190` then waited out a 20 °C descent with the nozzle already
+  heating. With a learned ETA it is released when the time left matches its
+  descent, so it reaches the print temperature as the soak ends.
+- **The nozzle waits at the probe temperature, not the wipe temperature,
+  while the bed is still more than 3 °C off its target.** `SET_CLEAN_TEMP`
+  used to heat straight to the wipe temperature ahead of that `M190`; on the
+  test printer the nozzle sat at 195 °C for 1.8 min before the brush. The brush
+  sequence's own heat-up takes it the rest of the way.
+
 ### Cooldown: one rate, one line per degree
 
 - **The bed cools at 3 °C/min for every material.** The material table used to

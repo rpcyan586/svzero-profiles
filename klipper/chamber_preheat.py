@@ -13,6 +13,8 @@
 # threshold proves nothing: on 2026-08-25 one started at 31.7 C, was still
 # falling, was trusted immediately, and drove a full boost off noise.
 
+import json
+import logging
 import math
 
 from . import moonraker
@@ -176,6 +178,67 @@ def approach_eta(samples, target, min_span=60.0, min_samples=12):
     if asymptote <= target or now >= asymptote:
         return None
     return -tau * math.log((asymptote - target) / (asymptote - now))
+
+
+def learn_eta_profile(trace, target, arrival, max_deficit=20, smooth_seconds=15.0):
+    """Minutes still to go at each whole degree short of `target`, from one wait.
+
+    `trace` is the qualified nozzle, [(eventtime, temperature)], for the wait;
+    `arrival` is when it reached the target, or was due to for a wait handed
+    over early on the wipe lead. Each degree k maps to `arrival` minus the
+    first time the nozzle, averaged over +/- smooth_seconds, came within k
+    degrees of the target. Degrees the wait did not cross -- it started
+    inside them, or never got that close -- are absent.
+    """
+    out = {}
+    start = None
+    for i, (t, unused) in enumerate(trace):
+        near = [v for tt, v in trace[max(0, i - 60):i + 61]
+                if abs(tt - t) <= smooth_seconds]
+        deficit = target - sum(near) / len(near)
+        if start is None:
+            # Only degrees the wait actually CROSSED: one it started inside of
+            # says nothing about how long that degree takes from further out.
+            start = deficit
+        for k in range(1, max_deficit + 1):
+            if k < start and deficit <= k and k not in out and arrival >= t:
+                out[k] = (arrival - t) / 60.0
+    return out
+
+
+def blend_eta_profile(old, new, waits, weight):
+    """Fold one wait into the saved profile: a running mean for the first few
+    waits, then an exponential average at `weight`, degree by degree."""
+    alpha = max(1.0 / (waits + 1), weight)
+    out = dict(old)
+    for k, v in new.items():
+        out[k] = v if k not in old else old[k] + alpha * (v - old[k])
+    return out
+
+
+def profile_eta(profile, deficit):
+    """Minutes to go at `deficit` degrees short, read off a learned profile:
+    linear between whole degrees, to zero below the first, and along the last
+    segment beyond the deepest. None without a profile."""
+    if not profile:
+        return None
+    if deficit <= 0.0:
+        return 0.0
+    keys = sorted(profile)
+    below = [k for k in keys if k < deficit]
+    above = [k for k in keys if k >= deficit]
+    if above:
+        hi = above[0]
+        lo = below[-1] if below else 0
+        lo_v = profile[lo] if below else 0.0
+        if hi == lo:
+            return profile[hi]
+        return lo_v + (profile[hi] - lo_v) * (deficit - lo) / (hi - lo)
+    if len(keys) >= 2:
+        k1, k2 = keys[-2], keys[-1]
+        slope = (profile[k2] - profile[k1]) / (k2 - k1)
+        return profile[k2] + max(slope, 0.0) * (deficit - k2)
+    return profile[keys[-1]] * deficit / keys[-1]
 
 
 # Every console line starts with this. Mainsail stamps each line with its minute.
@@ -564,6 +627,20 @@ class ChamberPreheat:
         self.eta_alpha = config.getfloat(
             "eta_alpha", 0.25, above=0.0, maxval=1.0
         )
+        # PAST WAITS PREDICT THE NEXT ONE, since 2026-10-13. Each completed
+        # wait saves how many minutes it still had to go at each whole degree
+        # short of its minimum (save_variables `ch_eta_profile`, blended over
+        # waits at eta_learn_weight), and the next wait reads its ETA off that
+        # from the first minute. The live fit had nothing to go on early: the
+        # bed is still heating, and on Zero2's 2026-10-13 frontcase soak it
+        # opened at 134 min, then 49, 91, 29, for a 17 min wait. Predicting
+        # each of six Zero2 waits from the other five, the profile was out by
+        # 0.67 min on average and 3.2 at worst. Without [save_variables], or
+        # until a wait has completed, the live fit runs as before.
+        self.eta_learn = config.getboolean("eta_learn", True)
+        self.eta_learn_weight = config.getfloat(
+            "eta_learn_weight", 0.33, above=0.0, maxval=1.0
+        )
         # How fast the plate may be dumped once it is at or past its deadline.
         self.descent_max_rate = config.getfloat(
             "descent_max_rate", 6.0, above=0.0
@@ -918,11 +995,72 @@ class ChamberPreheat:
         self.eta_history = [x for x in self.eta_history if x[0] >= horizon]
         return max(e for unused_t, e in self.eta_history)
 
+    def _load_eta_profile(self):
+        """The saved profile as {degree: minutes}, and how many waits made it."""
+        if not self.eta_learn:
+            return {}, 0
+        sv = self.printer.lookup_object("save_variables", None)
+        if sv is None:
+            return {}, 0
+        stored = getattr(sv, "allVariables", {}) or {}
+        try:
+            profile = {int(k): float(v) for k, v in stored.get("ch_eta_profile", [])}
+            waits = int(stored.get("ch_eta_waits", 0))
+        except (TypeError, ValueError):
+            return {}, 0
+        return profile, waits
+
+    def _profile_eta(self, temperature, minimum, eventtime):
+        """The learned ETA, scaled by this wait's own pace once the bed is hot.
+
+        Speed from the start of a wait is no use -- the nozzle barely moves
+        while the bed heats -- so the scale only counts from when the bed first
+        came within 2 C of its command, and only after 2 min of that.
+        """
+        eta = profile_eta(self.eta_profile, minimum - temperature)
+        if eta is None or self.eta_hot_time is None:
+            return eta
+        span = (eventtime - self.eta_hot_time[0]) / 60.0
+        expected = (profile_eta(self.eta_profile, minimum - self.eta_hot_time[1])
+                    - eta)
+        if span >= 2.0 and expected > 0.5:
+            eta *= min(max(span / expected, 0.5), 2.0)
+        return eta
+
+    def _save_eta_profile(self, minimum, arrival):
+        """Fold this wait's trace into the saved profile. Never fails a wait."""
+        try:
+            if not self.eta_learn or len(self.eta_trace) < 10:
+                return
+            if self.printer.lookup_object("save_variables", None) is None:
+                return
+            rise = self.eta_trace[-1][1] - self.eta_trace[0][1]
+            if rise < 3.0:
+                return
+            learned = learn_eta_profile(self.eta_trace, minimum, arrival)
+            if not learned:
+                return
+            merged = blend_eta_profile(self.eta_profile, learned,
+                                       self.eta_waits, self.eta_learn_weight)
+            value = json.dumps([[k, round(merged[k], 2)] for k in sorted(merged)])
+            self.gcode.run_script_from_command(
+                "SAVE_VARIABLE VARIABLE=ch_eta_profile VALUE='%s'\n"
+                "SAVE_VARIABLE VARIABLE=ch_eta_waits VALUE=%d"
+                % (value, self.eta_waits + 1))
+        except Exception:
+            logging.exception("chamber_preheat: could not save the ETA profile")
+
     def _chamber_eta(self, window, temperature, minimum):
-        """Smoothed minutes to the chamber minimum, exponential where it fits."""
+        """Minutes to the chamber minimum: from past waits when there are any,
+        otherwise smoothed, exponential where it fits."""
         if temperature >= minimum:
             self.eta_filtered = 0.0
             return 0.0
+        learned = self._profile_eta(temperature, minimum,
+                                    window.samples[-1][0] if window.samples else 0.0)
+        if learned is not None:
+            self.eta_filtered = learned
+            return learned
         raw = approach_eta(window.samples, minimum)
         if raw is None:
             # No usable curvature yet. Fall back to the linear estimate, which
@@ -1105,6 +1243,9 @@ class ChamberPreheat:
         self.slope = None
         self.slope_stderr = None
         self.chamber_eta = None
+        self.eta_profile, self.eta_waits = self._load_eta_profile()
+        self.eta_trace = []
+        self.eta_hot_time = None
         self.bed_eta = None
         self.peak_boost = 0.0
         self.max_boost = max_boost
@@ -1117,6 +1258,7 @@ class ChamberPreheat:
             nozzle, bed, start_time
         )
         completed = False
+        arrival = None
         gate = self.proxy_gate = self._new_proxy_gate()
         window = SlopeWindow(self.slope_window)
         try:
@@ -1287,9 +1429,10 @@ class ChamberPreheat:
             # Qualified. Size one boost from the soonest arrival the slope's
             # uncertainty allows, so the bed can always coast back in time.
             chamber_ready = nozzle_temp >= minimum
-            self.chamber_eta = 0.0 if chamber_ready else eta_minutes(
-                nozzle_temp, minimum, self.slope, self.minimum_rate
-            )
+            self.chamber_eta = 0.0 if chamber_ready else (
+                profile_eta(self.eta_profile, minimum - nozzle_temp)
+                if self.eta_profile else eta_minutes(
+                    nozzle_temp, minimum, self.slope, self.minimum_rate))
             coast_reason = 0
             planned_boost = opening
             if boost_requested and boost_cap > 0.0 and not chamber_ready:
@@ -1342,6 +1485,8 @@ class ChamberPreheat:
                     self._trend(self.slope, self.slope_stderr),
                     "chamber already there" if chamber_ready
                     else "chamber due in " + self._minutes(self.chamber_eta)
+                    + (" (from %d past waits)" % self.eta_waits
+                       if self.eta_profile else "")
                     if self.chamber_eta is not None
                     else "chamber not warming yet",
                     ", bed +%.1fC" % planned_boost if planned_boost > 0.0 else "",
@@ -1349,6 +1494,8 @@ class ChamberPreheat:
             )
 
             current_boost = planned_boost
+            ready_at = eventtime
+            released = False
             decaying = False
             eta_seen = False
             announced = planned_boost
@@ -1367,6 +1514,9 @@ class ChamberPreheat:
                     nozzle, bed, eventtime
                 )
                 window.push(eventtime, nozzle_temp)
+                self.eta_trace.append((eventtime, nozzle_temp))
+                if self.eta_hot_time is None and bed_temp >= last_command - 2.0:
+                    self.eta_hot_time = (eventtime, nozzle_temp)
                 slope, stderr = window.value()
                 if slope is not None:
                     self.slope = slope
@@ -1378,6 +1528,7 @@ class ChamberPreheat:
 
                 if not chamber_ready and nozzle_temp >= minimum:
                     chamber_ready = True
+                    ready_at = eventtime
                     self._set_state(chamber_ready_eventtime=eventtime)
                 live_eta = 0.0 if chamber_ready else eta_minutes(
                     nozzle_temp, minimum, self.slope, self.minimum_rate
@@ -1437,7 +1588,27 @@ class ChamberPreheat:
                     # and deliberately unused -- they stay live so the telemetry
                     # still records what the ETA planner WOULD have done, which
                     # is what makes the two comparable on the same print.
-                    want = self.bed_carry if chamber_ready else boost_cap
+                    # RELEASED EARLY ON A LEARNED ETA, since 2026-10-13. Held to
+                    # the end, the plate is still 20 C up when the soak ends
+                    # and the slicer's M190 waits out its descent with the
+                    # nozzle already heating: 2.4 min on the 2026-10-13
+                    # frontcase, 120 to 102 C. With an ETA learned from past
+                    # waits the descent can start that much before the end
+                    # instead. The live fit's early ETAs are not trusted for it.
+                    release = (max(current_boost - self.bed_carry, 0.0)
+                               / self.bed_release_rate)
+                    if (not released and not chamber_ready and self.eta_profile
+                            and self.chamber_eta is not None
+                            and self.chamber_eta <= release
+                            + self.bed_lead_seconds / 60.0):
+                        released = True
+                        gcmd.respond_info(
+                            "%s chamber due in %s, bed back to %.1fC now so it "
+                            "is there when the soak ends"
+                            % (TAG, self._minutes(self.chamber_eta),
+                               bed_target + self.bed_carry))
+                    want = (self.bed_carry if (chamber_ready or released)
+                            else boost_cap)
                     if abs(want - current_boost) > 1e-9:
                         rising = want > current_boost
                         current_boost = want
@@ -1451,15 +1622,16 @@ class ChamberPreheat:
                             ),
                             boost_coast_reason=coast_reason,
                         )
-                        gcmd.respond_info(
-                            "%s %s %.1fC"
-                            % (
-                                TAG,
-                                "bed to" if rising
-                                else "chamber minimum reached, bed back to",
-                                bed_target + current_boost,
-                            ) + (" to warm the chamber faster" if rising else "")
-                        )
+                        if rising or chamber_ready:
+                            gcmd.respond_info(
+                                "%s %s %.1fC"
+                                % (
+                                    TAG,
+                                    "bed to" if rising
+                                    else "chamber minimum reached, bed back to",
+                                    bed_target + current_boost,
+                                ) + (" to warm the chamber faster" if rising else "")
+                            )
                     bed_gated = not chamber_ready
                 elif turn is None and not eta_seen:
                     # No ETA yet, so ramp blind rather than sitting on the
@@ -1586,7 +1758,7 @@ class ChamberPreheat:
                     self.bed_eta = (
                         max((current_boost - self.bed_carry), 0.0)
                         / self.bed_release_rate
-                        if chamber_ready else None
+                        if (chamber_ready or released) else None
                     )
                 else:
                     self.bed_eta = max(current_boost / coast_rate, 0.0)
@@ -1614,6 +1786,7 @@ class ChamberPreheat:
                     # chamber reading is stamped so the prediction can be
                     # checked against what actually happened.
                     completed = True
+                    arrival = eventtime + self.chamber_eta * 60.0
                     self._set_bed(bed, quantize_target(carried))
                     self._set_state(
                         print_ready_eventtime=eventtime,
@@ -1634,6 +1807,7 @@ class ChamberPreheat:
                     # plate is commanded to its carried target FIRST, so that
                     # M190 waits on the right number rather than on the boost.
                     completed = True
+                    arrival = ready_at
                     self._set_bed(bed, quantize_target(carried))
                     self._set_state(print_ready_eventtime=eventtime)
                     gcmd.respond_info(
@@ -1648,6 +1822,7 @@ class ChamberPreheat:
                     return
                 if chamber_ready and bed_ready:
                     completed = True
+                    arrival = ready_at
                     self._set_bed(bed, quantize_target(carried))
                     self._set_state(print_ready_eventtime=eventtime)
                     moving = self.hold_minutes + self.fall_minutes
@@ -1698,6 +1873,8 @@ class ChamberPreheat:
             # did NOT complete gives the plate straight back to its printing
             # target. MCU shutdown independently disables both outputs.
             self._set_stir(fan, 0.0)
+            if completed and arrival is not None:
+                self._save_eta_profile(minimum, arrival)
             if self.orbit:
                 # Back to centre before the print's own start G-code moves.
                 self.gcode.run_script_from_command("_CHAMBER_ORBIT_END")
