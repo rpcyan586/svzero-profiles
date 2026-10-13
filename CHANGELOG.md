@@ -103,6 +103,24 @@ macro pack.
   since the last one: a heater that blips now and then means the fans are
   keeping up.
 
+### Purge ring: a lap and a half, drawn
+
+- **The full lap of the purge ring is drawn again.** It was one `G3` ending
+  where it began, which Klipper draws as a full circle only when its computed
+  sweep is exactly zero; float residue in the other direction leaves no arc and
+  extrudes the whole lap in place. On the last three jobs on the test printer
+  the outer ring did exactly that: 27.6 mm³ of a 40 mm³ purge went into the
+  start blob, and what showed was the half lap. Each full lap is now two half
+  circles, which resolve the same either way.
+- **Every nozzle lays at least a lap and a half**, the start blob opposite the
+  part. From 0.8 mm up the purge used to be a single half circle; those nozzles
+  now lay a narrower bead, down to 1.5 × the nozzle, so the same volume makes a
+  lap and a half. At that floor, 1.2 and 1.4 lay a little more than their
+  volume (71.5 and 102.5 mm³, against 70.5 and 82.9). 0.2 to 0.6 are unchanged.
+- **The purge geometry check now draws arcs as Klipper does**, across every
+  nozzle and a grid of part positions. Its old arc measure assumed a full
+  circle where Klipper drew nothing.
+
 ### Acceleration cap holds in SuperSlicer
 
 - **`install-presets.py --accel-cap` now caps SuperSlicer's percentage

@@ -6,9 +6,14 @@ loop written separately from it. Checking the algebra against itself proves
 nothing, so this renders the ACTUAL macro through Klipper's own Jinja
 environment and then measures the emitted moves as a plotter would:
 
-  * arc length is summed from the G2/G3 arcs themselves, not from `path`
+  * arc length is summed from the G2/G3 arcs themselves, not from `path`,
+    with each sweep computed the way Klipper's gcode_arcs.py computes it --
+    including its exact-zero test for a full circle, which float residue can
+    fail, leaving no arc and all of its E in one spot (2026-10-13)
   * extruded volume is summed from the E words, not from `e_tot`
   * start and end are read off the moves and checked to be antipodal
+  * every nozzle the pack ships, across a grid of part positions, must lay at
+    least one full lap and a half
 
 Klipper builds its environment as Environment('{%', '%}', '{', '}') with no
 extensions (gcode_macro.py:74) -- SINGLE braces for variables -- so the same
@@ -74,6 +79,7 @@ def measure(gcode):
     x = y = None
     arc = ext = 0.0
     first_xy = last_xy = None
+    sweeps = []
     for line in gcode.splitlines():
         line = line.strip()
         m = re.match(r"^G([0123])\b", line)
@@ -94,14 +100,22 @@ def measure(gcode):
         if ge and code in (1, 2, 3) and (gx or gy):
             ext += float(ge.group(1))
         if code in (2, 3) and gi and gj and x is not None:
-            cx, cy = x + float(gi.group(1)), y + float(gj.group(1))
-            r = math.hypot(x - cx, y - cy)
-            a0 = math.atan2(y - cy, x - cx)
-            a1 = math.atan2(ny - cy, nx - cx)
-            sweep = (a1 - a0) % TAU if code == 3 else (a0 - a1) % TAU
-            if abs(nx - x) < 1e-6 and abs(ny - y) < 1e-6:
-                sweep = TAU                       # start == end is a FULL circle
+            # gcode_arcs.py planArc, line for line: what Klipper will draw,
+            # not what the macro meant.
+            r_p, r_q = -float(gi.group(1)), -float(gj.group(1))
+            c_p, c_q = x - r_p, y - r_q
+            r = math.hypot(r_p, r_q)
+            ra, rb = nx - c_p, ny - c_q
+            sweep = math.atan2(r_p * rb - r_q * ra, r_p * ra + r_q * rb)
+            if sweep < 0.:
+                sweep += TAU
+            if code == 2:
+                sweep -= TAU
+            if sweep == 0. and x == nx and y == ny:
+                sweep = TAU
+            sweep = abs(sweep)
             arc += r * sweep
+            sweeps.append(sweep)
             if first_xy is None:
                 first_xy = (x, y)
             last_xy = (nx, ny)
@@ -109,53 +123,64 @@ def measure(gcode):
             arc += math.hypot(nx - x, ny - y)     # the radial step-ins extrude too
         if nx is not None:
             x, y = nx, ny
-    return arc, ext, first_xy, last_xy
+    return arc, ext, first_xy, last_xy, sweeps
 
 
 def main():
     cfg = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "klipper", "config", "purge_line.cfg")
     varz, tmpl = load(cfg)
-    poly = [[60.0, 60.0], [95.0, 60.0], [95.0, 95.0], [60.0, 95.0]]
-    ox1, oy0 = 95.0, 60.0
     bad = 0
-    print("%-6s %4s %8s %9s %9s %8s %8s  %s"
-          % ("nozzle", "n", "radius", "want mm3", "got mm3", "arc mm", "180deg", "verdict"))
-    for noz in (0.2, 0.4, 0.6, 0.8, 1.0):
-        out = render(tmpl, varz, noz, poly)
-        info = re.search(r"ring n=(\d+) cx=" + NUM + r" cy=" + NUM
-                         + r" r_out=" + NUM + r" r_in=" + NUM, out)
-        if not info:
-            print("  %.1f  NO RING EMITTED (fell back to the line)" % noz)
-            bad += 1
-            continue
-        n = int(info.group(1)); cx = float(info.group(2)); cy = float(info.group(3))
-        r_out = float(info.group(4)); r_in = float(info.group(5))
-        arc, ext, s_xy, e_xy = measure(out)
-        bead = (varz["bead_w_ratio"] * noz) * (varz["bead_h_ratio"] * noz)
-        want = varz["vol_b"] + varz["vol_k"] * noz * noz
-        fil_a = math.pi / 4 * 1.75 ** 2
-        got = ext * fil_a
-        # start and end must be 180 deg apart as seen from the ring centre
-        a_s = math.atan2(s_xy[1] - cy, s_xy[0] - cx)
-        a_e = math.atan2(e_xy[1] - cy, e_xy[0] - cx)
-        sep = math.degrees(abs((a_s - a_e + math.pi) % TAU - math.pi))
-        # and the END must be the one nearer the object box
-        d_s = math.hypot(max(60.0 - s_xy[0], 0, s_xy[0] - ox1),
-                         max(oy0 - s_xy[1], 0, s_xy[1] - 95.0))
-        d_e = math.hypot(max(60.0 - e_xy[0], 0, e_xy[0] - ox1),
-                         max(oy0 - e_xy[1], 0, e_xy[1] - 95.0))
-        ok_vol = abs(got - want) / want < 0.02
-        ok_arc = abs(arc * bead - got) / got < 0.02
-        ok_sep = abs(sep - 180.0) < 0.5
-        ok_dir = d_e < d_s
-        ok_r = r_out <= varz["r_max"] + 1e-6 and r_in >= varz["r_min"] - 1e-6
-        verdict = "ok" if all((ok_vol, ok_arc, ok_sep, ok_dir, ok_r)) else "FAIL%s%s%s%s%s" % (
-            "" if ok_vol else " vol", "" if ok_arc else " arc", "" if ok_sep else " sep",
-            "" if ok_dir else " dir", "" if ok_r else " r")
+    # Part positions: a 35 mm square at the grid of lower-left corners below,
+    # plus the 2026-10-12 backcase, whose ring Klipper collapsed. Where the
+    # ring lands decides the float residue, so one position proves nothing.
+    corners = [(x0, y0) for x0 in (20.0, 40.0, 57.3, 60.0, 66.979)
+               for y0 in (40.0, 58.296, 60.0, 75.0)]
+    print("%-6s %4s %6s %8s %8s %9s %9s %6s  %s"
+          % ("nozzle", "n", "laps", "r_out", "r_in", "want mm3", "got mm3", "180deg", "verdict"))
+    for noz in (0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4):
+        worst = None
+        fails = set()
+        for x0, y0 in corners:
+            ox1, oy1 = x0 + 35.0, y0 + 35.0
+            poly = [[x0, y0], [ox1, y0], [ox1, oy1], [x0, oy1]]
+            out = render(tmpl, varz, noz, poly)
+            info = re.search(r"ring n=(\d+) cx=" + NUM + r" cy=" + NUM + r" r_out=" + NUM
+                             + r" r_in=" + NUM + r" step=" + NUM + r" bead=" + NUM + r"x" + NUM
+                             + r" vol=" + NUM, out)
+            if not info:
+                fails.add("no ring at %s,%s" % (x0, y0))
+                continue
+            n = int(info.group(1)); cx = float(info.group(2)); cy = float(info.group(3))
+            r_out = float(info.group(4)); r_in = float(info.group(5))
+            bead = float(info.group(7)) * float(info.group(8)); laid = float(info.group(9))
+            arc, ext, s_xy, e_xy, sweeps = measure(out)
+            want = varz["vol_b"] + varz["vol_k"] * noz * noz
+            got = ext * math.pi / 4 * 1.75 ** 2
+            laps = sum(sweeps) / TAU
+            a_s = math.atan2(s_xy[1] - cy, s_xy[0] - cx)
+            a_e = math.atan2(e_xy[1] - cy, e_xy[0] - cx)
+            sep = math.degrees(abs((a_s - a_e + math.pi) % TAU - math.pi))
+            d_s = math.hypot(max(x0 - s_xy[0], 0, s_xy[0] - ox1), max(y0 - s_xy[1], 0, s_xy[1] - oy1))
+            d_e = math.hypot(max(x0 - e_xy[0], 0, e_xy[0] - ox1), max(y0 - e_xy[1], 0, e_xy[1] - oy1))
+            checks = {
+                "collapsed arc": min(sweeps) > 0.01,
+                "vol": got >= want * 0.98 and abs(got - laid) / laid < 0.02,
+                "arc": abs(arc * bead - got) / got < 0.02,
+                "laps": laps >= 1.5 - 1e-3,
+                "sep": abs(sep - 180.0) < 0.5,
+                "dir": d_e < d_s,
+                "r": r_out <= varz["r_max"] + 1e-6 and r_in >= varz["r_min"] - 1e-6,
+            }
+            fails.update(k for k, ok in checks.items() if not ok)
+            if worst is None or laps < worst[1]:
+                worst = (n, laps, r_out, r_in, want, got, sep)
+        verdict = "ok" if not fails else "FAIL " + ", ".join(sorted(fails))
         bad += 0 if verdict == "ok" else 1
-        print("%-6s %4d %8.3f %9.2f %9.2f %8.2f %8.1f  %s"
-              % (noz, n, r_out, want, got, arc, sep, verdict))
+        if worst:
+            print("%-6s %4d %6.2f %8.3f %8.3f %9.2f %9.2f %6.1f  %s" % ((noz,) + worst + (verdict,)))
+        else:
+            print("%-6s  %s" % (noz, verdict))
     # The ring/line decision turns on `disc`, which the half-lap rewrote. An
     # object that leaves no room for a circle must still purge, as a line.
     print()
@@ -175,7 +200,7 @@ def main():
     bad += 0 if ok_fb else 1
 
     print()
-    print("end is nearer the object than start, on every nozzle" if not bad
+    print("at least a lap and a half, drawn as Klipper draws it, end nearer the part, on every nozzle and position" if not bad
           else "%d PROBLEM(S)" % bad)
     return 1 if bad else 0
 
