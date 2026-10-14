@@ -607,7 +607,7 @@ def check(path):
                         material="pc", rates_set=0, assist=0,
                         assist_curtain=0.0, assist_exhaust=0.0,
                         curtain_latched=0, idle_set=0.0,
-                        assist_latched=0, prev_err=0.0, over_f=0.0, overrun_s=0.0,
+                        assist_latched=0, prev_err=0.0, overrun_s=0.0,
                         assist_i=0.0,
                         eta_bed=0.0, eta_at=0.0, eta_bed_b=0.0, eta_at_b=0.0,
                         meas_rate=0.0, eta_last=0.0, eta_last_at=0.0,
@@ -669,11 +669,10 @@ def check(path):
                      # curtain_enable 0: these scenarios were written for the
                      # exhaust alone, the shipped default until 2.1.0. Those
                      # that want the curtain say so; the assist-rpm ones run
-                     # the shipped settings as they are. assist_p_smooth 0 for the
-                     # same reason: their PI arithmetic is the unsmoothed one.
+                     # the shipped settings as they are.
                      "gcode_macro _COOLDOWN_ASSIST_CFG":
                          Mock(dict(settings.get("gcode_macro _COOLDOWN_ASSIST_CFG") or {}, **LINEAR_FANS,
-                                   curtain_enable=0, assist_p_smooth=0.0))}
+                                   curtain_enable=0))}
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the
@@ -913,8 +912,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # Same error, bed ABOVE a bed_ceiling of 60. The gate is off by
                 # default since 2026-10-13; set, it must still keep the curtain
                 # off a plate above it.
@@ -931,8 +929,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # Latched on, error now inside the release band. Must release
                 # rather than hold, or the fans never stop.
                 ("assist-release", params, "", {}, {},
@@ -952,8 +949,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # NOR A HEATER STILL WORKING. 1.05 C behind the aim and above its
                 # last target, but with the heater still at 17 % it is the
                 # setpoint moving, not authority lost -- the first ramp tick of
@@ -1015,8 +1011,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # THE HANDOVER IS A SWAP (2026-10-13). over 1.2: P 0.9 + I 0.075
                 # on 0.13 is demand 1.105, past the exhaust's ceiling of 1.0, so
                 # the curtain latches in at its floor, 0.2, and the exhaust gives
@@ -1034,8 +1029,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # EXHAUST FIRST ABOVE IT. over 2.0: P 1.5 + I 0.125 on 0.13 is
                 # demand 1.755. The exhaust is back at its ceiling, 1.0, and the
                 # curtain carries the rest, 0.755.
@@ -1052,8 +1046,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # IN RPM, WITH k MEASURED AT THE PLATE'S HEIGHT (2026-10-13). The
                 # shipped curves and fit, the curtain enabled, a 0.13 exhaust
                 # floor. The numbers come from an independent model of the same
@@ -1071,17 +1064,6 @@ def check(path):
                 ("assist-rpm-high-z-curtain", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=47.0),
                       **{"toolhead": th_at(160.0),
-                         "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
-                # THE P TERM SMOOTHED (2026-10-13). Engaged, 0.6 C behind at Z 22
-                # with the smoothed error at 0.2 and I 0.2: one 15 s tick of a
-                # 30 s average takes it to 0.3574, so P is 0.268 instead of 0.45,
-                # demand 0.813 and the exhaust 0.724 -- raw, it would be 0.944.
-                ("assist-p-smoothed", params, "", {}, {},
-                 dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.6,
-                           assist=1, assist_latched=1, over_f=0.2, assist_i=0.2,
-                           prev_err=0.35),
-                      **{"toolhead": th_at(22.0),
                          "gcode_macro _COOLDOWN_ASSIST_CFG":
                          Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
                 # The same 2 C at Z 22, k 3.06: the exhaust at its ceiling and
@@ -1128,8 +1110,7 @@ def check(path):
                                   curtain_latch=0, curtain_unlatch=0.05, curtain_hold=0,
                                   curtain_min=0.20, assist_latch=1,
                                   assist_lookahead=30.0,
-                                  finish_tolerance=1.0, finish_grace=900.0,
-                                  assist_p_smooth=0.0)})),
+                                  finish_tolerance=1.0, finish_grace=900.0)})),
                 # THE RAMP DRIVES THE EXHAUST DIRECTLY (2026-09-14): a plain
                 # SET_FAN_SPEED on _CH_HW.fan, with no chamber ceiling claimed
                 # and no chamber loop started.
@@ -1462,12 +1443,7 @@ def check(path):
             # what that adds (2026-10-13).
             ("gcode_macro _COOLDOWN_TICK", "assist-latch-handover"):
                 ["SET_FAN_SPEED FAN=fan2 SPEED=0.2", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.905"],
-            # Engaging this tick, so the P term takes the raw error, and the
-            # smoothed one starts from it.
-            ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-exhaust-alone"):
-                ["SET_FAN_SPEED FAN=exhaust_fan SPEED=0.702", "VARIABLE=over_f VALUE=0.6"],
-            ("gcode_macro _COOLDOWN_TICK", "assist-p-smoothed"):
-                ["SET_FAN_SPEED FAN=exhaust_fan SPEED=0.724", "VARIABLE=over_f VALUE=0.3574"],
+            ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-exhaust-alone"): "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.702",
             ("gcode_macro _COOLDOWN_TICK", "assist-rpm-high-z-curtain"):
                 ["SET_FAN_SPEED FAN=fan2 SPEED=0.452", "SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0",
                  "(k 1.49 at Z 160.0)"],
