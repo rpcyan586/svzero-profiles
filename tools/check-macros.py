@@ -666,8 +666,13 @@ def check(path):
                      "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13)),
                      # .get: chamber_fan.cfg's scenarios use cool() too, and
                      # checked on its own it has no cooldown.cfg loaded.
+                     # curtain_enable 0: these scenarios were written for the
+                     # exhaust alone, the shipped default until 2.1.0. Those
+                     # that want the curtain say so; the assist-rpm ones run
+                     # the shipped settings as they are.
                      "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings.get("gcode_macro _COOLDOWN_ASSIST_CFG") or {}, **LINEAR_FANS))}
+                         Mock(dict(settings.get("gcode_macro _COOLDOWN_ASSIST_CFG") or {}, **LINEAR_FANS,
+                                   curtain_enable=0))}
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the
@@ -1042,7 +1047,7 @@ def check(path):
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.6),
                       **{"toolhead": th_at(22.0),
                          "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
+                         Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
                 # The same error with the plate at Z 160 (fitted at 155), where k
                 # is 1.49 and the knee 0.72: the curtain latches, both fans on
                 # their floors plus the shared increment -- exhaust 0.161,
@@ -1051,14 +1056,14 @@ def check(path):
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=45.6),
                       **{"toolhead": th_at(160.0),
                          "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
+                         Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
                 # 2 C behind at Z 22: demand 1.93, past the knee, and the split
                 # conserves it in rpm -- exhaust 0.342, curtain 0.336 in duty.
                 ("assist-rpm-low-z-shared", params, "", {}, {},
                  dict(cool(b_at=45.0, c_step=0.0, c_rate=0.0, bed_temp=47.0),
                       **{"toolhead": th_at(22.0),
                          "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], curtain_enable=1))})),
+                         Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
                 # ANTI-WINDUP. over 15, already engaged with I 1.5: 0.13 + P 11.25
                 # + 1.5 is far past top 2.0, so both fans run flat out AND the
                 # integral must not grow -- it is left exactly where it was, so

@@ -158,11 +158,15 @@ requested minimum.
 
 The native cooldown ramps the **bed target** down at 3 °C/min to 35 °C (30 °C
 for PLA), with one console line per degree; the public chamber-rate settings
-are zero on a heaterless Zero. Exhaust assist is available; curtain-fan
-cooldown assist is **off by default**. These policies and rates are starting
-points, not measured guarantees against warping. `_COOLDOWN_CONFIG ENABLE=0`
-disables the ramp; `_COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp
-without turning heaters off; use `CANCEL_PRINT` for shutdown and cancellation.
+are zero on a heaterless Zero. When the bed falls behind the schedule, the
+exhaust fan helps it down. Below 60 °C the curtain fan (`fan2`) adds to it once
+the exhaust alone is not enough, weighted by how hard each fan was measured to
+cool the plate at its present height.
+`variable_curtain_enable: 0` in `_COOLDOWN_ASSIST_CFG` leaves the exhaust on its
+own. These policies and rates are starting points, not measured guarantees
+against warping. `_COOLDOWN_CONFIG ENABLE=0` disables the ramp;
+`_COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp without turning
+heaters off; use `CANCEL_PRINT` for shutdown and cancellation.
 
 Macros whose names start with `_` are left out of Mainsail's macro panel. Type
 them in the console as usual.
