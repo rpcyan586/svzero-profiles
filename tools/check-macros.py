@@ -822,6 +822,19 @@ def check(path):
                 # rather than "done".
                 ("ramp-gave-up", params, "", {}, {},
                  cool(elapsed=1980, bed_temp=40.0, overrun_s=900.0)),
+                # THE LAST HALF DEGREE, AT FULL (2026-10-13). Schedule spent, the
+                # plate 0.5 C above final with the assist engaged, at the shipped
+                # settings and Z 23.7, where the published-default ramp on Zero2
+                # ended. Both fans stay at their ceiling -- the PI had let them
+                # back to 93 % and 87 % -- and 35.5 is not 35: no finish, which
+                # with the old finish_tolerance of 1.0 it was.
+                ("ramp-overrun-full", params, "", {}, {},
+                 dict(cool(elapsed=1980, bed_temp=35.5, assist=1, assist_latched=1,
+                           curtain_latched=1, assist_exhaust=0.93, assist_curtain=0.87,
+                           assist_i=0.5, prev_err=0.6, overrun_s=60.0),
+                      **{"toolhead": th_at(23.7),
+                         "gcode_macro _COOLDOWN_ASSIST_CFG":
+                         Mock(settings["gcode_macro _COOLDOWN_ASSIST_CFG"])})),
                 ("abort-bed-override", params, "", {}, {},
                  dict(cool(), **{"heater_bed": Mock(temperature=108.0,
                                                     target=42.0)})),
@@ -1387,10 +1400,12 @@ def check(path):
             # The plate did not: hold the assist and say so, rather than
             # declaring victory 5 C short the way it did on 2026-09-07.
             ("gcode_macro _COOLDOWN_TICK", "ramp-overrun"):
-                ["schedule finished with the bed at 40C, waiting up to 15 min for it to reach 36C",
+                ["schedule finished with the bed at 40C, waiting up to 15 min for it to reach 35C",
                  "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-gave-up"):
                 ["stopped with the bed at 40C, 15 min past the schedule. Heaters off.", "_COOLDOWN_FINISH"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-overrun-full"):
+                ["SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0", "SET_FAN_SPEED FAN=fan2 SPEED=1.0"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "VARIABLE=elapsed",
             ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "VARIABLE=elapsed",
             ("gcode_macro _COOLDOWN_TICK", "abort-bed-override"): "the bed target changed to 42C outside the cooldown",
@@ -1623,6 +1638,7 @@ def check(path):
                   # Curtain is off by default, so the default assist scenario
                   # must never reach for fan2.
                   ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
+                  ("gcode_macro _COOLDOWN_TICK", "ramp-overrun-full"): "Heaters off",
                   # A ramp with no chamber leg must never start the loop against
                   # the zero it carries -- that is a full-speed exhaust draft.
                   ("gcode_macro _COOLDOWN_START", "bed-only"): "_CHAMBER_ON",
