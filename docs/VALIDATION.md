@@ -23,7 +23,9 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   re-sliced at 99.2 % came out ×1.0165 in X and ×1.0163 in Y against 100.8 %,
   where ×1.0161 is expected. Run from the command line, OrcaSlicer and
   PrusaSlicer apply no XY shrinkage at all, so the slice harness cannot check
-  it. A part printed with the corrected profile has not been measured yet.
+  it. An ABS part printed from OrcaSlicer with the corrected profile was
+  measured by the operator against the same part from the 2.0.x values, and
+  came out right.
 - **Macro handshake called live** on a 1.3.7 Zero: `MODE=standard` accepted, a
   version mismatch warns and runs, a job naming another mode refused before
   heating, no `MODE` accepted as standard.
@@ -55,8 +57,8 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   been rendered, not run.
 - **Purge ring:** the rolled prime ran on the same print (0.4 nozzle, ABS):
   7.0 mm returned over 2 half laps, 0.117 mm of filament per mm against the
-  ring's 0.186, with no extrusion before the first arc. No start blob shows
-  in a webcam snapshot; the ring has not been looked at by hand.
+  ring's 0.186, with no extrusion before the first arc. The operator found
+  no start blob on the ring.
 - **Physical prints:** one ABS part on a 1.3.7 Zero with the 0.4 Standard
   profile from OrcaSlicer. The 0.25 and 0.3 nozzle profiles have been sliced,
   never printed.
