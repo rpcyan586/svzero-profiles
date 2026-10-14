@@ -51,7 +51,10 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   stopped at 35.6 °C with the fans easing off. Two things were changed after
   that run and have been checked only by rendering: the ending, now 35.0 °C
   with the fans at full, and when the curtain comes in, now once the exhaust is
-  at full at any bed temperature, where it was held off above 60 °C.
+  at full at any bed temperature, where it was held off above 60 °C. A third,
+  a tick that scales with the rate, answers the exhaust's one-minute swing on
+  that run; a simulation calibrated on it was used to compare the options, and
+  it has been rendered, not run.
 - **Purge ring:** the rolled prime ran on the same print (0.4 nozzle, ABS):
   7.0 mm returned over 2 half laps, 0.117 mm of filament per mm against the
   ring's 0.186, with no extrusion before the first arc. The operator found

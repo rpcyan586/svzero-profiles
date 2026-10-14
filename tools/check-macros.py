@@ -622,6 +622,7 @@ def check(path):
             # -- so with the shipped lead of 0.25 the assist's error against its
             # aim is exactly bed - b_at.
             b_at = kw.pop("b_at", None)
+            shipped_tick = kw.pop("shipped_tick", False)
             base.update(kw)
             if b_at is not None:
                 base["elapsed"] = int(round(base["settle_elapsed"]
@@ -673,6 +674,16 @@ def check(path):
                      "gcode_macro _COOLDOWN_ASSIST_CFG":
                          Mock(dict(settings.get("gcode_macro _COOLDOWN_ASSIST_CFG") or {}, **LINEAR_FANS,
                                    curtain_enable=0))}
+            # THE TICK HELD AT 15 s. Since 2026-10-13 the tick is ramp_tick / rate,
+            # 6 s at this fixture's 2.5 C/min, but these scenarios' integral and
+            # b_cmd arithmetic is written per 15 s tick. ramp_tick is scaled so
+            # it stays 15 s here; the ramp-tick-* scenarios take the shipped
+            # setting (shipped_tick=True) and test the scaling itself.
+            if not shipped_tick and base["b_rate"] > 0:
+                patch["gcode_macro _COOLDOWN_CFG"] = Mock(dict(
+                    settings.get("gcode_macro _COOLDOWN_CFG") or {},
+                    ramp_tick=15.0 * base["b_rate"], ramp_tick_min=2.0,
+                    ramp_tick_max=max(30.0, 15.0 * base["b_rate"])))
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the
@@ -822,6 +833,31 @@ def check(path):
                 # rather than "done".
                 ("ramp-gave-up", params, "", {}, {},
                  cool(elapsed=1980, bed_temp=40.0, overrun_s=900.0)),
+                # THE TICK SCALES WITH THE RATE (2026-10-13): ramp_tick / rate,
+                # four ticks a degree. At 3 C/min from 90, 15 s in, the line is at
+                # 89.25 and the target already 89: no step, and the next tick in
+                # 5 s, not 15.
+                ("ramp-tick-at-3c", params, "", {}, {},
+                 cool(shipped_tick=True, b0=90.0, b_rate=3.0, c_rate=0.0, c_step=0.0,
+                      elapsed=195, b_cmd=89.0, bed_temp=89.25)),
+                # ...and 20 s in, the fourth tick, the line is exactly on 89 and
+                # the target steps to 88 on that tick. A 15 s tick put this step
+                # 0, 5 or 10 s late in turn, which is what the exhaust hunted on.
+                ("ramp-tick-steps-on-time", params, "", {}, {},
+                 cool(shipped_tick=True, b0=90.0, b_rate=3.0, c_rate=0.0, c_step=0.0,
+                      elapsed=200, b_cmd=89.0, bed_temp=89.0)),
+                # 15 s at 1 C/min, as before.
+                ("ramp-tick-at-1c", params, "", {}, {},
+                 cool(shipped_tick=True, b0=90.0, b_rate=1.0, c_rate=0.0, c_step=0.0,
+                      elapsed=210, b_cmd=89.0, bed_temp=89.5)),
+                # Clamped: 10 C/min would be 1.5 s, held at 2; 0.25 C/min would
+                # be 60 s, held at 30.
+                ("ramp-tick-clamped-fast", params, "", {}, {},
+                 cool(shipped_tick=True, b0=90.0, b_rate=10.0, c_rate=0.0, c_step=0.0,
+                      elapsed=183, b_cmd=89.0, bed_temp=89.5)),
+                ("ramp-tick-clamped-slow", params, "", {}, {},
+                 cool(shipped_tick=True, b0=90.0, b_rate=0.25, c_rate=0.0, c_step=0.0,
+                      elapsed=300, b_cmd=89.0, bed_temp=89.5)),
                 # THE LAST HALF DEGREE, AT FULL (2026-10-13). Schedule spent, the
                 # plate 0.5 C above final with the assist engaged, at the shipped
                 # settings and Z 23.7, where the published-default ramp on Zero2
@@ -1416,6 +1452,13 @@ def check(path):
                  "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-gave-up"):
                 ["stopped with the bed at 40C, 15 min past the schedule. Heaters off.", "_COOLDOWN_FINISH"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-tick-at-3c"):
+                ["UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER DURATION=5.0", "VARIABLE=elapsed VALUE=200.0"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-tick-steps-on-time"):
+                ["M140 S88", "VARIABLE=b_cmd VALUE=88", "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER DURATION=5.0"],
+            ("gcode_macro _COOLDOWN_TICK", "ramp-tick-at-1c"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER DURATION=15.0",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-tick-clamped-fast"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER DURATION=2.0",
+            ("gcode_macro _COOLDOWN_TICK", "ramp-tick-clamped-slow"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER DURATION=30.0",
             ("gcode_macro _COOLDOWN_TICK", "ramp-overrun-full"):
                 ["SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0", "SET_FAN_SPEED FAN=fan2 SPEED=1.0"],
             ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "VARIABLE=elapsed",
@@ -1655,6 +1698,7 @@ def check(path):
                   # Curtain is off by default, so the default assist scenario
                   # must never reach for fan2.
                   ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
+                  ("gcode_macro _COOLDOWN_TICK", "ramp-tick-at-3c"): "M140",
                   ("gcode_macro _COOLDOWN_TICK", "ramp-overrun-full"): "Heaters off",
                   # A ramp with no chamber leg must never start the loop against
                   # the zero it carries -- that is a full-speed exhaust draft.

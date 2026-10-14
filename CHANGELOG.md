@@ -152,6 +152,13 @@ macro pack.
   and in each fan's rpm rather than its PWM duty. The ratio used to be a
   placeholder 1.0. `curtain_strength_factor` is now a trim on the measured
   ratio.
+- **Steadier fans: the ramp checks in proportion to its rate.** It used to
+  re-evaluate every 15 s whatever the rate. At 3 °C/min a degree is due every
+  20 s, so the bed target held 15, 15, then 30 s, and on the test printer the
+  exhaust swung between about 50 and 80 % on that one-minute beat. The tick is
+  now 15 s at 1 °C/min and shorter in proportion, 5 s at 3 °C/min, so every
+  degree takes four ticks (`ramp_tick`, between `ramp_tick_min` and
+  `ramp_tick_max`).
 - **The ramp ends at the endpoint, with the fans at full to the last.** It
   used to stop within 1 °C of it (`finish_tolerance`, now 0), and once the
   schedule had run out the fans eased off as the plate closed in. Past the
