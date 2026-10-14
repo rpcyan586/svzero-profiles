@@ -94,7 +94,8 @@
     "Precision": {
       "anchor": "derived",
       "derivation": "Precision mode (klipper/modes/svzero-mode-precision.cfg): 2 mm3/s through the normal ratios, Prusa Core One 0.25 DETAIL accelerations, outer walls capped at 45 mm/s. A tier of the precision printer only; never offered on a standard one.",
-      "sqv": 3,
+      "sqv": 1,
+      "_sqv_why": "1 mm/s (operator, 2026-10-14): precision is the slow fine-detail mode, so corners are taken at the lowest square corner velocity of any tier. It was 3, the same as Fine.",
       "mode": "precision",
       "exempt_from_ramp": true
     }
