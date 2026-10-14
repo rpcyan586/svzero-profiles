@@ -30,7 +30,7 @@
     "1"
   ],
   "filament_shrink": [
-    "100.3%"
+    "99.7%"
   ],
   "filament_flow_ratio": [
     "0.98"
@@ -106,6 +106,9 @@
   ],
   "filament_start_gcode": [
     "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
+  ],
+  "filament_shrinkage_compensation_z": [
+    "99.7%"
   ],
   "activate_air_filtration": [
     "0"

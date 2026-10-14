@@ -662,8 +662,10 @@ def check(path):
                 base["last_degree"] = int((base["b_cmd"] + 8.0 if bed_temp is None else bed_temp) // 1)
             patch = {"gcode_macro _COOL_STATE": Mock(base),
                      "save_variables": Mock(variables=Mock(ch_target=ch, ch_minfan=0.13)),
+                     # .get: chamber_fan.cfg's scenarios use cool() too, and
+                     # checked on its own it has no cooldown.cfg loaded.
                      "gcode_macro _COOLDOWN_ASSIST_CFG":
-                         Mock(dict(settings["gcode_macro _COOLDOWN_ASSIST_CFG"], **LINEAR_FANS))}
+                         Mock(dict(settings.get("gcode_macro _COOLDOWN_ASSIST_CFG") or {}, **LINEAR_FANS))}
             # The bed the ramp believes it commanded, coasting a little above
             # it. A fixed 110 here would trip the bed-override abort in every
             # scenario whose b_cmd has moved on. Scenarios that want the

@@ -27,7 +27,7 @@
     "1"
   ],
   "filament_shrink": [
-    "100.4%"
+    "99.6%"
   ],
   "nozzle_temperature_initial_layer": [
     "265"
@@ -109,6 +109,9 @@
   ],
   "filament_start_gcode": [
     "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1"
+  ],
+  "filament_shrinkage_compensation_z": [
+    "99.6%"
   ],
   "activate_air_filtration": [
     "0"

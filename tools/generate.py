@@ -986,25 +986,35 @@ SS_ONLY = {"arc_fitting", "arc_fitting_resolution", "arc_fitting_tolerance",
            # against the 2.9.6 binary's own symbol table, not assumed:
            #   filament_pressure_advance  absent (PS has no PA field at all)
            # PA is recovered below as start_filament_gcode. filament_shrink is
-           # translated rather than dropped -- see apply_shrinkage: the two
-           # spellings differ, and the direction is now settled from
-           # PrusaSlicer's own tooltip rather than assumed.
+           # translated rather than dropped -- see shrink_to_ps: the two
+           # notations differ, and each was read from the slicer's own source
+           # on 2026-10-13 (the 2026-08-16 reading had Orca's backwards).
            "filament_pressure_advance", "filament_shrink"}
 
 PS_VENDOR_ID = "SVZero"          # the .ini/.idx basename, and the PrusaSlicer.ini key
 PS_PRINTER_MODEL = "SVZERO"      # printer_model id; uppercase by convention
 
 
+def orca_shrink(pct):
+    """Physical shrinkage % -> Orca/SuperSlicer filament_shrink: the measured size.
+
+    0.8 % shrinkage is "99.2%". Orca scales by 100 / 99.2 (Print::shrinkage_
+    compensation, 100.0 / xy_shrinkage_percent) and SuperSlicer the same, as a
+    sliced 20 mm cube showed on 2026-10-13. 100.8 %, which this pack shipped
+    until then, shrinks the part by a further 0.8 %.
+    """
+    return "%g%%" % round(100.0 - float(pct), 4)
+
+
 def apply_shrinkage(ss, data):
-    """Give every filament a real shrinkage figure instead of 100%.
+    """Give every filament its shrinkage compensation, in XY and in Z.
 
-    Every vendor in the OrcaSlicer profile tree ships filament_shrink at 100% --
-    64 files, not one populated. That is an unfilled default, not a claim that
-    plastics do not shrink, and it means every part comes out systematically
-    undersized by the material's shrinkage.
-
-    The values are nominal polymer-class typicals, not measurements; see
-    source/filament-shrink.json and the runbook it points at.
+    source/filament-shrink.json holds the PHYSICAL shrinkage, so no slicer's
+    notation can be mistaken for another's. The master carries Orca/SuperSlicer
+    notation in filament_shrink (XY), and Z under an annotation key, because
+    SuperSlicer has no Z compensation and would refuse a real key; the Orca and
+    PrusaSlicer emitters write Z from it. The values are nominal polymer-class
+    typicals, not measurements; see the runbook the source file points at.
     """
     mats = data["materials"]
     n = 0
@@ -1019,27 +1029,27 @@ def apply_shrinkage(ss, data):
         m = mats.get(key) or mats.get(ftype)
         if not m:
             continue
-        kv["filament_shrink"] = m["shrink"]
+        kv["filament_shrink"] = orca_shrink(m["xy"])
+        kv[SHRINK_Z] = orca_shrink(m["z"])
         n += 1
     return n
 
 
+SHRINK_Z = ANNOTATION_PREFIX + "filament_shrink_z"   # Z, in Orca notation; SuperSlicer has none
+
+
 def shrink_to_ps(value):
-    """Orca/SuperSlicer scale percentage -> PrusaSlicer shrinkage percentage.
+    """Orca/SuperSlicer filament_shrink -> PrusaSlicer shrinkage percentage.
 
-    They express the same physical quantity two different ways, and getting the
-    direction wrong silently distorts every dimension in the opposite sense.
-
-      SuperSlicer / Orca  filament_shrink                  = SCALE factor.
-                          100% is no compensation, 100.3% scales up 0.3%.
-      PrusaSlicer         filament_shrinkage_compensation_xy = the SHRINKAGE.
-                          Its own tooltip: "if you measured 99mm instead of
-                          100mm, enter 1%". So 0% is no compensation.
-
-    Hence PS = ours - 100. Read from the 2.9.6 binary's own strings, not guessed.
+    Orca and SuperSlicer take the measured size (99.2 % for 0.8 % shrinkage)
+    and scale by 100 / value. PrusaSlicer takes the shrinkage itself -- its
+    tooltip: "if you measured 99mm instead of 100mm, enter 1%" -- and scales by
+    100 / (100 - value) (ShrinkageCompensation.cpp). The same x1.00806 either
+    way, so PS = 100 - ours. Until 2026-10-13 this was ours - 100, which only
+    came out right because the source held the inverse of Orca's notation.
     """
     try:
-        return "%g%%" % (float(str(value).strip().rstrip("%")) - 100.0)
+        return "%g%%" % round(100.0 - float(str(value).strip().rstrip("%")), 4)
     except ValueError:
         return None
 
@@ -1378,7 +1388,7 @@ def emit_ps_presets(ss, out_dir):
             ps = shrink_to_ps(sh)
             if ps is not None:
                 kv["filament_shrinkage_compensation_xy"] = ps
-                kv["filament_shrinkage_compensation_z"] = "0%"
+                kv["filament_shrinkage_compensation_z"] = shrink_to_ps(kv.get(SHRINK_Z, "100%")) or "0%"
         pa = kv.get("filament_pressure_advance")
         if kind == "filament" and pa:
             g = kv.get("start_filament_gcode", "").strip()
@@ -1521,7 +1531,7 @@ def ps_bundle_resolve(ss):
             ps = shrink_to_ps(sh)
             if ps is not None:
                 own["filament_shrinkage_compensation_xy"] = ps
-                own["filament_shrinkage_compensation_z"] = "0%"
+                own["filament_shrinkage_compensation_z"] = shrink_to_ps(own.get(SHRINK_Z, "100%")) or "0%"
         pa = own.get("filament_pressure_advance")
         if pa:
             g = flat.get("start_filament_gcode", "").strip()
@@ -2251,6 +2261,8 @@ def emit_orca_filament(model, ss, keymap, out_dir):
                 doc.update(paired[k]["also"])
             elif not k.startswith("_"):
                 unmapped[k] += 1
+        if SHRINK_Z in kv:
+            doc["filament_shrinkage_compensation_z"] = kv[SHRINK_Z]
         doc.update(forced)
         doc.pop("_why", None)
         # The PLA-only chamber override that used to sit here is GONE. It existed

@@ -113,8 +113,9 @@ def zero_shrinkage(datadir, kinds=("filament",), orca=False):
         import glob as _glob
         for f in _glob.glob(os.path.join(datadir, "system", "SVZero", "filament", "*.json")):
             d = json.load(open(f, encoding="utf-8"))
-            if "filament_shrink" in d:
+            if "filament_shrink" in d or "filament_shrinkage_compensation_z" in d:
                 d["filament_shrink"] = ["100%"]          # 100% == no compensation
+                d["filament_shrinkage_compensation_z"] = ["100%"]
                 json.dump(d, open(f, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
                 n += 1
         return n
