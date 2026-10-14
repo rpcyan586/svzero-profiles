@@ -22,7 +22,7 @@ Read [validation and limitations](docs/VALIDATION.md) before testing.
 The profiles cover ten nozzle sizes (0.2–1.4 mm), material settings and
 Fine/Optimal/Standard/Draft/Strength tiers where supported. An optional
 [precision mode](docs/PRECISION.md) adds slow, quiet, fine-detail printing on
-the 0.4 nozzle. Added nozzle sizes
+the 0.4 nozzle and the smaller ones. Added nozzle sizes
 are starting points, not evidence that a nozzle fits or has been flow-calibrated.
 
 ## Try the profiles

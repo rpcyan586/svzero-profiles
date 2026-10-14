@@ -32,7 +32,7 @@ macro pack.
 ### Precision mode
 
 - **A second machine configuration for slow, quiet, fine-detail printing on the
-  0.4 nozzle** ([docs/PRECISION.md](docs/PRECISION.md)): 64 microsteps with
+  0.4 nozzle and below** ([docs/PRECISION.md](docs/PRECISION.md)): 64 microsteps with
   interpolation off, 2.4 A, corgi108's chopper recipe, and a 300 mm/s /
   4000 mm/s² ceiling enforced by clamping `SET_VELOCITY_LIMIT` and `M204`.
 - **Its own printer in every slicer**, `SV Zero Precision 0.4n` (Orca: the
@@ -40,6 +40,11 @@ macro pack.
   0.20 first layer: 2 mm³/s through the normal ratios, outer walls at most
   45 mm/s, Prusa Core One 0.25 DETAIL accelerations, 3 walls, ironing, no
   z-hop, no TPU.
+- **And on the smaller nozzles**, `SV Zero Precision 0.3n`, `0.25n` and
+  `0.2n`: 0.04–0.08 mm on the 0.3 and 0.04–0.06 on the 0.25 and 0.2, the
+  0.4's 10–30% of the bore on whole Z steps. Each layer height runs the 0.4's
+  speeds and the same accelerations, with the small-nozzle first layer and
+  walls. Sliced, not printed.
 - **Selected by a file**, `svzero-mode-precision.cfg.off` beside the pack:
   rename it and restart Klipper. The firmware files end with
   `[include svzero-mode-*.cfg]`, so printer.cfg is not edited.

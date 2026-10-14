@@ -912,14 +912,22 @@ def apply_flow_model(model, ss):
         flow = fm["reference_flow"].get(tier)
         if not isinstance(flow, (int, float)):
             continue
+        # A mode authored on one nozzle runs that nozzle's speeds at each layer
+        # height on every other: its budget scales with the bore.
+        ref = (mode_of(model, tier)[1] or {}).get("flow_reference_nozzle")
+        if ref:
+            flow = flow * noz / float(ref)
         util = fm.get("flow_utilisation", {}).get(tier, 1.0)
         want = (flow * util) / (wr * noz * lh)
         limited = "flow"
         # A motion-limited nozzle can be anchored on a reference wall speed;
         # the cap is then that speed over our own perimeter ratio, so every
         # other feature keeps its proportion. See model.json small_nozzles.
+        # A machine mode's tier keeps its own accelerations under the mode's
+        # ceiling; the anchor's would exceed it.
         small = model.get("small_nozzles") or {}
-        anchor = small.get("motion_anchor") if noz < small.get("below", 0) else None
+        anchor = (small.get("motion_anchor")
+                  if noz < small.get("below", 0) and not mode_of(model, tier)[1] else None)
         noz_cap = cap
         if anchor:
             ratio = float(model["speed_model"]["ratios_of_base"]["perimeter_speed"].rstrip("%")) / 100
@@ -2567,8 +2575,11 @@ def emit_orca_vendor(model, ss, out_dir):
                 raise SystemExit("%s: expected one MODE=standard in the Orca start G-code" % m["name"])
             m["machine_start_gcode"] = g.replace("MODE=standard", "MODE=%s" % mode_name)
             tier = md["tiers"][0]
+            # The mode's default layer, or this nozzle's thickest below it.
+            default = min(md["default_layer"],
+                          max(layer_list(model["layer_heights"][noz].get(tier))))
             m["default_print_profile"] = "%smm %s @%s" % (
-                format(md["default_layer"], ".2f"), tier, m["name"])
+                format(default, ".2f"), tier, m["name"])
             fn = "%s.json" % m["name"]
             json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
             machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})

@@ -34,7 +34,11 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   0.04, `MODE=precision`, SCV 3 and no z-hop. On a 1.3.7 Zero the mode file was
   deployed and switched into and out of automatically: driver registers read
   back 64 microsteps and the chopper values, and both clamps held. One part was
-  printed in precision mode from the pre-generator prototype profiles.
+  printed in precision mode from the pre-generator prototype profiles. The
+  0.2, 0.25 and 0.3 precision printers were sliced in all three slicers (0.2 at
+  0.04, 0.25 at 0.06, 0.3 at 0.08, ABS): the 0.4's speeds at each layer height,
+  peak acceleration 4000, `MODE=precision`, SCV 3, nothing refused. None has
+  printed.
   1.4.x has not run it.
 - **Cooldown, offline:** the per-degree progress and time-left logic was
   replayed tick by tick on five recorded Zero2 cooldowns (1.5 and 2.5 °C/min,

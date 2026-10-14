@@ -39,11 +39,14 @@ class ReferenceAnchorTest(unittest.TestCase):
             for name in names:
                 flat = G.flatten(ps, name)
                 with self.subTest(preset=name):
-                    # A cap: where flow binds first (0.3 Standard) it runs slower.
-                    self.assertLessEqual(float(flat["perimeter_speed"]), ANCHOR["perimeter_speed"])
-                    for key in ("default_acceleration", "perimeter_acceleration",
-                                "external_perimeter_acceleration"):
-                        self.assertEqual(float(flat[key]), ANCHOR[key])
+                    # A machine mode's tier keeps its own accelerations; see
+                    # test_small_nozzle_precision_keeps_the_mode.
+                    if not name.endswith("(Precision)"):
+                        # A cap: where flow binds first (0.3 Standard) it runs slower.
+                        self.assertLessEqual(float(flat["perimeter_speed"]), ANCHOR["perimeter_speed"])
+                        for key in ("default_acceleration", "perimeter_acceleration",
+                                    "external_perimeter_acceleration"):
+                            self.assertEqual(float(flat[key]), ANCHOR[key])
                     self.assertAlmostEqual(float(flat["first_layer_height"]),
                                            float(SMALL["first_layer_height"].rstrip("%")) / 100 * float(noz))
                     self.assertEqual(flat["perimeters"], str(SMALL["perimeters"]))
@@ -54,6 +57,31 @@ class ReferenceAnchorTest(unittest.TestCase):
                     self.assertEqual(float(doc["default_acceleration"]), ANCHOR["default_acceleration"])
                     self.assertEqual(float(doc["inner_wall_acceleration"]), ANCHOR["perimeter_acceleration"])
                     self.assertEqual(float(doc["outer_wall_acceleration"]), ANCHOR["external_perimeter_acceleration"])
+                    self.assertEqual(doc["wall_loops"], str(SMALL["perimeters"]))
+
+    def test_small_nozzle_precision_keeps_the_mode(self):
+        # Every precision preset on a smaller nozzle runs the 0.4's accelerations
+        # and, at the same layer height, the 0.4's speeds, under the mode ceiling.
+        mode = MODEL["modes"]["precision"]
+        ps = G.parse_ini(ROOT / "bundles/SVZero_PrusaSlicer.ini")
+        keys = ("default_acceleration", "perimeter_acceleration", "external_perimeter_acceleration",
+                "infill_acceleration", "perimeter_speed", "infill_speed", "external_perimeter_speed")
+        for noz in self.small_nozzles():
+            self.assertIn(noz, mode["nozzles"])
+            for lh in MODEL["layer_heights"][noz]["Precision"]:
+                name = "print:SV Zero %sn - %.2fmm (Precision)" % (noz, lh)
+                ref = "print:SV Zero 0.4n - %.2fmm (Precision)" % lh
+                with self.subTest(preset=name):
+                    flat, want = G.flatten(ps, name), G.flatten(ps, ref)
+                    for key in keys:
+                        self.assertEqual(flat[key], want[key], key)
+                    self.assertLessEqual(float(flat["default_acceleration"]), mode["machine"]["max_accel"])
+                    self.assertEqual(flat["compatible_printers"], mode["printer"] % noz)
+            for lh in MODEL["layer_heights"][noz]["Precision"]:
+                path = ORCA / ("%.2fmm Precision @%s.json" % (lh, mode["orca_machine"] % noz))
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                with self.subTest(preset=doc["name"]):
+                    self.assertLessEqual(float(doc["default_acceleration"]), mode["machine"]["max_accel"])
                     self.assertEqual(doc["wall_loops"], str(SMALL["perimeters"]))
 
     def test_other_nozzles_keep_the_tier_ladder(self):

@@ -105,7 +105,11 @@
     "0.2": {
       "Fine": 0.05,
       "Optimal": 0.1,
-      "Standard": 0.15
+      "Standard": 0.15,
+      "Precision": [
+        0.04,
+        0.06
+      ]
     },
     "0.4": {
       "Fine": 0.1,
@@ -166,14 +170,24 @@
     "0.25": {
       "Fine": 0.06,
       "Optimal": 0.12,
-      "Standard": 0.18
+      "Standard": 0.18,
+      "Precision": [
+        0.04,
+        0.06
+      ]
     },
     "0.3": {
       "Fine": 0.08,
       "Optimal": 0.16,
-      "Standard": 0.22
+      "Standard": 0.22,
+      "Precision": [
+        0.04,
+        0.06,
+        0.08
+      ]
     },
-    "_note_small_nozzles": "0.25 and 0.3 added 2026-10-05 (operator). Same shape as the 0.2 ladder -- 25 / 50 / 75% of the bore -- snapped to whole Z full steps (0.02 mm: 4 mm lead, 200 steps), so no layer ends mid-step: 0.25 -> 0.06 / 0.12 / 0.18, 0.3 -> 0.08 / 0.16 / 0.22. For scale, Prusa's Core One 0.25 runs 0.05/0.07/0.12/0.15 and its 0.3 runs 0.12/0.16/0.20."
+    "_note_small_nozzles": "0.25 and 0.3 added 2026-10-05 (operator). Same shape as the 0.2 ladder -- 25 / 50 / 75% of the bore -- snapped to whole Z full steps (0.02 mm: 4 mm lead, 200 steps), so no layer ends mid-step: 0.25 -> 0.06 / 0.12 / 0.18, 0.3 -> 0.08 / 0.16 / 0.22. For scale, Prusa's Core One 0.25 runs 0.05/0.07/0.12/0.15 and its 0.3 runs 0.12/0.16/0.20.",
+    "_note_precision": "Precision on the small nozzles added 2026-10-14 (operator: 0.4 and below). The 0.4's band is 10-30% of the bore (0.04-0.12); the same band on whole Z full steps, floored at the precision printer's 0.04 minimum layer, gives 0.04/0.06 on the 0.2 and 0.25 and 0.04/0.06/0.08 on the 0.3."
   },
   "tier_gaps": {
     "_why": "Deliberate omissions, asserted by tools/validate-bundle.py so they cannot be mistaken for oversights.",
@@ -298,7 +312,8 @@
       "top_solid_infill_acceleration": 12000,
       "bridge_acceleration": 8000,
       "first_layer_acceleration": 3000
-    }
+    },
+    "_modes": "The motion anchor is for the standard printer's tiers. A machine mode's tier keeps its own accelerations, which on precision are Prusa Core One 0.25 DETAIL's under a 4000 mm/s^2 ceiling; the SV08 0.2 anchor's 20000 would exceed what the mode file allows. The first layer and wall rules apply to every tier."
   },
   "accel_model": {
     "_why": "Option B of notes/acceleration-tiers-2026-10-05.md, chosen by the operator 2026-10-06: keep the tier ramp, re-anchor it. Targets are absolute mm/s2 per feature. apply_accel_model writes them into the SuperSlicer-native master in its own relative form -- default and inner wall absolute, every other feature as a percentage of its chain base (ACCEL_REFERENCE) -- so SuperSlicer stays relative and PrusaSlicer/Orca resolve back to these exact numbers. check() refuses any feature that goes backwards along the ramp. Travel stays on its own 5000 policy.",
@@ -379,13 +394,19 @@
         "Precision"
       ],
       "nozzles": [
+        "0.2",
+        "0.25",
+        "0.3",
         "0.4"
       ],
-      "_nozzles_why": "0.4 only (operator, 2026-10-05): a nozzle swap is a hardware modification on the Zero.",
+      "_nozzles_why": "0.4 and below (operator, 2026-10-14), every nozzle the pack ships under the 0.4. It was 0.4 only from 2026-10-05, because a nozzle swap is a hardware modification on the Zero; the small nozzles were added to the standard printer the same day, and fine detail is what both are for.",
       "printer": "SV Zero Precision %sn",
       "orca_model": "SV Zero Precision",
       "orca_machine": "SV Zero Precision %s nozzle",
       "default_layer": 0.08,
+      "_default_layer_why": "Orca's default print profile for each precision machine: 0.08, or the nozzle's thickest precision layer where 0.08 is outside its band (0.06 on the 0.2 and 0.25).",
+      "flow_reference_nozzle": "0.4",
+      "_flow_reference_why": "The tier's 2 mm3/s is the 0.4's. On a smaller nozzle it scales with the bore, so each layer height runs the 0.4's speeds: held at 2 mm3/s, the 0.2 at 0.04 would ask 151 mm/s of its inner walls against the 0.4's 76, which is not a slow, quiet mode (2026-10-14, with the small-nozzle precision printers).",
       "machine": {
         "max_velocity": 300,
         "max_accel": 4000
