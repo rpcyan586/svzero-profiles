@@ -7,6 +7,28 @@ in this release: accelerations, walls, seams, square corner velocity and two
 new nozzle sizes, and a new precision mode. Fan defaults change in the optional
 macro pack.
 
+### Fixed: filament shrinkage was backwards in OrcaSlicer and SuperSlicer
+
+- **Parts came out smaller instead of larger.** 2.0.2-beta.1 and 2.0.3-beta.1
+  set `filament_shrink` to 100 plus the shrinkage, 100.8% for ABS. OrcaSlicer
+  and SuperSlicer read that number as the size a part measures once cooled, as
+  their tooltips say, and scale by 100 divided by it. So every part was shrunk
+  a further 0.8% rather than enlarged: undersized by about 1.6% for ABS, 1.4%
+  for PC, 1.2% for TPU, 0.8% for PETG and 0.6% for PLA. It is now 100 minus the
+  shrinkage: ABS 99.2%. Parts sliced in those two with 2.1.0 come out that much
+  larger than with the betas.
+- **PrusaSlicer was right and is unchanged in XY.** It takes the shrinkage
+  itself (`filament_shrinkage_compensation_xy`, 0.8% for ABS).
+- **Z is compensated too**, by the same figure, in OrcaSlicer
+  (`filament_shrinkage_compensation_z`) and PrusaSlicer. It was 0. SuperSlicer
+  has no Z compensation.
+- **The values are still nominal**, not measured on a Zero: PLA 0.3, PETG 0.4,
+  ABS 0.8, PC 0.7, TPU 0.6%.
+- How it was settled: OrcaSlicer's source divides by the setting; a 20 mm
+  cube sliced in SuperSlicer came out 21.8 mm at 90% and 17.8 mm at 110%; and
+  the same ABS part re-sliced in OrcaSlicer's GUI at 99.2% came out 1.6% larger
+  in X and Y than at 100.8%.
+
 ### Precision mode
 
 - **A second machine configuration for slow, quiet, fine-detail printing on the
@@ -113,7 +135,22 @@ macro pack.
   shown as percentages.
 - **The curtain fan, once on, stays on for the rest of the ramp**, at its floor
   or above (`curtain_hold`). It used to drop out a minute or so after coming on
-  and come back. The curtain assist remains off by default.
+  and come back.
+- **The curtain fan joins the assist by default.** Below the 60 °C ceiling it
+  adds to the exhaust once the exhaust alone cannot keep the bed on schedule.
+  It used to be off. `variable_curtain_enable: 0` in `_COOLDOWN_ASSIST_CFG` puts
+  the exhaust back on its own.
+- **Each fan counts for what it was measured to do.** On the test printer, with
+  the plate held at 80 °C, the curtain cooled it 1.3 to 3.4 times as hard as
+  the exhaust, most with the bed high in the box, where the curtain's jet hits
+  it. The assist splits its demand by that ratio at the plate's present height,
+  and in each fan's rpm rather than its PWM duty. The ratio used to be a
+  placeholder 1.0. `curtain_strength_factor` is now a trim on the measured
+  ratio.
+- **The ramp ends at the endpoint, with the fans at full to the last.** It
+  used to stop within 1 °C of it (`finish_tolerance`, now 0), and once the
+  schedule had run out the fans eased off as the plate closed in. Past the
+  schedule both fans now stay at their ceiling until the plate arrives.
 - **The ramp starts the moment the nozzle has cooled to the bed**, with its
   first one-degree step at once. Settling checks every 5 s instead of 15, and
   the first step used to come up to a minute later.
@@ -144,9 +181,34 @@ macro pack.
   now lay a narrower bead, down to 1.5 × the nozzle, so the same volume makes a
   lap and a half. At that floor, 1.2 and 1.4 lay a little more than their
   volume (71.5 and 102.5 mm³, against 70.5 and 82.9). 0.2 to 0.6 are unchanged.
+- **No start blob.** The filament retracted by the brush and by the last
+  print's end, plus the tip, used to be pushed back with the nozzle standing at
+  the ring's start, and that was the blob. It now goes back while the nozzle
+  arcs along the outer circle into the start, over as many half laps (up to 4)
+  as keep it no richer per mm than the ring. A 0.4 nozzle with 7 mm to return
+  takes one full lap.
 - **The purge geometry check now draws arcs as Klipper does**, across every
   nozzle and a grid of part positions. Its old arc measure assumed a full
-  circle where Klipper drew nothing.
+  circle where Klipper drew nothing. It also fails a purge that extrudes before
+  its first arc, or a prime that is richer than the ring or does not end at its
+  start.
+
+### Fewer macros in Mainsail's panel
+
+- **Seven macros now start with an underscore**, which keeps them out of
+  Mainsail's macro panel: `_CHAMBER_ON`, `_CHAMBER_OFF` (`M141` covers both),
+  `_BRUSH_STATUS`, `_BRUSH_TEACH`, `_PURGE_STATUS`, `_COOLDOWN_STATUS` and
+  `_COOLDOWN_CONFIG`. Type them in the console under the new names; the old
+  names are gone. Nothing a slicer sends was renamed, so files already sliced
+  are unaffected.
+
+### Licensing
+
+- **`NOTICE` states why the Sovol macro text is GPL-3.0.** Sovol's Zero
+  repository has no licence, but Sovol publishes the same macro family under
+  GPL-3.0 in its SV08 repository (commit `a60644875f8c`), and every Sovol line
+  in the pack is found there or is a macro name, a Klipper command, a pin, the
+  park position or a status message.
 
 ### Acceleration cap holds in SuperSlicer
 
