@@ -526,7 +526,9 @@ def check(path):
                       chamber_preheat=Mock(wipe_lead_seconds=70.0)))),
                   "save_variables": Mock(variables=Mock(dict(
                       printer.save_variables.variables,
-                      wipe_seconds_min=68.4, wipe_lead_autotune=1)))}),
+                      # 60 s, a round figure and no machine's: 0.8 of it is
+                      # 48, the lead the formula's own comment works through.
+                      **{"wipe_seconds_min": 60.0, "wipe_lead_autotune": 1})))}),
                 ("wipe-lead-configured", None, "S45", {}, {},
                  {"chamber_preheat": Mock(),
                   "configfile": Mock(settings=Mock(dict(
@@ -1263,7 +1265,7 @@ def check(path):
             ("gcode_macro M191", "tol-ignored"): ["TOL is not an M191 argument",
                                                   "CHAMBER_PREHEAT_WAIT MINIMUM=45.0"],
             ("gcode_macro M191", "wipe-lead-learned"):
-                "nozzle wipe starts 55 s before the chamber is due (configured 70 s, shortest wipe so far 68 s)",
+                "nozzle wipe starts 48 s before the chamber is due (configured 70 s, shortest wipe so far 60 s)",
             ("gcode_macro M191", "wipe-lead-configured"):
                 "nozzle wipe starts 70 s before the chamber is due",
             ("gcode_macro M191", "exact-minimum"): ["the chamber to reach 30.0C, the slicer's minimum",

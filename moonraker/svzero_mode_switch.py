@@ -19,8 +19,8 @@
 # job that keeps asking cannot ping-pong the printer. `SVZERO_MODE MODE=<name>`
 # asks for a switch with no file, and then nothing is started.
 #
-# It lives in Moonraker rather than in Klipper because the restart it performs
-# would end a Klipper extra halfway through. When Klipper becomes ready it sets
+# It is a Moonraker component, not a Klipper extra, because the restart it
+# performs would end a Klipper extra halfway through. When Klipper becomes ready it sets
 # _SVZERO_PACK.mode_switch, so installing it is the whole opt-in.
 #
 # INSTALL: copy this file to ~/moonraker/moonraker/components/, add
