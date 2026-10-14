@@ -19,7 +19,7 @@ Macro pack preset to maintain.
 | Install | What you gain | What happens without it |
 |---|---|---|
 | Slicer profiles only | Nozzle-scaled widths and tiers, material settings, configured supports, bed/nozzle waits and a priming skirt | Stock Sovol cleaning, calibration, mesh and end-of-print behavior. No pack chamber soak, spool check, positioned purge or controlled cooldown |
-| Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation and a bed cooldown ramp | The profiles still print using the stock path above |
+| Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation, a bed cooldown ramp and a 5–133 Hz input-shaper test | The profiles still print using the stock path above |
 | `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds optional bed boost and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover. `M191 R` above its target is refused, because waiting for it to cool needs the helper |
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
 | `svzero-mode-precision.cfg.off` in the pack directory | Precision mode on the 0.4, 0.3, 0.25 and 0.2 nozzles: 64 microsteps, 2.4 A, a 300 mm/s ceiling, and its own printer profile with layers from 0.04 mm. Switched by renaming the file and restarting Klipper ([docs/PRECISION.md](docs/PRECISION.md)) | Standard mode only. A job sliced for precision is refused before heating, with the file to rename |
@@ -176,6 +176,27 @@ spool, remembered temperature or configured default where supported. That is
 not a guarantee that arbitrary start G-code is compatible: it still needs bed
 and nozzle waits and sufficient priming, especially with the pack's wipe and
 end-retract bookkeeping.
+
+### Input shaping
+
+Sovol's resonance test sweeps 35–45 Hz. On a Zero the X axis resonates near
+61 Hz, outside that window, so the stock test returns about 40 Hz for X and
+shapes where there is almost no resonance. The macro pack widens the test to
+5–133 Hz (`[resonance_tester]`), which also fixes the front screen's
+**Setup → Resonances**. It sets the shaper's damping to 0.1, the value the fit
+assumes, in place of Sovol's 0.001. On 1.3.7 it also corrects the
+accelerometer's axis mapping, which Sovol fixed in 1.3.8.
+
+- `SVZERO_SHAPER_CALIBRATE` homes if needed, sweeps X then Y (or `AXIS=X`),
+  applies the result and reminds you to `SAVE_CONFIG`. About two minutes per
+  axis. It is refused in precision mode and during a job.
+- `SVZERO_SHAPER_TYPICAL` applies typical measured Zero values (X mzv 62.5 Hz,
+  Y mzv 46.5 Hz) until Klipper restarts, for a printer that has not been
+  calibrated yet.
+
+The pack does not set a shaper type or frequency itself. `SAVE_CONFIG` refuses
+to save a value that an include also sets, and an included value would hide
+your own calibration, so your printer.cfg keeps what you measure.
 
 ## 3. Optional Python enhancements
 
