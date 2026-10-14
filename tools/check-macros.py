@@ -194,7 +194,7 @@ def check(path):
                              assist_curtain=0.0, assist_exhaust=0.0,
                              ch_written=32.0))
     settings.setdefault("gcode_macro _COOLDOWN_CFG",
-                        Mock(final=35.0, chamber_rate=1.5, bed_rate=3.0,
+                        Mock(final=35.0, chamber_rate=1.5, bed_rate=2.0,
                              chamber_step=1.0, deadband=2.0, settle_min=180,
                              settle_max=600, settle_slope=0.5, settle_tick=5,
                              park_z=100.0, max_seconds=5400, coast_delta=5.0,
@@ -1366,9 +1366,10 @@ def check(path):
             ("gcode_macro _COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to do, the bed is already at or below 35C",
             # One bed rate for every material (2026-10-12): 110 C to 35 C at
-            # the published 3 C/min is 25 min, and no material was named.
+            # the published 2 C/min (2026-10-13) is 37.5 min, shown as 38, and
+            # no material was named.
             ("gcode_macro _COOLDOWN_START", "bed-only"):
-                ["bed 110C to 35C at 3.0C/min, 25 min on schedule (no material named)",
+                ["bed 110C to 35C at 2.0C/min, 38 min on schedule (no material named)",
                  "holding the bed at 110C until the nozzle cools to it, at most 10 min",
                  "VARIABLE=last_degree VALUE=110"],
             ("gcode_macro _COOLDOWN_TICK", "settle-hold"): "DURATION=5",

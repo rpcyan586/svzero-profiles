@@ -123,10 +123,13 @@ macro pack.
 
 ### Cooldown: one rate, one line per degree
 
-- **The bed cools at 3 °C/min for every material.** The material table used to
+- **The bed cools at 2 °C/min for every material.** The material table used to
   set its own rate, 1.0 to 5.0 °C/min; it now sets only the endpoint (30 °C for
-  PLA, 35 °C otherwise). `variable_bed_rate` in `_COOLDOWN_CFG` changes it,
-  and `COOLDOWN_ARM BED_RATE=` still overrides one print.
+  PLA, 35 °C otherwise). 2 °C/min is about as fast as the plate can still fall
+  near the endpoint with both fans at full on the test printer: at 3 it fell
+  behind from about 50 °C and finished 2.5 minutes late. `variable_bed_rate` in
+  `_COOLDOWN_CFG` changes it, and `COOLDOWN_ARM BED_RATE=` still overrides one
+  print.
 - **One console line per degree of bed**, every degree, instead of one a
   minute. Re-sampled once a minute, the recorded ABS cooldowns skipped 19 of
   their 65 degrees. The prefix is `cooldown:` rather than `cool`, so a line

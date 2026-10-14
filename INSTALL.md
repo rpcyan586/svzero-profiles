@@ -156,7 +156,7 @@ the qualified nozzle method. An unattainable chamber minimum still needs to be
 changed or the job cancelled; missing Python is not permission to ignore the
 requested minimum.
 
-The native cooldown ramps the **bed target** down at 3 °C/min to 35 °C (30 °C
+The native cooldown ramps the **bed target** down at 2 °C/min to 35 °C (30 °C
 for PLA), with one console line per degree; the public chamber-rate settings
 are zero on a heaterless Zero. When the bed falls behind the schedule, the
 exhaust fan helps it down. Once the exhaust is at full, the curtain fan (`fan2`)

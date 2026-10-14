@@ -42,19 +42,17 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   the two that kept to schedule and 7 to 14 min short at the end of the three
   that ran over. The fan blend renders on Jinja 2.11.3 against an independent
   model of its arithmetic at three plate heights.
-- **Cooldown, on a printer:** the published default, 3 °C/min with the
-  curtain, ran once on a 1.3.7 Zero after an ABS print, 90 → 35 °C with the
-  plate at Z 23.7. It held the schedule within 0.5 °C down to 75 °C. Below
-  that it ran 1–2 °C behind: from 75 to 60 °C the exhaust alone was at full
-  while the curtain waited for its 60 °C ceiling, and near room temperature
-  both fans were at full. It reached 36 °C 83 s after the schedule ended and
-  stopped at 35.6 °C with the fans easing off. Two things were changed after
-  that run and have been checked only by rendering: the ending, now 35.0 °C
-  with the fans at full, and when the curtain comes in, now once the exhaust is
-  at full at any bed temperature, where it was held off above 60 °C. A third,
-  a tick that scales with the rate, answers the exhaust's one-minute swing on
-  that run; a simulation calibrated on it was used to compare the options, and
-  it has been rendered, not run.
+- **Cooldown, on a printer:** two ABS ramps on a 1.3.7 Zero, plate at Z 24.
+  The first, at 3 °C/min with the curtain held off above 60 °C, fell 1–2 °C
+  behind below 75 °C, stopped at 35.6 °C with the fans easing off, and its
+  exhaust hunted between 50 and 80 % on a one-minute cycle. The second, with
+  the fixes since (the curtain in once the exhaust is at full, the run to
+  35.0 °C at full, a tick scaled to the rate), held the schedule to 60 °C,
+  finished at 35.0 °C 147 s late, and its exhaust wandered about half as much.
+  With both fans at full the plate could fall 2.0 °C/min at 39 °C and 1.4 at
+  36 °C in both runs, so the published rate is 2 °C/min, which holds to about
+  39 °C on a short part. It has not been run at 2 °C/min, and taller parts,
+  with a weaker curtain, are predicted to fall behind sooner.
 - **Preheat release:** the bed's fall after an early release was measured on
   the two waits that had one, 80 and 84 s for 120 → 100.5 °C, and the learned
   rate that replaces the fixed 5 °C/min is covered by five offline tests,
