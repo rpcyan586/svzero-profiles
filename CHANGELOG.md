@@ -152,6 +152,12 @@ macro pack.
   and in each fan's rpm rather than its PWM duty. The ratio used to be a
   placeholder 1.0. `curtain_strength_factor` is now a trim on the measured
   ratio.
+- **Steadier fans.** On the test printer at 3 °C/min the exhaust swung
+  between about 50 and 80 % on a one-minute cycle before it reached full: the
+  bed target steps a degree at a time but only on the 15 s tick, so every
+  third degree was held twice as long, and the fan chased that. The fan
+  controller's proportional part now reacts to a 30 s average of the error
+  (`assist_p_smooth`).
 - **The ramp ends at the endpoint, with the fans at full to the last.** It
   used to stop within 1 °C of it (`finish_tolerance`, now 0), and once the
   schedule had run out the fans eased off as the plate closed in. Past the
