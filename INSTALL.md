@@ -159,9 +159,9 @@ requested minimum.
 The native cooldown ramps the **bed target** down at 3 °C/min to 35 °C (30 °C
 for PLA), with one console line per degree; the public chamber-rate settings
 are zero on a heaterless Zero. When the bed falls behind the schedule, the
-exhaust fan helps it down. Below 60 °C the curtain fan (`fan2`) adds to it once
-the exhaust alone is not enough, weighted by how hard each fan was measured to
-cool the plate at its present height.
+exhaust fan helps it down. Once the exhaust is at full, the curtain fan (`fan2`)
+takes over part of the load and then adds to it, weighted by how hard each fan
+was measured to cool the plate at its present height.
 `variable_curtain_enable: 0` in `_COOLDOWN_ASSIST_CFG` leaves the exhaust on its
 own. These policies and rates are starting points, not measured guarantees
 against warping. `_COOLDOWN_CONFIG ENABLE=0` disables the ramp;

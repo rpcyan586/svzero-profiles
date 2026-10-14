@@ -136,10 +136,15 @@ macro pack.
 - **The curtain fan, once on, stays on for the rest of the ramp**, at its floor
   or above (`curtain_hold`). It used to drop out a minute or so after coming on
   and come back.
-- **The curtain fan joins the assist by default.** Below the 60 °C ceiling it
-  adds to the exhaust once the exhaust alone cannot keep the bed on schedule.
-  It used to be off. `variable_curtain_enable: 0` in `_COOLDOWN_ASSIST_CFG` puts
-  the exhaust back on its own.
+- **The curtain fan joins the assist by default, once the exhaust is at
+  full.** It comes in at its lowest speed while the exhaust gives back the same
+  amount of cooling, so the handover is smooth; above that the exhaust returns
+  to full first and the curtain carries the rest. It used to be off, and
+  when switched on it was kept off above a 60 °C bed and came in early, at a
+  low combined demand. A faster ramp can now use the curtain at any bed
+  temperature; `variable_bed_ceiling` puts a temperature limit back.
+  `variable_curtain_enable: 0` in `_COOLDOWN_ASSIST_CFG` leaves the exhaust on
+  its own.
 - **Each fan counts for what it was measured to do.** On the test printer, with
   the plate held at 80 °C, the curtain cooled it 1.3 to 3.4 times as hard as
   the exhaust, most with the bed high in the box, where the curtain's jet hits
