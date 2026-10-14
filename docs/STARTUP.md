@@ -10,7 +10,7 @@ early temperature commands and the final hotend heat/purge.
 |---|---|
 | Profiles on stock Sovol 1.3.7 or 1.4.x | Slicer bed/nozzle waits plus stock cleaning, calibration and mesh. Missing optional commands warn and continue. The minimum skirt provides fallback priming. |
 | Profiles plus the firmware-matched macro pack | The sequence below, including material-aware cleaning, native rear-sensor chamber wait and positioned purge. |
-| Pack plus optional host helpers | `chamber_preheat` can qualify the unheated, stirred nozzle as an air observer and provide prediction/optional boost. Spool checks and camera tuning are separate optional integrations. |
+| Pack plus optional host helpers | `chamber_preheat` can qualify the unheated, stirred nozzle as an air observer, predict readiness, and run bed boost, which is on by default. Spool checks and camera tuning are separate optional integrations. |
 
 See [Installation](../INSTALL.md) for setup, brush-geometry checks and fallback
 limits. These are source behaviors, not a statement about a particular printer's

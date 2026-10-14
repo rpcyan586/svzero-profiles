@@ -69,9 +69,9 @@ With the printer idle, restart the **Klipper service** to load the Python module
 Do not enable the include before installing all three modules; configured
 Python sections with missing modules prevent Klipper from starting.
 
-Adaptive preheat qualifies the stirred nozzle as a chamber-air observer. Optional
-boost/early handover is bounded; generated profiles do not enable bed boost by
-default. A failed qualification or timeout remains an error. Spool guard checks
+Adaptive preheat qualifies the stirred nozzle as a chamber-air observer. Bed boost
+is on by default when the helper is installed; M191 ... BOOST=0 turns it off for
+one wait. Early handover is bounded. A failed qualification or timeout remains an error. Spool guard checks
 the active Spoolman spool before heating: absent integration is skipped with a
 notice, while insufficient material or a configured integration's failure refuses
 the print. See the consolidated config's comments for its explicit retry override.

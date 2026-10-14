@@ -40,11 +40,11 @@
     },
     "svzero-python.cfg": {
       "sources": {
-        "klipper/config/chamber_preheat.cfg": "ca7c6c1ffcd5412675b085eb4567672696dfc91f5d2aede397955a4f4531e42e",
+        "klipper/config/chamber_preheat.cfg": "c4efe1378dcfb23fabd134d7e6697d5751e8ba454c40148dd5840bb8ae97e6f9",
         "klipper/config/spool_guard.cfg": "80f97bacb2fbaa83cc7b8d267266cdf482d5d95df9537eb26978545beb2c000e",
         "klipper/config/svzero-python.cfg": "89b6017542db36657d5266ee90d36c4a715c3d282c39935adf4ac128f2267071"
       },
-      "sha256": "09d624fb82589f4dcb962dd05e014e8dabf33c46ceb580620e01adca30483af4"
+      "sha256": "b62ba7e90aaa405763aff7afc4eb6551d538b861d2b909212f1a89acf26cceac"
     }
   }
 }
