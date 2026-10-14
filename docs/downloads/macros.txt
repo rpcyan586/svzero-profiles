@@ -39,15 +39,15 @@ layout; those files are already consolidated and are not extra installation step
 
 Recheck that the printer is idle immediately before restarting Klipper;
 a restart aborts an active print. Before printing, review the brush geometry
-in the consolidated file's `nozzle_brush.cfg` section. Use `BRUSH_STATUS` and
-its documented `BRUSH_TEACH`/dry-run procedure to commission your own clearances.
+in the consolidated file's `nozzle_brush.cfg` section. Use `_BRUSH_STATUS` and
+its documented `_BRUSH_TEACH`/dry-run procedure to commission your own clearances.
 The supplied pad bounds were measured on one machine, not guaranteed for yours.
 
 The native pack adds chamber exhaust regulation, a rear-sensor chamber wait,
 material-aware wiping, positioned purge, cancellation and a bed cooldown ramp.
 Without Python, there is no nozzle-air qualification, bed boost or early handover.
 An unreachable chamber minimum still requires changing the request or cancelling.
-The cooldown ramp changes the bed target; `COOLDOWN_CONFIG ENABLE=0` disables it.
+The cooldown ramp changes the bed target; `_COOLDOWN_CONFIG ENABLE=0` disables it.
 `COOLDOWN_ABORT` stops the ramp without turning heaters off; use `CANCEL_PRINT`
 for shutdown and cancellation.
 

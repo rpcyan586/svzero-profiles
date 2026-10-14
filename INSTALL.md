@@ -132,8 +132,8 @@ Restart only while the printer is idle; restarting aborts a print. Validate chan
 with `tools/check-macros.py` in the target's Jinja environment before deployment.
 
 Review the brush geometry before using the replacement wipe. `klipper/config/nozzle_brush.cfg`
-contains pad bounds measured on the author's machine; use `BRUSH_STATUS` and the
-file's documented `BRUSH_TEACH` / dry-run procedure to check your own machine.
+contains pad bounds measured on the author's machine; use `_BRUSH_STATUS` and the
+file's documented `_BRUSH_TEACH` / dry-run procedure to check your own machine.
 Adding the pack is not a substitute for checking physical clearances.
 
 ### Native fallback and its limits
@@ -160,8 +160,8 @@ The native cooldown ramps the **bed target** down at 3 °C/min to 35 °C (30 °C
 for PLA), with one console line per degree; the public chamber-rate settings
 are zero on a heaterless Zero. Exhaust assist is available; curtain-fan
 cooldown assist is **off by default**. These policies and rates are starting
-points, not measured guarantees against warping. `COOLDOWN_CONFIG ENABLE=0`
-disables the ramp; `COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp
+points, not measured guarantees against warping. `_COOLDOWN_CONFIG ENABLE=0`
+disables the ramp; `_COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp
 without turning heaters off; use `CANCEL_PRINT` for shutdown and cancellation.
 
 With another slicer's profile, missing material information falls back to the

@@ -32,7 +32,7 @@ Two lessons are baked in, both learned the expensive way:
 * **Assert which branch a scenario reached.** Jinja evaluates only the branch it
   takes, so a scenario that quietly lands in the wrong one renders clean and
   proves nothing: the branch it was written FOR is still unrendered. That is the
-  PURGE_STATUS lesson below, one level up, and it was live here — a
+  _PURGE_STATUS lesson below, one level up, and it was live here — a
   _CHAMBER_GUARD scenario spent its whole existence rendering an empty macro
   body, because the macro sits behind `running == 1` and the scenario never set
   it. The `expect` / `forbid` tables name a string the output must or must not
@@ -47,7 +47,7 @@ Two lessons are baked in, both learned the expensive way:
 
 * **Render, do not just parse.** Parsing catches syntax; it does not catch a
   variable referenced before it is set, or one left behind by a rename. Both have
-  shipped from this repo -- PURGE_STATUS kept referencing a removed `volume`
+  shipped from this repo -- _PURGE_STATUS kept referencing a removed `volume`
   through several commits because only PURGE_LINE was ever rendered.
 
 Missing printer state resolves to Undefined rather than raising, matching how
@@ -82,7 +82,7 @@ def klipper_params(name, rawparams):
     """Build `params` exactly as Klipper's dispatcher would for this command.
 
     This matters, and modelling it by hand did not work. A traditional name --
-    a letter then a digit, so M191 but not CHAMBER_ON -- never receives
+    a letter then a digit, so M191 but not _CHAMBER_ON -- never receives
     extended KEY=VALUE parsing. _process_commands splits the line on ARGS_R and
     keeps whatever text follows each key, so `STIR=1` becomes the string "=1"
     and "=1"|float is 0.0. Fixtures that supplied a clean "1" tested an input
@@ -554,7 +554,7 @@ def check(path):
             ]
 
         # cooldown.cfg carries two actuator models and four phases, and an
-        # unrendered branch is an unvalidated one -- the PURGE_STATUS lesson in
+        # unrendered branch is an unvalidated one -- the _PURGE_STATUS lesson in
         # the docstring above. These scenarios patch the `printer` object
         # itself, which no earlier scenario needed: the chamber heater's
         # presence IS the branch, and _COOL_STATE has to be replaced wholesale
@@ -1125,7 +1125,7 @@ def check(path):
             ]
             if s == "gcode_macro _CHAMBER_AUTOSTART":
                 # The three ways a print can arrive here, which differ only in
-                # _CH_STATE and previously all ended in the same CHAMBER_ON.
+                # _CH_STATE and previously all ended in the same _CHAMBER_ON.
                 scenarios += [
                     ("declined", params, "S40",
                      {"requested": 1, "control_declined": 1}, {}, {}),
@@ -1294,7 +1294,7 @@ def check(path):
             ("gcode_macro _COOLDOWN_START", "heater"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             ("gcode_macro _COOLDOWN_START", "chamber-rate-ignored"):
                 ["chamber rate 1.0C/min ignored", "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER"],
-            ("gcode_macro _COOLDOWN_TAKE_OVER", ""): "CHAMBER_OFF",
+            ("gcode_macro _COOLDOWN_TAKE_OVER", ""): "_CHAMBER_OFF",
             ("gcode_macro _COOLDOWN_START", "bed-only"): "UPDATE_DELAYED_GCODE ID=COOLDOWN_TIMER",
             ("gcode_macro _COOLDOWN_START", "nothing-to-do"): "nothing to do, the bed is already at or below 35C",
             # One bed rate for every material (2026-10-12): 110 C to 35 C at
@@ -1456,16 +1456,16 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "assist-drives-exhaust"): "SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0",
             ("gcode_macro _COOLDOWN_TICK", "assist-no-chamber-sensor"): "SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0",
             # Paired with the forbid below: this proves the scenario really did
-            # schedule a ramp, so "no CHAMBER_ON" means the guard worked rather
+            # schedule a ramp, so "no _CHAMBER_ON" means the guard worked rather
             # than that the macro took some other branch entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"):
                 ["fan assist off", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
             ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
             ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
             ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
-            ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"): "CHAMBER_OFF",
+            ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"): "_CHAMBER_OFF",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
-            ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "CHAMBER_OFF",
+            ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "_CHAMBER_OFF",
             ("gcode_macro _CHAMBER_AUTOSTART", "cooldown-installed"): "COOLDOWN_ABORT",
             # M141 S0 is a decision and must be recorded as one; any positive
             # target must clear that record rather than inherit it.
@@ -1586,8 +1586,8 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "ramp-heaterless"): "ch_target",
                   ("gcode_macro _COOLDOWN_TICK", "ramp-heater"): "chamber_heater",
                   ("gcode_macro _COOLDOWN_TICK", "chamber-target-ignored"): "_COOLDOWN_",
-                  ("gcode_macro _COOLDOWN_TICK", "assist-drives-exhaust"): ["ch_target", "CHAMBER_ON"],
-                  ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"): ["ch_target", "CHAMBER_OFF"],
+                  ("gcode_macro _COOLDOWN_TICK", "assist-drives-exhaust"): ["ch_target", "_CHAMBER_ON"],
+                  ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"): ["ch_target", "_CHAMBER_OFF"],
                   # The vent timer writes nothing while a ramp owns the exhaust.
                   ("gcode_macro _CHAMBER_VENT", "ramp-owns-exhaust"): "SET_FAN_SPEED",
                   # The ratchet must not rise: no write of the minimum at all.
@@ -1618,7 +1618,7 @@ def check(path):
                   ("gcode_macro _COOLDOWN_TICK", "assist-engage"): "FAN=fan2",
                   # A ramp with no chamber leg must never start the loop against
                   # the zero it carries -- that is a full-speed exhaust draft.
-                  ("gcode_macro _COOLDOWN_START", "bed-only"): "CHAMBER_ON",
+                  ("gcode_macro _COOLDOWN_START", "bed-only"): "_CHAMBER_ON",
                   # The new-print abort must not erase the policy that print
                   # armed for itself behind the same blocking wait.
                   ("gcode_macro _COOLDOWN_TICK", "abort-new-print"): "VARIABLE=policy_set VALUE=0",
@@ -1666,12 +1666,12 @@ def check(path):
                   ("gcode_macro _CHAMBER_AUTOSTART", "cooldown-absent"): "COOLDOWN_ABORT",
                   # The whole point of the declined branch: the loop must not
                   # start, and no ceiling may be inferred behind the request.
-                  ("gcode_macro _CHAMBER_AUTOSTART", "declined"): "CHAMBER_ON",
+                  ("gcode_macro _CHAMBER_AUTOSTART", "declined"): "_CHAMBER_ON",
                   ("gcode_macro _CHAMBER_AUTOSTART", "inferred"):
                       "as requested by the slicer",
                   ("gcode_macro M141", "declined"):
                       "VARIABLE=control_declined VALUE=0",
-                  ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "CHAMBER_OFF",
+                  ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "_CHAMBER_OFF",
                   ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
