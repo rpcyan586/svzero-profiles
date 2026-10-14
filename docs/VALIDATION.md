@@ -55,6 +55,11 @@ vendor `2.1.0`, Orca `02.01.00.00`.
   a tick that scales with the rate, answers the exhaust's one-minute swing on
   that run; a simulation calibrated on it was used to compare the options, and
   it has been rendered, not run.
+- **Preheat release:** the bed's fall after an early release was measured on
+  the two waits that had one, 80 and 84 s for 120 → 100.5 °C, and the learned
+  rate that replaces the fixed 5 °C/min is covered by five offline tests,
+  including a fall timed after the wait has handed over. Not yet run on a
+  printer.
 - **Purge ring:** the rolled prime ran on the same print (0.4 nozzle, ABS):
   7.0 mm returned over 2 half laps, 0.117 mm of filament per mm against the
   ring's 0.186, with no extrusion before the first arc. The operator found

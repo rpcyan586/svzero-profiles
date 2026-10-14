@@ -41,11 +41,33 @@ MODULE = _load("chamber_preheat")
 
 
 class FakeReactor:
+    NEVER = 9999999999999999.
+
     def __init__(self):
         self.now = 0.0
+        self.timers = []
 
     def monotonic(self):
         return self.now
+
+    def register_timer(self, callback, waketime):
+        timer = [callback, waketime]
+        self.timers.append(timer)
+        return timer
+
+    def unregister_timer(self, timer):
+        if timer in self.timers:
+            self.timers.remove(timer)
+
+    def run_timers(self, until):
+        """Fire due timers in time order until `until` or none is due."""
+        while True:
+            due = [t for t in self.timers if t[1] <= until]
+            if not due:
+                return
+            timer = min(due, key=lambda t: t[1])
+            self.now = timer[1]
+            timer[1] = timer[0](timer[1])
 
     def pause(self, waketime):
         self.now = waketime
@@ -103,6 +125,13 @@ class FakeGcode:
 
     def register_command(self, name, callback, desc=None):
         self.commands[name] = callback
+
+    def respond_info(self, message):
+        self.responses = getattr(self, "responses", [])
+        self.responses.append(message)
+
+    def run_script(self, script):
+        self.run_script_from_command(script)
 
     def run_script_from_command(self, script):
         self.scripts.append(script)
@@ -752,8 +781,10 @@ class ChamberPreheatPolicyTest(unittest.TestCase):
         self.assertEqual(slow.bed_eta, fast.bed_eta)
 
     def test_the_release_rate_estimates_and_does_not_command(self):
-        # bed_release_rate exists only to turn a held boost into a reported
-        # ETA. Changing it must not move a single bed command.
+        # Without a learned ETA nothing is released early, so bed_release_rate
+        # only turns a held boost into a reported ETA there. Changing it must
+        # not move a single bed command. (With one, it sizes the release; see
+        # LearnedBedFallTest.)
         a = self._cold_start(config_values={
             "boost_policy": "hold", "bed_release_rate": 1.0})[2]
         b = self._cold_start(config_values={
@@ -1488,6 +1519,118 @@ class LearnedEtaTest(unittest.TestCase):
         first = next(m for m in gcmd.responses if "nozzle settled at" in m)
         self.assertNotIn("past waits", first)
         self.assertFalse(any(s.startswith("SAVE_VARIABLE") for s in gcode.scripts))
+
+
+class SlewingBed(FakeHeater):
+    """A bed that heats at once but cools toward its target at a fixed rate,
+    so a released boost takes measurable time to fall."""
+
+    def __init__(self, reactor, fall_rate, **kw):
+        FakeHeater.__init__(self, reactor, **kw)
+        self.fall_rate = fall_rate
+        self.temp = self.target
+        self.at = 0.0
+
+    def _advance(self, eventtime):
+        dt = max(eventtime - self.at, 0.0) / 60.0
+        self.at = eventtime
+        if self.target >= self.temp:
+            self.temp = self.target
+        else:
+            self.temp = max(self.target, self.temp - self.fall_rate * dt)
+
+    def get_temp(self, eventtime):
+        self._advance(eventtime)
+        return self.temp, self.target
+
+    def set_temp(self, target):
+        self._advance(self.reactor.now)
+        FakeHeater.set_temp(self, target)
+        if target >= self.temp:
+            self.temp = target
+
+
+class LearnedBedFallTest(unittest.TestCase):
+    """The released plate's fall rate, learned per printer (2026-10-13)."""
+
+    PROFILE = {"ch_eta_profile": [[k, 1.2 * k] for k in range(1, 21)],
+               "ch_eta_waits": 4}
+
+    @staticmethod
+    def _approach(seconds):
+        return 50.0 - 25.0 * math.exp(-seconds / 600.0)
+
+    def _wait(self, saved, fall_rate, extra=None):
+        values = {"boost_policy": "hold", "max_bed_temp": 124.0}
+        values.update(extra or {})
+        ctl, reactor, unused_bed, gcode, fan = controller(
+            lambda seconds: self._approach(seconds) - 1.0, bed_max=150.0,
+            config_values=values)
+        bed = SlewingBed(reactor, fall_rate, max_temp=150.0, initial_target=65.0)
+        ctl.heaters.objects["heater_bed"] = bed
+        if saved is not None:
+            ctl.printer.save_variables = FakeSaveVariables(saved)
+        gcmd = FakeGcmd(MINIMUM=40.0, BED_TARGET=100.0)
+        ctl.cmd_CHAMBER_PREHEAT_WAIT(gcmd)
+        return ctl, reactor, bed, gcode, gcmd
+
+    @staticmethod
+    def _saved(gcode, name):
+        for script in gcode.scripts:
+            for line in script.splitlines():
+                if line.startswith("SAVE_VARIABLE VARIABLE=%s " % name):
+                    return float(line.split("VALUE=")[1])
+        return None
+
+    def _released_at(self, bed):
+        peak = max(t for unused, t in bed.commands)
+        return next(when for when, t in bed.commands if t < peak - 5.0 and when > 0.0)
+
+    def test_a_release_is_timed_and_saved(self):
+        ctl, reactor, bed, gcode, gcmd = self._wait(dict(self.PROFILE), 12.0)
+        rate = self._saved(gcode, "ch_bed_fall_rate")
+        # 19.5 C to the carry, landing counted within 0.5 of it: 19 C at
+        # 12 C/min, so 19.5 C over that time reads a touch over 12.
+        self.assertIsNotNone(rate, gcode.scripts)
+        self.assertAlmostEqual(rate, 12.0 * 19.5 / 19.0, delta=0.4)
+        self.assertEqual(self._saved(gcode, "ch_bed_fall_waits"), 1)
+        self.assertTrue(any("not yet measured here" in m for m in gcmd.responses),
+                        gcmd.responses)
+
+    def test_a_new_fall_blends_into_the_old_at_the_learning_weight(self):
+        saved = dict(self.PROFILE, ch_bed_fall_rate=6.0, ch_bed_fall_waits=3)
+        ctl, reactor, bed, gcode, gcmd = self._wait(saved, 12.0)
+        observed = 12.0 * 19.5 / 19.0
+        self.assertAlmostEqual(self._saved(gcode, "ch_bed_fall_rate"),
+                               6.0 + 0.33 * (observed - 6.0), delta=0.2)
+        self.assertEqual(self._saved(gcode, "ch_bed_fall_waits"), 4)
+        self.assertTrue(any("it falls 6.0 C/min here, from 3 waits" in m
+                            for m in gcmd.responses), gcmd.responses)
+
+    def test_a_faster_learned_fall_releases_later(self):
+        slow = self._released_at(self._wait(dict(self.PROFILE), 14.0)[2])
+        fast = self._released_at(self._wait(
+            dict(self.PROFILE, ch_bed_fall_rate=14.0, ch_bed_fall_waits=2), 14.0)[2])
+        # 19.5 C at 5 C/min is 3.9 min of descent; at 14 C/min, 1.4 min, so
+        # 150 s later, less the wait's update step.
+        self.assertGreaterEqual(fast - slow, 90.0, (slow, fast))
+
+    def test_a_fall_still_under_way_at_the_handover_is_timed_to_its_end(self):
+        # A wipe lead hands over before the plate lands: the boost is still
+        # held with no learned ETA, so the plate starts down only at the
+        # handover, and a reactor timer has to finish the measurement.
+        ctl, reactor, bed, gcode, gcmd = self._wait(
+            {}, 10.0, extra={"wipe_lead_seconds": 60.0, "bed_wait": False})
+        self.assertIsNone(self._saved(gcode, "ch_bed_fall_rate"), gcode.scripts)
+        self.assertTrue(reactor.timers, "no timer left to finish the fall")
+        reactor.run_timers(reactor.now + 600.0)
+        rate = self._saved(gcode, "ch_bed_fall_rate")
+        self.assertIsNotNone(rate, gcode.scripts)
+        self.assertAlmostEqual(rate, 10.0, delta=1.0)
+
+    def test_nothing_is_learned_without_save_variables(self):
+        ctl, reactor, bed, gcode, gcmd = self._wait(None, 12.0)
+        self.assertIsNone(self._saved(gcode, "ch_bed_fall_rate"))
 
 
 if __name__ == "__main__":

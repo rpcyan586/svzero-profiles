@@ -566,13 +566,27 @@ class ChamberPreheat:
         # released and falls at whatever passive loss gives, which the measured
         # curve puts near 5 C/min up there against the 1 C/min it was being
         # walked down at. See notes/data/cooldown/zero2-passive-decay-20260903.md.
-        # Passive fall rate used ONLY to report a bed ETA under the "hold"
-        # policy. It estimates, it does not command: nothing schedules the
-        # descent there. 5 C/min is the measured plate loss near print
-        # temperature, not a design constant.
+        # HOW FAST A RELEASED PLATE FALLS. It sizes the early release -- the
+        # boost is let go once the chamber is due within the fall plus
+        # bed_lead_seconds -- and the bed ETA. LEARNED since 2026-10-13
+        # (operator: "it should be adaptive, because of unit to unit
+        # variability and different conditions"): each wait times the plate
+        # from its release to within bed_ready_tolerance of where it lands, and
+        # folds that rate into save_variables `ch_bed_fall_rate` at
+        # eta_learn_weight. A fall still under way when the wait hands over is
+        # timed to its end by a reactor timer. This setting is only the
+        # starting value for a printer that has measured none.
+        #
+        # It was the only value until then, and 2.8 times too slow: 5 C/min is
+        # passive loss near print temperature with nothing stirring, but
+        # Zero2's plate fell 120 -> 100.5 C in 80 and 84 s with the part fan
+        # stirring, about 14 C/min. Both releases that day came 7.5 and 5.8 min
+        # before the soak ended instead of about 2.4, and for the rest of each
+        # the chamber's climb fell from 1.5 and 1.2 C/min to 0.55 and 0.43.
         self.bed_release_rate = config.getfloat(
             "bed_release_rate", 5.0, above=0.0
         )
+        self.bed_fall_learn = config.getboolean("bed_fall_learn", True)
         self.boost_policy = config.getchoice(
             "boost_policy", {"hold": "hold", "eta": "eta"}, "hold"
         )
@@ -844,6 +858,12 @@ class ChamberPreheat:
         self.hold_minutes = 0.0
         self.fall_minutes = 0.0
         self.stir = 0.0
+        # The learned fall of a released plate (C/min, None until measured),
+        # and the fall being timed now: (eventtime, bed temp, landing target).
+        self.bed_fall_rate = None
+        self.bed_fall_waits = 0
+        self.fall_start = None
+        self.fall_watch = None
         self.gcode.register_command(
             "CHAMBER_PREHEAT_WAIT",
             self.cmd_CHAMBER_PREHEAT_WAIT,
@@ -1050,6 +1070,76 @@ class ChamberPreheat:
         except Exception:
             logging.exception("chamber_preheat: could not save the ETA profile")
 
+    def _load_bed_fall(self):
+        """The learned fall rate of a released plate in C/min, and how many
+        waits made it; (None, 0) before any."""
+        if not self.bed_fall_learn:
+            return None, 0
+        sv = self.printer.lookup_object("save_variables", None)
+        if sv is None:
+            return None, 0
+        stored = getattr(sv, "allVariables", {}) or {}
+        try:
+            rate = stored.get("ch_bed_fall_rate")
+            return ((float(rate) if rate else None),
+                    int(stored.get("ch_bed_fall_waits", 0)))
+        except (TypeError, ValueError):
+            return None, 0
+
+    def _release_rate(self):
+        """C/min a released plate is taken to fall: learned, else the setting."""
+        return self.bed_fall_rate or self.bed_release_rate
+
+    def _record_fall(self, landed_at, run_script):
+        """Fold the fall just timed into the saved rate. Never fails a wait."""
+        start, self.fall_start = self.fall_start, None
+        try:
+            if start is None or not self.bed_fall_learn:
+                return
+            began, from_temp, landing = start
+            drop, seconds = from_temp - landing, landed_at - began
+            if drop < 3.0 or seconds <= 0.0:
+                return
+            if self.printer.lookup_object("save_variables", None) is None:
+                return
+            observed = min(max(drop / (seconds / 60.0), 1.0), 60.0)
+            old, waits = self._load_bed_fall()
+            rate = (observed if old is None
+                    else old + self.eta_learn_weight * (observed - old))
+            run_script(
+                "SAVE_VARIABLE VARIABLE=ch_bed_fall_rate VALUE=%.2f\n"
+                "SAVE_VARIABLE VARIABLE=ch_bed_fall_waits VALUE=%d"
+                % (rate, waits + 1))
+            self.bed_fall_rate, self.bed_fall_waits = rate, waits + 1
+            self.gcode.respond_info(
+                "%s bed fell %.1fC in %.0f s, %.1f C/min. A released bed here is "
+                "now taken to fall at %.1f C/min (%d %s)"
+                % (TAG, drop, seconds, observed, rate, waits + 1,
+                   "wait" if waits == 0 else "waits"))
+        except Exception:
+            logging.exception("chamber_preheat: could not save the bed fall rate")
+
+    def _watch_fall(self, bed, deadline):
+        """Time a fall the wait handed over before it ended, from a reactor
+        timer, as delayed_gcode runs. Gives up on a reheat, a cancel or the
+        deadline."""
+        def check(eventtime):
+            if self.fall_start is None:
+                return self.reactor.NEVER
+            landing = self.fall_start[2]
+            temp, target = bed.get_temp(eventtime)
+            if temp <= landing + self.bed_tolerance:
+                self._record_fall(eventtime, self.gcode.run_script)
+                return self.reactor.NEVER
+            if eventtime > deadline or target <= 0.0 or target > landing + 1.0:
+                self.fall_start = None
+                return self.reactor.NEVER
+            return eventtime + 1.0
+        if self.fall_watch is not None:
+            self.reactor.unregister_timer(self.fall_watch)
+        self.fall_watch = self.reactor.register_timer(
+            check, self.reactor.monotonic() + 1.0)
+
     def _chamber_eta(self, window, temperature, minimum):
         """Minutes to the chamber minimum: from past waits when there are any,
         otherwise smoothed, exponential where it fits."""
@@ -1244,6 +1334,8 @@ class ChamberPreheat:
         self.slope_stderr = None
         self.chamber_eta = None
         self.eta_profile, self.eta_waits = self._load_eta_profile()
+        self.bed_fall_rate, self.bed_fall_waits = self._load_bed_fall()
+        self.fall_start = None
         self.eta_trace = []
         self.eta_hot_time = None
         self.bed_eta = None
@@ -1596,7 +1688,7 @@ class ChamberPreheat:
                     # waits the descent can start that much before the end
                     # instead. The live fit's early ETAs are not trusted for it.
                     release = (max(current_boost - self.bed_carry, 0.0)
-                               / self.bed_release_rate)
+                               / self._release_rate())
                     if (not released and not chamber_ready and self.eta_profile
                             and self.chamber_eta is not None
                             and self.chamber_eta <= release
@@ -1604,14 +1696,23 @@ class ChamberPreheat:
                         released = True
                         gcmd.respond_info(
                             "%s chamber due in %s, bed back to %.1fC now so it "
-                            "is there when the soak ends"
+                            "is there when the soak ends (%s)"
                             % (TAG, self._minutes(self.chamber_eta),
-                               bed_target + self.bed_carry))
+                               bed_target + self.bed_carry,
+                               "it falls %.1f C/min here, from %d %s"
+                               % (self.bed_fall_rate, self.bed_fall_waits,
+                                  "wait" if self.bed_fall_waits == 1 else "waits")
+                               if self.bed_fall_rate else
+                               "%.1f C/min assumed, not yet measured here"
+                               % self.bed_release_rate))
                     want = (self.bed_carry if (chamber_ready or released)
                             else boost_cap)
                     if abs(want - current_boost) > 1e-9:
                         rising = want > current_boost
                         current_boost = want
+                        if not rising:
+                            self.fall_start = (eventtime, bed_temp,
+                                               bed_target + self.bed_carry)
                         self.peak_boost = max(self.peak_boost, current_boost)
                         bed_ready = False
                         coast_reason = 1 if rising else 2
@@ -1757,7 +1858,7 @@ class ChamberPreheat:
                     # the ceiling on purpose there is no descent to estimate.
                     self.bed_eta = (
                         max((current_boost - self.bed_carry), 0.0)
-                        / self.bed_release_rate
+                        / self._release_rate()
                         if (chamber_ready or released) else None
                     )
                 else:
@@ -1773,6 +1874,9 @@ class ChamberPreheat:
                     self._set_state(
                         bed_ready_eventtime=eventtime, bed_time_remaining=0.0
                     )
+                    if self.fall_start is not None:
+                        self._record_fall(eventtime,
+                                          self.gcode.run_script_from_command)
                 self._set_state(
                     chamber_time_remaining=self.chamber_eta,
                     bed_time_remaining=self.bed_eta,
@@ -1787,6 +1891,8 @@ class ChamberPreheat:
                     # checked against what actually happened.
                     completed = True
                     arrival = eventtime + self.chamber_eta * 60.0
+                    if self.fall_start is None and bed_temp > carried + 3.0:
+                        self.fall_start = (eventtime, bed_temp, carried)
                     self._set_bed(bed, quantize_target(carried))
                     self._set_state(
                         print_ready_eventtime=eventtime,
@@ -1875,6 +1981,8 @@ class ChamberPreheat:
             self._set_stir(fan, 0.0)
             if completed and arrival is not None:
                 self._save_eta_profile(minimum, arrival)
+            if completed and self.fall_start is not None:
+                self._watch_fall(bed, self.reactor.monotonic() + 600.0)
             if self.orbit:
                 # Back to centre before the print's own start G-code moves.
                 self.gcode.run_script_from_command("_CHAMBER_ORBIT_END")
@@ -1901,6 +2009,7 @@ class ChamberPreheat:
             "slope_stderr": self.slope_stderr,
             "hold_minutes": self.hold_minutes,
             "fall_minutes": self.fall_minutes,
+            "bed_fall_rate": self.bed_fall_rate,
             "proxy_validity": (
                 None if self.proxy_gate is None else self.proxy_gate.state
             ),

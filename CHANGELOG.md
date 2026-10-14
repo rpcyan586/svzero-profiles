@@ -103,6 +103,14 @@ macro pack.
   slicer's `M190` then waited out a 20 °C descent with the nozzle already
   heating. With a learned ETA it is released when the time left matches its
   descent, so it reaches the print temperature as the soak ends.
+- **How fast the plate falls is learned too.** Each wait times the released
+  plate to its landing and saves the rate (`ch_bed_fall_rate`), blended over
+  waits like the ETA, since it differs between printers and conditions. On the
+  test printer it falls about 14 °C/min with the part fan stirring, not the
+  5 °C/min assumed before: the boost was being let go 6–7 minutes before the
+  soak ended instead of about 2.5, and the chamber's climb dropped from 1.2–1.5
+  to under 0.6 °C/min for the rest of the wait. `bed_release_rate` is now
+  only the starting value.
 - **The nozzle waits at the probe temperature, not the wipe temperature,
   while the bed is still more than 3 °C off its target.** `SET_CLEAN_TEMP`
   used to heat straight to the wipe temperature ahead of that `M190`; on the
