@@ -164,6 +164,9 @@ points, not measured guarantees against warping. `_COOLDOWN_CONFIG ENABLE=0`
 disables the ramp; `_COOLDOWN_STATUS` reports it. `COOLDOWN_ABORT` stops the ramp
 without turning heaters off; use `CANCEL_PRINT` for shutdown and cancellation.
 
+Macros whose names start with `_` are left out of Mainsail's macro panel. Type
+them in the console as usual.
+
 With another slicer's profile, missing material information falls back to the
 spool, remembered temperature or configured default where supported. That is
 not a guarantee that arbitrary start G-code is compatible: it still needs bed
