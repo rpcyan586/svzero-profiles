@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Accelerations scaled to the Zero's measured shaper limits
+
+Each tier is scaled as a whole, every feature keeping its proportion to the
+others, so that its peak acceleration sits on the input-shaper limits measured
+on a Zero (11,500 mm/s² on X and 6,000 on Y, MZV):
+
+| Tier | Peak | Was |
+|---|---:|---:|
+| Precision | 2,000 | 3,000 (travel 4,000) |
+| Fine | 4,000 | 6,000 |
+| Optimal | 6,000 | 11,500 |
+| Standard | 11,500 | 40,000 |
+| Strength | 6,000 (follows Optimal) | 11,500 |
+| Draft | 40,000 (unchanged) | 40,000 |
+
+- **Standard is no longer stock's accelerations verbatim**, but keeps stock's
+  proportions: default and infill 11,500, solid and bridge 5,750, inner wall
+  3,450, outer 2,875, top 1,438, first layer 288.
+- **Two cells hold the ladder**, which may not go backwards from Fine to
+  Draft: Fine's first layer is 261 (Optimal's) rather than its scaled 333, and
+  Optimal's top surface is 1,438 (Standard's) rather than its scaled 1,565.
+- **Travel acceleration is per tier**, at most the peak: 2,000 on Precision,
+  4,000 on Fine, 5,000 elsewhere as before.
+- **Small nozzles** (0.2, 0.25, 0.3) keep the SV08 0.2 accelerations' proportions,
+  scaled so their peak is the tier's.
+
 ## 2.1.0
 
 Versions are now three numbers with no beta suffix. Profile behaviour changes

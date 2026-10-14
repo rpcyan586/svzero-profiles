@@ -325,42 +325,46 @@
       "infill": "infill_acceleration",
       "top": "top_solid_infill_acceleration",
       "bridge": "bridge_acceleration",
-      "first_layer": "first_layer_acceleration"
+      "first_layer": "first_layer_acceleration",
+      "travel": "travel_acceleration"
     },
     "internal_bridge": "50%",
     "tiers": {
       "Fine": {
-        "default": 3000,
-        "inner": 2500,
-        "outer": 1500,
-        "solid": 4000,
-        "infill": 6000,
-        "top": 2000,
-        "bridge": 1500,
-        "first_layer": 500,
-        "_anchor": "Prusa Core One 0.4 STRUCTURAL (PrusaResearch.ini, PrusaSlicer 2.9.6): default 3000, outer 1500, inner 2500, infill 6000, solid 4000, top 2000, bridge 1500, first layer 500."
+        "default": 2000,
+        "inner": 1667,
+        "outer": 1000,
+        "solid": 2667,
+        "infill": 4000,
+        "top": 1333,
+        "bridge": 1000,
+        "first_layer": 261,
+        "travel": 4000,
+        "_anchor": "Prusa Core One 0.4 STRUCTURAL (PrusaResearch.ini, PrusaSlicer 2.9.6) scaled by 2/3 so its 6000 infill peak is 4000 (operator, 2026-10-14); every feature keeps its proportion. First layer 261 rather than 333: the scaled value went above Optimal's, and the ladder may not go backwards. Travel 4000, the same ceiling."
       },
       "Optimal": {
-        "default": 10000,
-        "inner": 6000,
-        "outer": 5000,
-        "solid": 10000,
-        "infill": 11500,
-        "top": 3000,
-        "bridge": 5000,
-        "first_layer": 500,
-        "_anchor": "The Zero's own measured limits (Zero2 MZV sweep, notes/resonance.md): walls at the Y recommendation (<= 6000), infill at the X recommendation (<= 11500). Bambu X1C and Creality K2 run outer walls at 5000; Bambu's default is 10000. First layer 500, as every reference does."
+        "default": 5217,
+        "inner": 3130,
+        "outer": 2609,
+        "solid": 5217,
+        "infill": 6000,
+        "top": 1438,
+        "bridge": 2609,
+        "first_layer": 261,
+        "travel": 5000,
+        "_anchor": "Scaled by 6000/11500 so the 11500 infill peak is 6000, the Y axis's measured shaper limit (Zero2 MZV sweep, notes/kb/input-shaping.md; operator, 2026-10-14); every feature keeps its proportion. Top 1438 rather than 1565: the scaled value went above Standard's, and the ladder may not go backwards. Was 10000 default and 11500 infill, the X limit."
       },
       "Standard": {
-        "default": 40000,
-        "inner": 12000,
-        "outer": 10000,
-        "solid": 20000,
-        "infill": 40000,
-        "top": 5000,
-        "bridge": 20000,
-        "first_layer": 1000,
-        "_anchor": "Sovol's stock Zero process, verbatim: default 40000, inner 12000, outer 10000, solid 50%, sparse infill unset (Orca: 100% of default), top 5000, bridge 50%, first layer 1000. Standard IS stock."
+        "default": 11500,
+        "inner": 3450,
+        "outer": 2875,
+        "solid": 5750,
+        "infill": 11500,
+        "top": 1438,
+        "bridge": 5750,
+        "first_layer": 288,
+        "travel": 5000,
+        "_anchor": "Sovol's stock Zero process scaled by 11500/40000 so its 40000 peak is 11500, the X axis's measured shaper limit (operator, 2026-10-14); every feature keeps stock's proportions. Standard was stock verbatim until then."
       },
       "Draft": {
         "default": 40000,
@@ -371,21 +375,24 @@
         "top": 5000,
         "bridge": 20000,
         "first_layer": 1000,
+        "travel": 5000,
         "_anchor": "Just above stock: the outer wall at the X recommendation (11500), the inner wall in stock's 83.3% proportion, everything else at stock. Sovol's speedBenchy itself asks 40000 on every wall; that lives on as the hidden speedboat reference, not as a published tier."
       },
       "Strength": "Optimal",
       "Precision": {
-        "default": 3000,
-        "inner": 1200,
-        "outer": 800,
-        "solid": 2000,
-        "infill": 2500,
-        "top": 1000,
-        "bridge": 1500,
-        "first_layer": 500,
-        "_anchor": "Prusa Core One 0.25 DETAIL (operator, 2026-10-05): default 3000, outer 800, inner 1200, infill 2500, solid 2000, top 1000, first layer 500. Bridges keep the Fine tier's 1500, which DETAIL does not set; 1500 printed on Zero2 on 2026-10-13."
+        "default": 2000,
+        "inner": 800,
+        "outer": 533,
+        "solid": 1333,
+        "infill": 1667,
+        "top": 667,
+        "bridge": 1000,
+        "first_layer": 333,
+        "travel": 2000,
+        "_anchor": "Prusa Core One 0.25 DETAIL (operator, 2026-10-05) scaled by 2/3 so its 3000 peak is 2000 (operator, 2026-10-14); every feature keeps its proportion. Travel 2000, the same ceiling. The mode file's 4000 ceiling is unchanged, so it is headroom."
       }
-    }
+    },
+    "_why_2026_10_14": "Re-anchored on the Zero's measured input-shaper limits (operator, 2026-10-14): each tier is scaled as a whole so its peak is Precision 2000, Fine 4000, Optimal 6000 (Y), Standard 11500 (X), every feature keeping its proportion to the others. Draft keeps stock's 40000 as the fast end; Strength follows Optimal. Where scaling sent the ladder backwards the earlier tier takes the later one's value (Fine first layer, Optimal top). Travel is per tier, at most the peak. Small nozzles' SV08 0.2 accelerations are scaled the same way so their peak is the tier's."
   },
   "modes": {
     "_why": "A machine mode is a Klipper configuration selected by a mode file and a restart: precision runs X/Y at 64 microsteps, 2.4 A, under a 300 mm/s and 4000 mm/s^2 ceiling. Its tiers belong to a printer of their own, whose start G-code names the mode in SVZERO_REQUIRE, so the handshake refuses a job sliced for the other mode. Standard mode is every printer not listed here.",

@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""The 0.4 acceleration ladder: re-anchored, still a ramp, Standard still stock.
+"""The 0.4 acceleration ladder: re-anchored, scaled to the shaper limits, still a ramp.
 
-Option B of notes/acceleration-tiers-2026-10-05.md (operator, 2026-10-06).
-Expected values are written from the outside sources, not read from
-model.json, so a drifting model fails here:
+Option B of notes/acceleration-tiers-2026-10-05.md (operator, 2026-10-06), each
+tier then scaled as a whole to a peak on the Zero's measured input-shaper limits
+(operator, 2026-10-14). Expected values are written from the outside sources and
+those peaks, not read from model.json, so a drifting model fails here:
 
-- Fine is Prusa Core One 0.4 STRUCTURAL (PrusaResearch.ini, PrusaSlicer 2.9.6).
-- Standard is Sovol's stock Zero process, read from the vendored file.
+- Fine is Prusa Core One 0.4 STRUCTURAL scaled to a 4000 peak.
+- Standard is Sovol's stock Zero process, read from the vendored file, scaled to
+  an 11500 peak.
+- Every tier's peak, travel included, is Precision 2000, Fine 4000, Optimal
+  6000, Standard 11500, Draft 40000, on every nozzle.
 - Every feature rises or holds from Fine to Draft, in PrusaSlicer and Orca.
 """
 
@@ -33,6 +37,7 @@ FEATURES = {
     "first_layer_acceleration": "initial_layer_acceleration",
 }
 LADDER = [("Fine", "0.10"), ("Optimal", "0.15"), ("Standard", "0.20"), ("Draft", "0.25")]
+PEAKS = {"Precision": 2000, "Fine": 4000, "Optimal": 6000, "Strength": 6000, "Standard": 11500, "Draft": 40000}
 
 CORE_ONE_STRUCTURAL = {
     "default_acceleration": 3000, "perimeter_acceleration": 2500,
@@ -71,22 +76,36 @@ class AccelLadderTest(unittest.TestCase):
         path = ORCA / ("%smm %s @SV Zero 0.4 nozzle.json" % (layer, tier))
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def test_standard_is_stock(self):
-        want = stock_values()
+    def test_standard_is_stock_scaled_to_the_x_limit(self):
+        stock = stock_values()
+        k = 11500 / max(stock.values())
         ps = self.ps_preset("Standard", "0.20")
         orca = self.orca_preset("Standard", "0.20")
-        for key, value in want.items():
+        for key, value in stock.items():
             with self.subTest(key=key):
-                self.assertAlmostEqual(float(ps[key]), value, delta=0.051)
-                self.assertAlmostEqual(float(orca[FEATURES[key]]), value, delta=0.051)
+                self.assertAlmostEqual(float(ps[key]), value * k, delta=0.6)
+                self.assertAlmostEqual(float(orca[FEATURES[key]]), value * k, delta=0.6)
 
-    def test_fine_is_core_one_structural(self):
+    def test_fine_is_core_one_structural_scaled_to_4000(self):
+        k = 4000 / max(CORE_ONE_STRUCTURAL.values())
         ps = self.ps_preset("Fine", "0.10")
         orca = self.orca_preset("Fine", "0.10")
         for key, value in CORE_ONE_STRUCTURAL.items():
             with self.subTest(key=key):
-                self.assertAlmostEqual(float(ps[key]), value, delta=0.051)
-                self.assertAlmostEqual(float(orca[FEATURES[key]]), value, delta=0.051)
+                if key == "first_layer_acceleration":
+                    # Held at Optimal's, so the ladder does not go backwards.
+                    self.assertLessEqual(float(ps[key]), value * k)
+                    continue
+                self.assertAlmostEqual(float(ps[key]), value * k, delta=0.6)
+                self.assertAlmostEqual(float(orca[FEATURES[key]]), value * k, delta=0.6)
+
+    def test_every_tier_peaks_at_its_ceiling_on_every_nozzle(self):
+        for path in ORCA.glob("*@SV Zero *.json"):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            tier = doc["name"].split("mm ", 1)[1].split(" @", 1)[0]
+            values = [float(doc[k]) for k in list(FEATURES.values()) + ["travel_acceleration"]]
+            with self.subTest(preset=doc["name"]):
+                self.assertAlmostEqual(max(values), PEAKS[tier], delta=0.6)
 
     def test_every_feature_ramps_fine_to_draft(self):
         for key, orca_key in FEATURES.items():

@@ -97,15 +97,15 @@ class ProfileGenerationTests(unittest.TestCase):
             self.assertRegex(converted["external_perimeter_speed"], r"^\d+\.\d$")
             self.assertEqual(converted["first_layer_speed"], "10.5%")
 
-    def test_travel_acceleration_is_5000_in_every_shipped_process(self):
+    def test_travel_acceleration_is_5000_or_the_tier_peak_in_every_shipped_process(self):
         model = G.load("model.json")
         expected = len(G.expected_presets(model))
 
         def travel(name):
-            # A mode tier travels at its mode's ceiling, never above it.
+            # 5000, or the tier's acceleration peak where that is lower
+            # (model.json accel_model: Precision 2000, Fine 4000).
             tier = re.search(r"\(?(\w+)\)? @|\((\w+)\)(?:\.ini)?$", name)
-            unused, mode = G.mode_of(model, next(g for g in tier.groups() if g))
-            return mode["machine"]["max_accel"] if mode else 5000
+            return min(5000, G.tier_ceiling(model, next(g for g in tier.groups() if g)))
         bundles = ROOT / "bundles"
         for relative in ("SVZero_SuperSlicer.ini", "SVZero_PrusaSlicer.ini", "ps-vendor/SVZero.ini"):
             sections = G.parse_ini(bundles / relative)
