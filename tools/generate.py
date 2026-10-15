@@ -697,6 +697,17 @@ def apply_scv(model, ss):
     return changed
 
 
+def tier_ceiling(model, tier):
+    """The highest acceleration a tier asks for: its peak."""
+    tiers = model.get("accel_model", {}).get("tiers", {})
+    targets = tiers.get(tier)
+    if isinstance(targets, str):
+        targets = tiers[targets]
+    if not targets:
+        return float("inf")
+    return max(v for k, v in targets.items() if not k.startswith("_"))
+
+
 def apply_accel_model(model, ss):
     """Write each tier's acceleration targets into its base, SuperSlicer-style.
 
@@ -947,9 +958,13 @@ def apply_flow_model(model, ss):
             # percentage through its neighbour (outer wall through inner wall)
             # while the PS/Orca emitters read every one against the default,
             # so only an absolute means the same thing in all three.
-            if anchor and key in anchor and kv.get(key) != computed_motion(anchor[key]):
-                kv[key] = computed_motion(anchor[key])
-                changed += 1
+            # Scaled as a whole so its peak is the tier's (model.json accel_model).
+            if anchor and key in anchor:
+                peak = max(v for k, v in anchor.items() if k.endswith("_acceleration"))
+                value = computed_motion(anchor[key] * min(1.0, tier_ceiling(model, tier) / peak))
+                if kv.get(key) != value:
+                    kv[key] = value
+                    changed += 1
         report.append((name, tier, noz, lh, float(val), flow * util,
                        float(val) * wr * noz * lh, limited))
     # The meaningful invariant is no longer raw speed — under the flow model a

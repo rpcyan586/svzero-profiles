@@ -25,6 +25,12 @@ ANCHOR = SMALL["motion_anchor"]
 ORCA = ROOT / "bundles/orca-vendor/SVZero/process"
 
 
+def anchored(key, tier):
+    """The SV08 0.2 anchor's acceleration, scaled so its peak is the tier's."""
+    peak = max(v for k, v in ANCHOR.items() if k.endswith("_acceleration"))
+    return ANCHOR[key] * min(1.0, G.tier_ceiling(MODEL, tier) / peak)
+
+
 class ReferenceAnchorTest(unittest.TestCase):
     def small_nozzles(self):
         found = [n for n in MODEL["machine"]["nozzles"] if float(n) < SMALL["below"]]
@@ -44,9 +50,10 @@ class ReferenceAnchorTest(unittest.TestCase):
                     if not name.endswith("(Precision)"):
                         # A cap: where flow binds first (0.3 Standard) it runs slower.
                         self.assertLessEqual(float(flat["perimeter_speed"]), ANCHOR["perimeter_speed"])
+                        tier = name.rsplit("(", 1)[1].rstrip(")")
                         for key in ("default_acceleration", "perimeter_acceleration",
                                     "external_perimeter_acceleration"):
-                            self.assertEqual(float(flat[key]), ANCHOR[key])
+                            self.assertAlmostEqual(float(flat[key]), anchored(key, tier), delta=0.051)
                     self.assertAlmostEqual(float(flat["first_layer_height"]),
                                            float(SMALL["first_layer_height"].rstrip("%")) / 100 * float(noz))
                     self.assertEqual(flat["perimeters"], str(SMALL["perimeters"]))
@@ -54,9 +61,10 @@ class ReferenceAnchorTest(unittest.TestCase):
                 doc = json.loads(path.read_text(encoding="utf-8"))
                 with self.subTest(preset=doc["name"]):
                     self.assertLessEqual(float(doc["inner_wall_speed"]), ANCHOR["perimeter_speed"])
-                    self.assertEqual(float(doc["default_acceleration"]), ANCHOR["default_acceleration"])
-                    self.assertEqual(float(doc["inner_wall_acceleration"]), ANCHOR["perimeter_acceleration"])
-                    self.assertEqual(float(doc["outer_wall_acceleration"]), ANCHOR["external_perimeter_acceleration"])
+                    tier = doc["name"].split("mm ", 1)[1].split(" @", 1)[0]
+                    self.assertAlmostEqual(float(doc["default_acceleration"]), anchored("default_acceleration", tier), delta=0.051)
+                    self.assertAlmostEqual(float(doc["inner_wall_acceleration"]), anchored("perimeter_acceleration", tier), delta=0.051)
+                    self.assertAlmostEqual(float(doc["outer_wall_acceleration"]), anchored("external_perimeter_acceleration", tier), delta=0.051)
                     self.assertEqual(doc["wall_loops"], str(SMALL["perimeters"]))
 
     def test_small_nozzle_precision_keeps_the_mode(self):

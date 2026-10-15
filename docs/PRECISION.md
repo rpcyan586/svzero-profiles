@@ -16,7 +16,7 @@ it has its own printer profile in each slicer.
 | Layers | Fine to Draft tiers | 0.4 nozzle: 0.04, 0.06, 0.08, 0.10, 0.12 mm over a 0.20 first layer. 0.3: 0.04, 0.06, 0.08 over 0.24. 0.25: 0.04, 0.06 over 0.20. 0.2: 0.04, 0.06 over 0.16 |
 | Walls, tops | per tier | 3 walls, ironed top surfaces |
 | Speeds | per tier | 2 mm³/s on the 0.4 through the normal speed ratios; outer walls at most 45 mm/s. A smaller nozzle runs the 0.4's speeds at the same layer height |
-| Accelerations | per tier | Prusa Core One 0.25 DETAIL: 3000 default, 800 outer, 1200 inner, 2500 infill, 2000 solid, 1000 top, 500 first layer, 4000 travel |
+| Accelerations | per tier | Prusa Core One 0.25 DETAIL scaled to a 2000 peak: 2000 default, 533 outer, 800 inner, 1667 infill, 1333 solid, 667 top, 1000 bridge, 333 first layer, 2000 travel |
 | Square corner velocity | per tier | 1 |
 | Z-hop | on | off |
 | Filaments | all | all except TPU |

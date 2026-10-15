@@ -75,11 +75,11 @@ class AccelChainTest(unittest.TestCase):
                 with self.subTest(preset=doc["name"], key=orca_key):
                     self.assertAlmostEqual(float(doc[orca_key]), want[key], delta=0.051)
 
-    def test_standard_outer_wall_is_stock(self):
-        # Standard IS stock, and Sovol's stock outer-wall acceleration is 10000.
-        # 83% of Standard's 12000 inner wall lands within the 83% rounding.
+    def test_standard_outer_wall_is_stock_scaled(self):
+        # Standard is stock scaled so its 40000 peak is 11500 (2026-10-14), so
+        # its outer wall is stock's 10000 scaled the same way, through the chain.
         stock = json.loads((ROOT / "source/sovol-stock-process.json").read_text(encoding="utf-8"))
-        want = float(stock["outer_wall_acceleration"])
+        want = float(stock["outer_wall_acceleration"]) * 11500 / float(stock["default_acceleration"])
         got = expected(G.flatten(self.ss, "print:SV Zero 0.4n - 0.20mm (Standard)"))
         self.assertLess(abs(got["external_perimeter_acceleration"] - want) / want, 0.01)
 
