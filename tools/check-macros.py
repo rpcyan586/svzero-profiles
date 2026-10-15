@@ -378,6 +378,21 @@ def check(path):
                 # Nothing at all: the one genuinely blind job.
                 ("blind", params, "", {}, {}, sv(last_nozzle_temp=0.0)),
             ]
+        elif s == "gcode_macro SVZERO_SHAPER_CALIBRATE":
+            # The full-range sweep (input_shaper.cfg): homes only when it must,
+            # passes the range explicitly, and refuses where the test would be
+            # distorted or dangerous.
+            def shaper(mode="standard", homed="", state="standby"):
+                return {"gcode_macro _SVZERO_PACK": Mock(mode=mode),
+                        "toolhead": Mock(homed_axes=homed),
+                        "print_stats": Mock(state=state, filename="job.gcode")}
+            scenarios = [
+                ("unhomed-both", Mock(), "", {}, {}, shaper()),
+                ("homed-x", Mock(AXIS="x"), "AXIS=x", {}, {}, shaper(homed="xyz")),
+                ("precision", Mock(), "", {}, {}, shaper(mode="precision", homed="xyz")),
+                ("printing", Mock(), "", {}, {}, shaper(homed="xyz", state="printing")),
+                ("bad-axis", Mock(AXIS="z"), "AXIS=z", {}, {}, shaper(homed="xyz")),
+            ]
         elif s == "gcode_macro SVZERO_REQUIRE":
             # mode=None leaves the attribute off entirely: a pack section from
             # before modes existed, which must read as standard.
@@ -1761,7 +1776,13 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
         # scenario that raises fails, and any of these that renders fails.
-        refuse = {("gcode_macro SVZERO_REQUIRE", "manual-into-precision"):
+        refuse = {("gcode_macro SVZERO_SHAPER_CALIBRATE", "precision"):
+                      "Calibrate in standard mode",
+                  ("gcode_macro SVZERO_SHAPER_CALIBRATE", "printing"):
+                      "a job is running",
+                  ("gcode_macro SVZERO_SHAPER_CALIBRATE", "bad-axis"):
+                      "AXIS must be X or Y",
+                  ("gcode_macro SVZERO_REQUIRE", "manual-into-precision"):
                       "rename svzero-mode-precision.cfg.off to svzero-mode-precision.cfg",
                   ("gcode_macro SVZERO_REQUIRE", "manual-back-to-standard"):
                       "rename svzero-mode-precision.cfg to svzero-mode-precision.cfg.off",
@@ -1794,6 +1815,10 @@ def check(path):
                   ("gcode_macro SVZERO_MODE", "already"): None}
 
         # Everything defined above without a printer patch gets an empty one.
+        if s == "gcode_macro SVZERO_SHAPER_CALIBRATE":
+            expect[(s, "unhomed-both")] = "G28"
+            expect[(s, "homed-x")] = "SHAPER_CALIBRATE AXIS=X FREQ_START=5 FREQ_END=133"
+            forbid[(s, "homed-x")] = "G28"
         if s == "gcode_macro CLEAN_NOZZLE":
             expect[(s, "cold-contact")] = "COLD CONTACT RUN"
             expect[(s, "dry")] = "DRY RUN"

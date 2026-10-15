@@ -37,6 +37,24 @@ on a Zero (11,500 mm/s² on X and 6,000 on Y, MZV):
 - **Small nozzles** (0.2, 0.25, 0.3) keep the SV08 0.2 accelerations' proportions,
   scaled so their peak is the tier's.
 
+### Input shaping
+
+- **The resonance test sweeps 5–133 Hz** instead of Sovol's 35–45 Hz. A Zero's
+  X axis resonates near 61 Hz, so the stock test returned about 40 Hz for X
+  and shaped where there is little resonance. The front screen's
+  Setup → Resonances runs the same test and is fixed with it.
+- **Shaper damping 0.1**, the value `SHAPER_CALIBRATE` fits at, in place of
+  Sovol's 0.001. Measured damping on a Zero is 0.10–0.12.
+- **1.3.7's accelerometer axes are corrected** (`axes_map: x,z,y`, as Sovol
+  ships from 1.3.8). Stock 1.3.7 swaps the X and Y graphs and labels; the
+  fitted frequency was not affected.
+- **`SVZERO_SHAPER_CALIBRATE`** runs the full sweep on X and Y, or one axis,
+  and is refused in precision mode or during a job.
+- **`SVZERO_SHAPER_TYPICAL`** applies typical measured Zero values (X mzv
+  62.5 Hz, Y mzv 46.5 Hz) until Klipper restarts.
+- **No shaper type or frequency is set by the pack**, so `SAVE_CONFIG` still
+  saves your calibration: Klipper refuses to save a value an include also sets.
+
 ## 2.1.0
 
 Versions are now three numbers with no beta suffix. Profile behaviour changes
