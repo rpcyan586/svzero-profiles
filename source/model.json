@@ -37,7 +37,7 @@
       "Standard",
       "Draft"
     ],
-    "_semantics": "Standard IS the stock Sovol profile — the baseline the machine ships with, renamed once it became clear how coarse it is. Draft IS Sovol's own speedBenchy. Optimal sits between Standard and Fine. Fine runs the other way entirely, taking the community's quality recommendations. Naming follows Voron/Prusa convention rather than the Draft of v1.0.2. Stock is a separate reference tier, faithful to Sovol's published profile and deliberately exempt from the ramp; it may end up hidden or personal rather than published.",
+    "_semantics": "Standard IS the stock Sovol profile — the baseline the machine ships with, renamed once it became clear how coarse it is. Draft was Sovol's own speedBenchy until 2.1.1 and is now derived; speedBenchy is the hidden SpeedBenchy reference. Optimal sits between Standard and Fine. Fine runs the other way entirely, taking the community's quality recommendations. Naming follows Voron/Prusa convention rather than the Draft of v1.0.2. Stock is a separate reference tier, faithful to Sovol's published profile and deliberately exempt from the ramp; it may end up hidden or personal rather than published.",
     "Fine": {
       "anchor": "derived",
       "derivation": "extrapolate away from Draft past Standard — slower, more shells, artefact removal. Community quality recommendations, not interpolation.",
@@ -60,11 +60,10 @@
       "layer_fraction": 0.5
     },
     "Draft": {
-      "anchor": "speedbenchy",
-      "derivation": "verbatim Sovol speedBenchy (8m22s). Expected to look bad; must not fail.",
+      "anchor": "derived",
+      "derivation": "The fast end of the ramp, derived like the others (2026-10-15): Standard's ratios at Draft's layer, its infill asking 19.0-19.7 mm3/s of the 21 mm3/s PLA cap every tier is authored against, so the slicer clamps nothing and the outer wall stays slower than the inner. Verbatim Sovol speedBenchy until 2.1.1, authored against the 50 mm3/s machine rating: with PLA the slicer clamped its walls and infill, and the outer wall ran as fast as the inner. speedBenchy is now the hidden SpeedBenchy reference tier.",
       "sqv": 9,
-      "layer_fraction": 0.625,
-      "_anchor_caveat": "speedBenchy was gcode + 3MF, not a released profile. Its parameters were reverse-read from the 3MF and were never meant to compose with the stock filament profiles."
+      "layer_fraction": 0.625
     },
     "Stock": {
       "anchor": "tier-anchors:normal",
@@ -74,8 +73,17 @@
       "hidden": true,
       "_note": "Kept faithful rather than made consistent. It is the thing everything else is measured against, so 'fixing' it would destroy its only value. Expect it to violate the proportional model: stock asks outer 350 / inner 400 / infill 500 with no coherent ratio between them."
     },
+    "SpeedBenchy": {
+      "anchor": "speedbenchy-3mf",
+      "derivation": "Verbatim Sovol speedBenchy (8m22s): the process-scope settings of source/speedbenchy-3mf.json, meaning the keys Sovol's own Zero process file (source/sovol-stock-process.json) also sets. Reference, NOT part of the ramp; Draft was this verbatim until 2.1.1 (operator, 2026-10-15: 'a separate hidden anchor'). It is Sovol's stock speedBenchy and nothing wider: speedboat builds also run 48 V and re-electronicked Zeros (notes/kb/profile-parameters.md, 'Speeds actually run'), which are hardware modifications outside this pack's stock-machine envelope and are not anchors here.",
+      "sqv": null,
+      "exempt_from_ramp": true,
+      "hidden": true,
+      "_anchor_caveat": "speedBenchy was gcode + 3MF, not a released profile. Its parameters were reverse-read from the 3MF and were never meant to compose with the stock filament profiles: it asks outer 350 / inner 400 / infill 500 against a 50 mm3/s filament, and default_jerk 0, so it sent no SCV and ran at printer.cfg's 5."
+    },
     "_reference_tiers": [
-      "Stock"
+      "Stock",
+      "SpeedBenchy"
     ],
     "_default_print_tier": "Standard",
     "_naming": "Rungs are OrcaSlicer's Voron V0 ladder -- Extra Fine, Fine, Optimal, Standard, Draft, Extra Draft -- because the V0 is the closest analog to this machine and it is the vocabulary its users already read. Four are shipped; Extra Fine and Extra Draft are reserved for the ends. Renamed from Quality/Normal/Draft/Speed on 2026-09-02; v1.0.2's own 'ExtraDraft' came from this same ladder, so this is a return rather than a new scheme. SPEEDS STILL RAMP PER TIER, which is PrusaSlicer's Voron behaviour and not OrcaSlicer's -- Orca's Voron tiers differ in layer height alone. See docs/CEILINGS.md and docs/CONTEXTS.md.",
@@ -104,7 +112,7 @@
       "exempt_from_ramp": true
     }
   },
-  "_xy_current_note": "X/Y STEPPER CURRENT, per tier, in A (operator, 2026-10-14). Fine, Optimal, Standard and Strength run X and Y at 2.4 A against printer.cfg's 3.5 A; Draft, Sovol's speedBenchy at stock's accelerations, declares none and keeps printer.cfg's. Precision's current is a machine setting of its mode file, modes.precision.xy_current, 1.4 A. Carried like the SCV: 'SVZERO_XY_CURRENT=<A>A' joins the SCV sentence in the print preset's Notes, and a generated start G-code block after the SCV block (Orca: after START_PRINT, @@XY_CURRENT@@ in tools/start_gcode.py) calls the pack's SVZERO_XY_CURRENT, which only ever lowers the configured run_current. OrcaSlicer resolves the process `notes` in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). It runs after START_PRINT, so homing, probing and the mesh keep printer.cfg's current; END_PRINT and CANCEL_PRINT restore it. Lower current is less torque, and a noise and heat choice (dissipation goes with current squared). 2.4 A is corgi108's published run_current for the Zero's TMC5160s, which other owners run for quieter, cooler motors; that it holds Standard's and Strength's accelerations without lost steps is NOT measured here.",
+  "_xy_current_note": "X/Y STEPPER CURRENT, per tier, in A (operator, 2026-10-14). Fine, Optimal, Standard and Strength run X and Y at 2.4 A against printer.cfg's 3.5 A; Draft, Sovol's speedBenchy at stock's accelerations, declares none and keeps printer.cfg's. Precision's current is a machine setting of its mode file, modes.precision.xy_current, 1.4 A. Carried like the SCV: 'SVZERO_XY_CURRENT=<A>A' joins the SCV sentence in the print preset's Notes, and a generated start G-code block after the SCV block (Orca: after START_PRINT, @@XY_CURRENT@@ in tools/start_gcode.py) calls the pack's SVZERO_XY_CURRENT, which only ever lowers the configured run_current. OrcaSlicer resolves the process `notes` in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). It runs after START_PRINT, so homing, probing and the mesh keep printer.cfg's current; END_PRINT and CANCEL_PRINT restore it. Lower current is less torque, and a noise and heat choice (dissipation goes with current squared). 2.4 A is corgi108's published run_current for the Zero's TMC5160s, which other owners run for quieter, cooler motors; that it holds Standard's and Strength's accelerations without lost steps is NOT measured here. The nearest evidence is against it at the fast end: on a 48 V Zero, 2.4 A 'crashed' at 35,000 mm/s2 and 3 A ran fine (brucemclain, Discord, 2026-02-15, notes/kb/profile-parameters.md). Draft, at 40,000, keeps printer.cfg's 3.5 A; Standard's 11,500 is a third of that.",
   "_sqv_note": "SQUARE CORNER VELOCITY (SCV), per tier, in mm/s. Emitted explicitly to every slicer since 2026-10-05; before that it was declared here and emitted NOWHERE -- the 'passed to START_PRINT' path this note used to describe was never built, so every job ran printer.cfg's 5.0. How each slicer carries it (tools/generate.py apply_scv and emit_orca): PrusaSlicer, SuperSlicer and PS3 put 'SVZERO_SCV=<v>mm' in the print preset's Notes and a generated start G-code block turns it into SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY -- a print-scope key all three define, unlike print_custom_variables, which is what broke PrusaSlicer in v1.0.2. OrcaSlicer gets its native per-feature jerk fields, all set to the tier value; measured 2026-10-05 on Orca 2.4.2 Klipper flavour, it emits nothing while default_jerk is 0 and clamps every value to machine_max_jerk_x, so the machine ceiling is raised to the highest tier. END_PRINT and CANCEL_PRINT restore printer.cfg's value. VALUES: Standard is stock, and stock is 5 (Sovol's Zero process sets every jerk to 5 and printer.cfg says 5.0), so Standard moved 7 -> 5 and Optimal 5 -> 4 to keep the ladder monotonic. Sovol's speedBenchy declares jerk 20 but default_jerk 0, so it never emitted them and ran at 5; Draft keeps 9 as the fast end. References for scale, from OrcaSlicer's vendor profiles with inheritance resolved inside each vendor (corrected 2026-10-05; an earlier reading resolved shared parents across vendors): Voron and Creality K2 set default 9 with outer wall 7; Snapmaker sets default 0 (off) with outer 2; Bambu, Qidi, Sovol SV08 and Sovol's own Zero profile leave default_jerk unset, so Orca sends nothing and the printer's configured value applies. Still PROPOSED, not measured on a Zero. Stock stays null: Sovol's stock profile emits no SCV, so neither does the reference.",
   "layer_heights": {
     "_note": "Explicit rather than computed from layer_fraction, because the ladder is a design choice per nozzle and 0.2n deliberately breaks proportional scaling. Values are the existing SuperSlicer ladder, which is correct under Standard = stock: 0.4n Standard = 0.20 = stock's only process.",
@@ -258,17 +266,18 @@
       "Fine": 21,
       "Optimal": 21,
       "Standard": 21,
-      "Draft": 50,
+      "Draft": 21,
       "Strength": 21,
       "Precision": 2
     },
-    "_reference_flow_note": "21 is Sovol's own stock PLA filament profile -- what ships and what most people will run. 50 is the machine rating and what speedBenchy's filament profile declares, which is why Draft is authored against it. Re-author against a measured value once a flow test on a documented spool exists; known and trusted beats maximal.",
+    "_draft_utilisation_note": "Draft's 1.6 is over 1.0 because the formula's demand is not the slicer's: it is default_speed x 1.125 n x layer, while the slicer runs infill at the perimeter ratio (68% of default_speed) on a rounded bead (w h - h^2 (1 - pi/4)) at the PLA profiles' 0.98 flow ratio, 0.565-0.587 of the formula across Draft's seven nozzles. 1.6 puts Draft's infill, its widest and fastest feature, at 19.0-19.7 mm3/s against the 21 cap, so nothing clips (2026-10-15). Measured on the 0.4: 19.7 asked, 0 mm/s clamped.",
+      "_reference_flow_note": "21 is Sovol's own stock PLA filament profile -- what ships and what most people will run, and since 2.1.1 every tier's reference. 50 is the machine rating and what speedBenchy's filament profile declares; Draft was authored against it until 2.1.1, which is why the slicer clamped it. Re-author against a measured value once a flow test on a documented spool exists; known and trusted beats maximal.",
     "_why_utilisation": "Holding volumetric constant across tiers inverts the ramp: at a fixed flow, a thin layer needs MORE speed, so Fine came out fastest. Tiers must differ in how much of the available flow they use, not in the flow itself. Standard = 100% because Standard is stock capped at the ceiling, which is the stated definition; Fine and Optimal deliberately leave headroom, which is what buys surface finish.",
     "flow_utilisation": {
       "Fine": 0.5,
       "Optimal": 0.7,
       "Standard": 1.0,
-      "Draft": 1.0,
+      "Draft": 1.6,
       "Strength": 0.7,
       "Precision": 1.0
     },
@@ -382,7 +391,7 @@
         "bridge": 20000,
         "first_layer": 1000,
         "travel": 5000,
-        "_anchor": "Just above stock: the outer wall at the X recommendation (11500), the inner wall in stock's 83.3% proportion, everything else at stock. Sovol's speedBenchy itself asks 40000 on every wall; that lives on as the hidden speedboat reference, not as a published tier."
+        "_anchor": "Just above stock: the outer wall at the X recommendation (11500), the inner wall in stock's 83.3% proportion, everything else at stock. Sovol's speedBenchy itself asks 40000 on every wall; that lives on in the hidden SpeedBenchy reference tier, not as a published tier."
       },
       "Strength": "Optimal",
       "Precision": {

@@ -3,10 +3,23 @@
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's
-measured input-shaper limits, a lower X/Y stepper current on Fine to Strength,
-and a slower corner on precision. The optional macro pack gains a 5-133 Hz
-input-shaper test. None of it has printed yet; see the
-[validation record](docs/VALIDATION.md).
+measured input-shaper limits, Draft's speeds under the PLA flow cap, a lower
+X/Y stepper current on Fine to Strength, and a slower corner on precision. The
+optional macro pack gains a 5-133 Hz input-shaper test. None of it has printed
+yet; see the [validation record](docs/VALIDATION.md).
+
+### Draft no longer clips
+
+- **Draft was Sovol's speedBenchy verbatim**, authored against the 50 mm³/s
+  machine rating. With PLA's 21 mm³/s the slicer clamped it: on the 0.4 nozzle
+  the outer wall ran 248 mm/s instead of 251, the inner wall 248 instead of 302
+  and infill 216 instead of 302, so the outer wall ran as fast as the inner.
+- **Draft is now derived like the other tiers**, against the same 21 mm³/s PLA,
+  with its infill asking 19.0-19.7 mm³/s on every Draft nozzle. On the 0.4:
+  outer wall 169, inner wall 203, infill 203 mm/s, and all three slicers run
+  exactly that. It is still the fastest tier on every nozzle it ships on.
+- **speedBenchy is kept as a hidden reference**, like Sovol's stock profile: not
+  in any download, there for comparison.
 
 ### Precision mode
 
@@ -69,8 +82,7 @@ on a Zero (11,500 mm/s² on X and 6,000 on Y, MZV):
   right after `START_PRINT`, so homing and probing keep printer.cfg's current.
   `END_PRINT` and `CANCEL_PRINT` put printer.cfg's back. Same path in all three
   slicers; OrcaSlicer reads the Notes from its start G-code too.
-- **Draft keeps printer.cfg's 3.5 A.** It is Sovol's speedBenchy, at stock's
-  accelerations.
+- **Draft keeps printer.cfg's 3.5 A.** It runs at stock's accelerations.
 - **Precision mode runs 1.4 A**, down from 2.4 A, in its mode file.
 - **The macro only lowers.** `SVZERO_XY_CURRENT` refuses a value above the
   configured `run_current` and the job runs at that. Without the macro pack the

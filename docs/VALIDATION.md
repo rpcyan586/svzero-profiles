@@ -4,8 +4,8 @@
 
 The offline suite passes **195 tests**, with macro rendering on Jinja 2.11.3
 and a clean deterministic rebuild. PS vendor `2.1.1`, Orca `02.01.01.00`.
-Profile behaviour changes: accelerations, X/Y stepper current, precision's
-corner velocity (see the [changelog](../CHANGELOG.md)).
+Profile behaviour changes: accelerations, Draft's speeds, X/Y stepper current,
+precision's corner velocity (see the [changelog](../CHANGELOG.md)).
 
 - **Sliced, not printed.** Each 0.4 tier in SuperSlicer 2.7.62, PrusaSlicer
   2.9.6 and OrcaSlicer 2.4.2 emits the same peak acceleration, square corner
@@ -23,6 +23,11 @@ corner velocity (see the [changelog](../CHANGELOG.md)).
   The full matrix (30 slices, every nozzle, tier, filament and test object at
   least once) produced G-code in all three with no refused key, and every
   row's filament matched the 2.1.0 baseline.
+- **Draft under the PLA cap.** A 120 mm box at 0.4/0.25 in PLA runs outer wall
+  168.6, inner 203.1 and infill 203.1 mm/s in all three slicers, exactly the
+  preset's figures: nothing clamped. Its infill extrudes 19.7 mm³/s against
+  the 21 cap; across Draft's seven nozzles the infill asks 19.0-19.7.
+  `tests/test_draft_flow.py` holds every Draft feature under the cap.
 - **Macros rendered on the printer's own interpreter.** The three firmware
   files and the precision mode file render under a 1.3.7 Zero's klippy-env
   (Jinja 2.11.3, Python 3.9): 419 scenarios, among them `SVZERO_XY_CURRENT`
@@ -32,7 +37,9 @@ corner velocity (see the [changelog](../CHANGELOG.md)).
   `SVZERO_SHAPER_TYPICAL` have not been deployed or called. No part has
   printed at the 2.1.1 accelerations or currents. Whether 2.4 A holds
   Standard's 11,500 mm/s² and Strength's 6,000 without lost steps, and 1.4 A
-  precision's 2,000, is not measured.
+  precision's 2,000, is not measured. The nearest report is a 48 V Zero that
+  lost steps at 2.4 A and 35,000 mm/s² and ran at 3 A; Draft, at 40,000, keeps
+  printer.cfg's 3.5 A.
 - **Accelerometer map on 1.3.7:** the pack sets `axes_map: x,z,y`, which Sovol
   ships in 1.3.8 and 1.4.x. Stock 1.3.7's `z,x,y` swaps the per-axis graphs.
 

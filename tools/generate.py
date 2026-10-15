@@ -523,12 +523,36 @@ def emit_stock_tier(model, ss, keymap, anchors):
 
     Orca names go through the keymap.
     """
+    src = json.load(open(os.path.join(ROOT, "source", "sovol-stock-process.json"),
+                         encoding="utf-8"))
+    return emit_reference_tier(ss, keymap, "Stock", src)
+
+
+def emit_speedbenchy_tier(model, ss, keymap):
+    """Build *SV Zero - SpeedBenchy*, Sovol's stock speedBenchy, verbatim (2.1.1).
+
+    Draft was this until 2.1.1; it is now derived, and speedBenchy is kept as a
+    hidden reference beside Stock. The 3MF's project settings cover machine and
+    filament too, so only the keys Sovol's own Zero process file also sets are
+    taken: the process-scope ones. See model.json tiers.SpeedBenchy.
+    """
+    doc = json.load(open(os.path.join(ROOT, "source", "speedbenchy-3mf.json"), encoding="utf-8"))
+    scope = json.load(open(os.path.join(ROOT, "source", "sovol-stock-process.json"), encoding="utf-8"))
+    src = {k: v for k, v in doc["settings"].items() if k in scope}
+    return emit_reference_tier(ss, keymap, "SpeedBenchy", src)
+
+
+def emit_reference_tier(ss, keymap, tier, src):
+    """A hidden reference tier's base section, *SV Zero - <tier>*, from Orca keys.
+
+    strip_hidden drops it from every outgoing artefact; it exists in the master
+    for diffing and local slicing.
+    """
     fwd = keymap["mapped"]
     sec = collections.OrderedDict()
     sec["inherits"] = "*SV Zero General*"
     skipped = []
-    src = json.load(open(os.path.join(ROOT, "source", "sovol-stock-process.json"),
-                         encoding="utf-8"))
+    name_ = "print:*SV Zero - %s*" % tier
     for orca_key in sorted(src):
         val = src[orca_key]
         if isinstance(val, list):
@@ -551,19 +575,19 @@ def emit_stock_tier(model, ss, keymap, anchors):
     # Insert alongside the other tier bases, not appended after the filaments —
     # section order does not change behaviour but a bundle nobody can read is a
     # bundle nobody will maintain.
-    # Drop any previous Stock section FIRST. Without this the rebuild loop below
-    # re-inserts the stale one when it reaches it, silently overwriting the fresh
-    # section and making the generator non-idempotent — it produced correct output
-    # on a clean bundle and stale output on every re-run.
-    ss.pop("print:*SV Zero - Stock*", None)
+    # Drop any previous section of this tier FIRST. Without this the rebuild loop
+    # below re-inserts the stale one when it reaches it, silently overwriting the
+    # fresh section and making the generator non-idempotent — it produced correct
+    # output on a clean bundle and stale output on every re-run.
+    ss.pop(name_, None)
     rebuilt, placed = collections.OrderedDict(), False
     for name, kv in ss.items():
         if not placed and name.startswith("print:SV Zero "):
-            rebuilt["print:*SV Zero - Stock*"] = sec
+            rebuilt[name_] = sec
             placed = True
         rebuilt[name] = kv
     if not placed:
-        rebuilt["print:*SV Zero - Stock*"] = sec
+        rebuilt[name_] = sec
     ss.clear()
     ss.update(rebuilt)
     return len(sec) - 1, skipped
@@ -860,6 +884,7 @@ def derive(model, ss, keymap):
     """
     return {
         "stock": emit_stock_tier(model, ss, keymap, load("tier-anchors.json")),
+        "speedbenchy": emit_speedbenchy_tier(model, ss, keymap),
         "speed": apply_speed_model(model, ss),
         "scv": apply_scv(model, ss),
         "xy_current": apply_xy_current(model, ss),
@@ -2787,6 +2812,9 @@ def main():
     done = derive(model, ss, keymap)
     nkeys, skipped = done["stock"]
     print("  built *SV Zero - Stock* from anchors: %d keys mapped, %d unmapped and omitted"
+          % (nkeys, len(skipped)))
+    nkeys, skipped = done["speedbenchy"]
+    print("  built *SV Zero - SpeedBenchy* from the 3MF: %d keys mapped, %d unmapped and omitted"
           % (nkeys, len(skipped)))
     print("  applied speed model: %d keys" % done["speed"])
     print("  applied square corner velocity: %d keys" % done["scv"])
