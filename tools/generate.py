@@ -999,6 +999,17 @@ def emit_physical_printers(model, ss):
     return n
 
 
+def speed_share(model, key):
+    """A speed key's share of default_speed, walked through PCT_REFERENCE."""
+    sm = model["speed_model"]
+    ratios = dict(sm["ratios_of_base"], **sm["ratios_of_other"])
+    share = 1.0
+    while key != "default_speed":
+        share *= float(str(ratios[key]).rstrip("%")) / 100.0
+        key = PCT_REFERENCE[key]
+    return share
+
+
 def apply_flow_model(model, ss):
     """Derive each concrete preset's default_speed from its geometry and flow.
 
@@ -1031,6 +1042,15 @@ def apply_flow_model(model, ss):
             flow = flow * noz / float(ref)
         util = fm.get("flow_utilisation", {}).get(tier, 1.0)
         want = (flow * util) / (wr * noz * lh)
+        # A tier with an infill demand runs its infill -- its widest, fastest
+        # feature -- at exactly that flow in the slicers' own bead model, not at
+        # a share of the formula's (model.json flow_model.infill_demand).
+        demand = fm.get("infill_demand", {}).get(tier)
+        if demand:
+            w = wr * noz
+            bead = (w * lh - lh * lh * (1 - math.pi / 4)) * float(fm["bead_flow_ratio"])
+            want = float(demand) / (speed_share(model, "infill_speed") * bead)
+            util = want * wr * noz * lh / flow
         limited = "flow"
         # A motion-limited nozzle can be anchored on a reference wall speed;
         # the cap is then that speed over our own perimeter ratio, so every

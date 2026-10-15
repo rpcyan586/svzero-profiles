@@ -61,7 +61,7 @@
     },
     "Draft": {
       "anchor": "derived",
-      "derivation": "The fast end of the ramp, derived like the others (2026-10-15): Standard's ratios at Draft's layer, its infill asking 19.0-19.7 mm3/s of the 21 mm3/s PLA cap every tier is authored against, so the slicer clamps nothing and the outer wall stays slower than the inner. Verbatim Sovol speedBenchy until 2.1.1, authored against the 50 mm3/s machine rating: with PLA the slicer clamped its walls and infill, and the outer wall ran as fast as the inner. speedBenchy is now the hidden SpeedBenchy reference tier.",
+      "derivation": "The fast end of the ramp, derived like the others (2026-10-15): Standard's ratios at Draft's layer, its infill asking the 21 mm3/s PLA cap every tier is authored against (flow_model.infill_demand), so the fastest feature sits on the cap and the outer wall stays slower than the inner. Verbatim Sovol speedBenchy until 2.1.1, authored against the 50 mm3/s machine rating: with PLA the slicer clamped its walls and infill, and the outer wall ran as fast as the inner. speedBenchy is now the hidden SpeedBenchy reference tier.",
       "sqv": 9,
       "layer_fraction": 0.625
     },
@@ -270,14 +270,18 @@
       "Strength": 21,
       "Precision": 2
     },
-    "_draft_utilisation_note": "Draft's 1.6 is over 1.0 because the formula's demand is not the slicer's: it is default_speed x 1.125 n x layer, while the slicer runs infill at the perimeter ratio (68% of default_speed) on a rounded bead (w h - h^2 (1 - pi/4)) at the PLA profiles' 0.98 flow ratio, 0.565-0.587 of the formula across Draft's seven nozzles. 1.6 puts Draft's infill, its widest and fastest feature, at 19.0-19.7 mm3/s against the 21 cap, so nothing clips (2026-10-15). Measured on the 0.4: 19.7 asked, 0 mm/s clamped.",
+    "infill_demand": {
+      "Draft": 21
+    },
+    "bead_flow_ratio": 0.98,
+    "_infill_demand_note": "Draft runs at the PLA cap (operator, 2026-10-15: 'draft should be hitting 21mm3/s, not less'). A tier listed here takes its default_speed from the slicers' own demand rather than reference_flow x flow_utilisation over the formula's: its infill, the widest and fastest feature, at infill_speed's share of default_speed (68%, through PCT_REFERENCE) on a rounded bead, w h - h^2 (1 - pi/4) with w = 1.125 n, at bead_flow_ratio, asks exactly the demand. The formula's own demand overstates the slicers' by 1.7-1.8x on Draft's nozzles, which is why a single utilisation landed at 19.0-19.7 rather than on 21. bead_flow_ratio is the pack's PLA filament_flow_ratio, which OrcaSlicer counts in its clamp: stock's infill clamps at exactly 21.00 with it. Draft's flow_utilisation is not used.",
       "_reference_flow_note": "21 is Sovol's own stock PLA filament profile -- what ships and what most people will run, and since 2.1.1 every tier's reference. 50 is the machine rating and what speedBenchy's filament profile declares; Draft was authored against it until 2.1.1, which is why the slicer clamped it. Re-author against a measured value once a flow test on a documented spool exists; known and trusted beats maximal.",
     "_why_utilisation": "Holding volumetric constant across tiers inverts the ramp: at a fixed flow, a thin layer needs MORE speed, so Fine came out fastest. Tiers must differ in how much of the available flow they use, not in the flow itself. Standard = 100% because Standard is stock capped at the ceiling, which is the stated definition; Fine and Optimal deliberately leave headroom, which is what buys surface finish.",
     "flow_utilisation": {
       "Fine": 0.5,
       "Optimal": 0.7,
       "Standard": 1.0,
-      "Draft": 1.6,
+      "Draft": 1.0,
       "Strength": 0.7,
       "Precision": 1.0
     },

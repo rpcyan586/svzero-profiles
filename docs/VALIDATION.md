@@ -23,11 +23,13 @@ precision's corner velocity (see the [changelog](../CHANGELOG.md)).
   The full matrix (30 slices, every nozzle, tier, filament and test object at
   least once) produced G-code in all three with no refused key, and every
   row's filament matched the 2.1.0 baseline.
-- **Draft under the PLA cap.** A 120 mm box at 0.4/0.25 in PLA runs outer wall
-  168.6, inner 203.1 and infill 203.1 mm/s in all three slicers, exactly the
-  preset's figures: nothing clamped. Its infill extrudes 19.7 mm³/s against
-  the 21 cap; across Draft's seven nozzles the infill asks 19.0-19.7.
-  `tests/test_draft_flow.py` holds every Draft feature under the cap.
+- **Draft on the PLA cap.** A 120 mm box at 0.4/0.25 in PLA: OrcaSlicer runs
+  the preset's outer wall 179.5, inner 216.2 and infill 216.2 mm/s, extruding
+  20.99 mm³/s of infill. PrusaSlicer 2.9.6 and SuperSlicer 2.7.62 run the walls
+  as asked and clamp infill to 211.9, which is 21 mm³/s over the bead without
+  the 0.98 flow ratio. Across Draft's seven nozzles the infill asks 20.97-21.00
+  in OrcaSlicer's model. `tests/test_draft_flow.py` holds infill on the cap and
+  the walls under it.
 - **Macros rendered on the printer's own interpreter.** The three firmware
   files and the precision mode file render under a 1.3.7 Zero's klippy-env
   (Jinja 2.11.3, Python 3.9): 419 scenarios, among them `SVZERO_XY_CURRENT`

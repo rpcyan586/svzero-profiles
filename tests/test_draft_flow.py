@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Draft asks no more than the PLA cap, so no slicer clamps it (2.1.1).
+"""Draft's infill sits on the PLA cap, and nothing else reaches it (2.1.1).
 
 Draft was Sovol's speedBenchy verbatim, authored against the 50 mm3/s machine
 rating. With the 21 mm3/s PLA every tier is authored against, the slicer clamped
 its walls and infill, and the outer wall ran as fast as the inner (measured in
 OrcaSlicer 2.4.2 on the 0.4: 251 -> 248 outer, 302 -> 248 inner, 302 -> 216
-infill). Draft is now derived, and speedBenchy is the hidden SpeedBenchy tier.
+infill). Draft is now derived, its infill asking exactly the cap
+(flow_model.infill_demand; operator, 2026-10-15: "hitting 21mm3/s, not less"),
+and speedBenchy is the hidden SpeedBenchy tier.
 
 Demand is the slicers' own bead model: a rectangle with semicircular sides,
 w h - h^2 (1 - pi/4), times the filament's flow ratio. Measured against the
@@ -37,17 +39,19 @@ def demand(speed, width, layer):
 
 
 class DraftFlowTest(unittest.TestCase):
-    def test_no_draft_feature_asks_more_than_the_pla_cap(self):
+    def test_draft_infill_is_on_the_cap_and_the_walls_under_it(self):
         files = sorted((VENDOR / "process").glob("*mm Draft @SV Zero *.json"))
         self.assertEqual(len(files), 7)
         for path in files:
             doc = json.loads(path.read_text(encoding="utf-8"))
             lh = float(doc["layer_height"])
             with self.subTest(process=doc["name"]):
-                for speed, width in (("sparse_infill_speed", "sparse_infill_line_width"),
-                                     ("inner_wall_speed", "inner_wall_line_width"),
+                # On the cap to within the 0.1 mm/s a speed is written to.
+                infill = demand(doc["sparse_infill_speed"], float(doc["sparse_infill_line_width"]), lh)
+                self.assertAlmostEqual(infill, CAP, delta=0.05)
+                for speed, width in (("inner_wall_speed", "inner_wall_line_width"),
                                      ("outer_wall_speed", "outer_wall_line_width")):
-                    self.assertLessEqual(demand(doc[speed], float(doc[width]), lh), CAP)
+                    self.assertLess(demand(doc[speed], float(doc[width]), lh), CAP)
                 # The ordering the clamp destroyed: outer slower than inner.
                 self.assertLess(float(doc["outer_wall_speed"]), float(doc["inner_wall_speed"]))
 

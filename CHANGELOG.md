@@ -15,9 +15,12 @@ yet; see the [validation record](docs/VALIDATION.md).
   the outer wall ran 248 mm/s instead of 251, the inner wall 248 instead of 302
   and infill 216 instead of 302, so the outer wall ran as fast as the inner.
 - **Draft is now derived like the other tiers**, against the same 21 mm³/s PLA,
-  with its infill asking 19.0-19.7 mm³/s on every Draft nozzle. On the 0.4:
-  outer wall 169, inner wall 203, infill 203 mm/s, and all three slicers run
-  exactly that. It is still the fastest tier on every nozzle it ships on.
+  its infill asking the 21 mm³/s cap itself on every Draft nozzle, and the
+  walls in the usual proportion below it. On the 0.4: outer wall 180, inner
+  wall 216, infill 216 mm/s. OrcaSlicer runs exactly that. PrusaSlicer and
+  SuperSlicer trim the infill 2%, to 212, which is their clamp landing on 21
+  without the filament's 0.98 flow ratio; their walls run as asked. Draft is
+  still the fastest tier on every nozzle it ships on.
 - **speedBenchy is kept as a hidden reference**, like Sovol's stock profile: not
   in any download, there for comparison.
 
