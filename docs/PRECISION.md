@@ -10,7 +10,7 @@ it has its own printer profile in each slicer.
 | | Standard | Precision |
 |---|---|---|
 | X/Y microsteps | 16 | 64, interpolation off |
-| X/Y current | 3.5 A (stock) | 2.4 A |
+| X/Y current | 2.4 A on Fine to Strength, set per job; Draft runs printer.cfg's 3.5 A | 1.4 A |
 | X/Y chopper | Klipper's defaults | TBL 3, TOFF 3, HSTRT 7, HEND 3, TPFD 5 |
 | Velocity / acceleration ceiling | printer.cfg's | 300 mm/s, 4000 mm/s², enforced |
 | Layers | Fine to Draft tiers | 0.4 nozzle: 0.04, 0.06, 0.08, 0.10, 0.12 mm over a 0.20 first layer. 0.3: 0.04, 0.06, 0.08 over 0.24. 0.25: 0.04, 0.06 over 0.20. 0.2: 0.04, 0.06 over 0.16 |
@@ -32,10 +32,13 @@ Why these values:
   `SET_VELOCITY_LIMIT` and `M204` assign limits rather than clamping them, so
   the mode file wraps both and clamps every request to the ceiling, saying so on
   the console when it does.
-- **The chopper settings and 2.4 A** are corgi108's published recipe for the
-  Zero's TMC5160 drivers, with TPFD at 5 as he later suggested for plain
-  Klipper. Lower current is a noise and heat choice; at these accelerations
-  torque is not the constraint.
+- **The chopper settings** are corgi108's published recipe for the Zero's
+  TMC5160 drivers, with TPFD at 5 as he later suggested for plain Klipper.
+- **1.4 A** is lower than corgi108's 2.4 A, which the standard tiers now run
+  (operator, 2026-10-14). Lower current is a noise and heat choice:
+  dissipation goes with the square of the current. The precision tiers ask for
+  2000 mm/s² at most; that 1.4 A holds them without lost steps is not yet
+  measured on a Zero.
 
 ## Install
 

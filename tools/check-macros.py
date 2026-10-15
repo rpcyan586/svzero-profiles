@@ -229,7 +229,11 @@ def check(path):
                                          # END_PRINT and CANCEL_PRINT restore it.
                                          printer=Mock(square_corner_velocity=5.0,
                                                       max_accel=40000.0,
-                                                      max_velocity=1200.0))),
+                                                      max_velocity=1200.0),
+                                         # SVZERO_XY_CURRENT lowers it; END_PRINT and
+                                         # CANCEL_PRINT restore it. Stock printer.cfg's.
+                                         **{"tmc5160 stepper_x": Mock(run_current=3.5),
+                                            "tmc5160 stepper_y": Mock(run_current=3.5)})),
         "gcode_move": Mock(absolute_extrude=False, absolute_coordinates=True,
                            gcode_position=Mock(x=0.0, y=0.0, z=0.42),
                            position=Mock(x=0.0, y=0.0, z=0.42)),
@@ -452,6 +456,15 @@ def check(path):
                  {}, {}, pack(mode="precision", steps=64, have=16)),
                 ("precision-applied", None, "VERSION=1.0.4 MODE=precision",
                  {}, {}, pack(mode="precision", steps=64, have=64)),
+            ]
+        elif s == "gcode_macro SVZERO_XY_CURRENT":
+            # The tier's current from the start G-code. Only ever lowers.
+            no_tmc = {"configfile": Mock(settings=Mock(printer=Mock(square_corner_velocity=5.0)))}
+            scenarios = [
+                ("lower", None, "CURRENT=2.4", {}, {}),
+                ("raise", None, "CURRENT=4.0", {}, {}),
+                ("none", None, "", {}, {}),
+                ("no-tmc", None, "CURRENT=2.4", {}, {}, no_tmc),
             ]
         elif s == "gcode_macro SVZERO_MODE":
             def pack(mode, switch):
@@ -1558,9 +1571,20 @@ def check(path):
             # than that the macro took some other branch entirely.
             ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"):
                 ["fan assist off", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
-            ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
-            ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
-            ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0"],
+            ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                              "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5",
+                                                              "SET_TMC_CURRENT STEPPER=stepper_y CURRENT=3.5"],
+            ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                           "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5"],
+            ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                                 "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5",
+                                                                 "SET_TMC_CURRENT STEPPER=stepper_y CURRENT=3.5"],
+            ("gcode_macro SVZERO_XY_CURRENT", "lower"): ["SET_TMC_CURRENT STEPPER=stepper_x CURRENT=2.4",
+                                                        "SET_TMC_CURRENT STEPPER=stepper_y CURRENT=2.4",
+                                                        "X/Y current 2.4 A for this job, the configured 3.5 A after it"],
+            ("gcode_macro SVZERO_XY_CURRENT", "raise"): "X/Y current 4.0 A refused",
+            ("gcode_macro SVZERO_XY_CURRENT", "none"): "X/Y current 0.0 A refused",
+            ("gcode_macro SVZERO_XY_CURRENT", "no-tmc"): "X/Y current left as configured",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-no-cooldown"): "_CHAMBER_OFF",
             ("gcode_macro _CHAMBER_GUARD", "job-complete-cooling"): "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD",
             ("gcode_macro _CHAMBER_GUARD", "cooldown-absent"): "_CHAMBER_OFF",
@@ -1635,6 +1659,10 @@ def check(path):
         }
         # The inactive tick must produce nothing at all.
         forbid = {("gcode_macro SET_LED", "other-led"): "INDEX=20",
+                  # A refused or impossible request changes nothing.
+                  ("gcode_macro SVZERO_XY_CURRENT", "raise"): "SET_TMC_CURRENT",
+                  ("gcode_macro SVZERO_XY_CURRENT", "none"): "SET_TMC_CURRENT",
+                  ("gcode_macro SVZERO_XY_CURRENT", "no-tmc"): "SET_TMC_CURRENT",
                   # The curtain's floor alone outweighs this demand at Z 22.
                   ("gcode_macro _COOLDOWN_TICK", "assist-rpm-low-z-exhaust-alone"): "FAN=fan2",
                   ("gcode_macro M191", "r-cooling"): ["G28", "CHAMBER_PREHEAT_WAIT"],

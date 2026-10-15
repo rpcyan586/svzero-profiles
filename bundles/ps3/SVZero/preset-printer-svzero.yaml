@@ -84,7 +84,13 @@ values:
     without the marker\n;  sends nothing and keeps the printer''s own.\n{if notes=~/.*SVZERO_SCV=1mm.*/}SET_VELOCITY_LIMIT
     SQUARE_CORNER_VELOCITY=1\n{elsif notes=~/.*SVZERO_SCV=3mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=3\n{elsif
     notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4\n{elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT
-    SQUARE_CORNER_VELOCITY=5\n{elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}\n;<<<SCV\nG90\nG1
+    SQUARE_CORNER_VELOCITY=5\n{elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}\n;<<<SCV\n;>>>XY_CURRENT
+    generated from source/model.json tiers -- do not hand-edit\n;  X/Y stepper current is a print-tier
+    setting. The print preset''s Notes\n;  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the
+    pack after\n;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack\n;  only lowers
+    it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.\n;  A preset without the marker (Draft)
+    keeps the printer''s own. Without\n;  the pack it is an unknown command, which Klipper reports and
+    steps over.\n{if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4{endif}\n;<<<XY_CURRENT\nG90\nG1
     Z5 F600 ; clearance from the freshly calibrated bed before any XY move\nG92 E0\nSET_GCODE_OFFSET Z_ADJUST=-0.00
     MOVE=1\nM104 S[first_layer_temperature]\nM83\n;---Purge. PURGE_LINE owns placement and motion; the
     slicer passes the numbers\n;  only it knows. The old inline math is retired: it collapsed algebraically
