@@ -71,7 +71,7 @@ by this project.
 |---|---|---|
 | Profiles only | Nozzle/material settings, temperature waits, skirt | Uses stock Sovol start/end macros |
 | Firmware-matched macro pack | Chamber control, rear-sensor soak, brush routine, positioned purge, cancellation and bed cooldown | Profiles still use stock behavior |
-| Preheat Python helper | Nozzle-air qualification, history-assisted waiting, optional boost/early handover | Native rear-sensor wait |
+| Preheat Python helper | Nozzle-air qualification, history-assisted waiting, bed boost (on by default) and bounded early handover | Native rear-sensor wait |
 | Spoolman helper | Material and remaining-filament check before heating | Check the spool yourself |
 | Fan/camera helpers | Additional telemetry or tuning for separately configured hardware/services | Core profiles do not require them |
 
