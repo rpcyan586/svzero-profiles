@@ -1,5 +1,41 @@
 # Validation and known limitations
 
+## Candidate 2.1.1
+
+The offline suite passes **195 tests**, with macro rendering on Jinja 2.11.3
+and a clean deterministic rebuild. PS vendor `2.1.1`, Orca `02.01.01.00`.
+Profile behaviour changes: accelerations, X/Y stepper current, precision's
+corner velocity (see the [changelog](../CHANGELOG.md)).
+
+- **Sliced, not printed.** Each 0.4 tier in SuperSlicer 2.7.62, PrusaSlicer
+  2.9.6 and OrcaSlicer 2.4.2 emits the same peak acceleration, square corner
+  velocity, X/Y current and handshake line in all three:
+
+  | Tier | Peak, mm/s² | SCV | X/Y current sent |
+  |---|---:|---:|---|
+  | Precision (0.08) | 2,000 | 1 | none, the mode file's 1.4 A |
+  | Fine | 4,000 | 3 | 2.4 A |
+  | Optimal | 6,000 | 4 | 2.4 A |
+  | Standard | 11,500 | 5 | 2.4 A |
+  | Strength | 6,000 | 5 | 2.4 A |
+  | Draft | 40,000 | 9 | none, printer.cfg's 3.5 A |
+
+  The full matrix (30 slices, every nozzle, tier, filament and test object at
+  least once) produced G-code in all three with no refused key, and every
+  row's filament matched the 2.1.0 baseline.
+- **Macros rendered on the printer's own interpreter.** The three firmware
+  files and the precision mode file render under a 1.3.7 Zero's klippy-env
+  (Jinja 2.11.3, Python 3.9): 419 scenarios, among them `SVZERO_XY_CURRENT`
+  lowering, refusing a raise and finding no TMC5160 sections, and
+  `SVZERO_SHAPER_CALIBRATE` refusing in precision mode and mid-print.
+- **Not run on a printer:** `SVZERO_XY_CURRENT`, `SVZERO_SHAPER_CALIBRATE` and
+  `SVZERO_SHAPER_TYPICAL` have not been deployed or called. No part has
+  printed at the 2.1.1 accelerations or currents. Whether 2.4 A holds
+  Standard's 11,500 mm/s² and Strength's 6,000 without lost steps, and 1.4 A
+  precision's 2,000, is not measured.
+- **Accelerometer map on 1.3.7:** the pack sets `axes_map: x,z,y`, which Sovol
+  ships in 1.3.8 and 1.4.x. Stock 1.3.7's `z,x,y` swaps the per-axis graphs.
+
 ## Candidate 2.1.0
 
 The offline suite passes **182 tests**, with macro rendering on Jinja 2.11.3

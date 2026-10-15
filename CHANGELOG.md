@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.1.1
+
+Profile behaviour changes in this release: accelerations scaled to the Zero's
+measured input-shaper limits, a lower X/Y stepper current on Fine to Strength,
+and a slower corner on precision. The optional macro pack gains a 5-133 Hz
+input-shaper test. None of it has printed yet; see the
+[validation record](docs/VALIDATION.md).
 
 ### Precision mode
 

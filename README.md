@@ -1,13 +1,13 @@
 # SV Zero profiles
 
-**[Download the latest release — v2.1.0](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.1.0)**
+**[Download the latest release — v2.1.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.1.1)**
 
-[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-orcaslicer.zip) ·
-[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-prusaslicer.zip) ·
-[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/svzero-profiles-2.1.0-superslicer.zip)
+[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-orcaslicer.zip) ·
+[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-prusaslicer.zip) ·
+[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-superslicer.zip)
 
 [Source in Git](https://github.com/rpcyan586/svzero-profiles) ·
-[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.0/SHA256SUMS) ·
+[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/SHA256SUMS) ·
 [All releases](https://github.com/rpcyan586/svzero-profiles/releases)
 
 Each ZIP includes its installation guide and the optional printer macro pack.
@@ -24,6 +24,17 @@ Fine/Optimal/Standard/Draft/Strength tiers where supported. An optional
 [precision mode](docs/PRECISION.md) adds slow, quiet, fine-detail printing on
 the 0.4 nozzle and the smaller ones. Added nozzle sizes
 are starting points, not evidence that a nozzle fits or has been flow-calibrated.
+
+<p><img src="docs/images/stock-vs-pack.png" alt="Sovol's one stock profile against the pack's tiers on the 0.4 nozzle: speeds as run with the clamped requests in parentheses, infill flow, peak acceleration, corner velocity, X/Y microsteps and current"></p>
+
+<p>
+<img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">
+<img src="docs/images/bed-boost.png" width="49%" alt="Bed boost against none from a 27 C box: 13.3 minutes to the chamber soak against 25.6">
+<img src="docs/images/preheat-watts.png" width="49%" alt="Bed watts into the chamber at nine bed positions, against the draw with the part fan off">
+<img src="docs/images/exhaust.png" width="49%" alt="The PI-controlled exhaust against the stock rule, with the noise curve on the same fan axis">
+<img src="docs/images/cooldown.png" width="49%" alt="The controlled cooldown against the bed switched off, as stock does">
+<img src="docs/images/fan-strength.png" width="49%" alt="How much each fan pulls from the plate, behind the cooldown fan weighting">
+</p>
 
 ## Try the profiles
 
