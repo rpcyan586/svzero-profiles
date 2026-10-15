@@ -17,7 +17,7 @@ it has its own printer profile in each slicer.
 | Walls, tops | per tier | 3 walls, ironed top surfaces |
 | Speeds | per tier | 2 mm³/s on the 0.4 through the normal speed ratios; outer walls at most 45 mm/s. A smaller nozzle runs the 0.4's speeds at the same layer height |
 | Accelerations | per tier | Prusa Core One 0.25 DETAIL: 3000 default, 800 outer, 1200 inner, 2500 infill, 2000 solid, 1000 top, 500 first layer, 4000 travel |
-| Square corner velocity | per tier | 3 |
+| Square corner velocity | per tier | 1 |
 | Z-hop | on | off |
 | Filaments | all | all except TPU |
 

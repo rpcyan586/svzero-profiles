@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Precision mode
+
+- **Square corner velocity 1** (was 3), the lowest of any tier, so precision
+  takes its corners slowest. Sent the same way as the other tiers: the
+  PrusaSlicer and SuperSlicer start G-code reads `SVZERO_SCV=1mm` from the
+  preset's notes, and OrcaSlicer's jerk fields are all 1. Sliced in all three
+  at 0.4 nozzle 0.08 mm and 0.2 nozzle 0.04 mm: `SQUARE_CORNER_VELOCITY=1`,
+  `MODE=precision`, nothing refused.
+
 ## 2.1.0
 
 Versions are now three numbers with no beta suffix. Profile behaviour changes
