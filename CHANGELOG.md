@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Changed: lower X/Y stepper current
+
+- **Fine, Optimal, Standard and Strength run X and Y at 2.4 A**, against the
+  3.5 A in Sovol's printer.cfg. Each print preset's Notes name the current
+  (`SVZERO_XY_CURRENT=2.4A`), and the start G-code hands it to the macro pack
+  right after `START_PRINT`, so homing and probing keep printer.cfg's current.
+  `END_PRINT` and `CANCEL_PRINT` put printer.cfg's back. Same path in all three
+  slicers; OrcaSlicer reads the Notes from its start G-code too.
+- **Draft keeps printer.cfg's 3.5 A.** It is Sovol's speedBenchy, at stock's
+  accelerations.
+- **Precision mode runs 1.4 A**, down from 2.4 A, in its mode file.
+- **The macro only lowers.** `SVZERO_XY_CURRENT` refuses a value above the
+  configured `run_current` and the job runs at that. Without the macro pack the
+  line is an unknown command, which Klipper reports and steps over, and the
+  printer keeps its own current.
+- **Why:** less current is quieter and cooler, since dissipation goes with its
+  square. 2.4 A is corgi108's published `run_current` for the Zero's TMC5160s,
+  which other owners run. **Not yet measured:** that 2.4 A holds Standard's and
+  Strength's accelerations, and 1.4 A Precision's, without lost steps.
+
 ## 2.1.0
 
 Versions are now three numbers with no beta suffix. Profile behaviour changes

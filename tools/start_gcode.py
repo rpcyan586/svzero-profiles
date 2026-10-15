@@ -103,6 +103,10 @@ ORCA_START_TAIL = "\n".join([
     # The public profile must provide that wait even without our replacement.
     "M190 S[bed_temperature_initial_layer_single]",
     "START_PRINT",
+    # The tier's X/Y current, from the print preset's Notes, generated from
+    # source/model.json by tools/generate.py (xy_current_block). After
+    # START_PRINT, so homing and probing keep printer.cfg's current.
+    "@@XY_CURRENT@@",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
     "M104 S[nozzle_temperature_initial_layer]",

@@ -28,6 +28,7 @@ installed version or measured performance.
 | `START_PRINT` | Run optional camera tuning, recheck the bed target with `M190`, clear the G-code Z offset and invoke firmware-specific Z calibration. Rehome Z and calibrate the bed mesh. Heater targets remain active through this mesh sequence. |
 | `START_PRINT` | Release any remaining chamber-helper bed carry, park over the pad and return to the slicer. |
 | Slicer | PrusaSlicer/SuperSlicer send the print tier's square corner velocity (`SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY`, from the print preset's Notes); OrcaSlicer sends it with its first printed feature, from its jerk fields. `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value. |
+| Slicer | All three send the print tier's X/Y stepper current, `SVZERO_XY_CURRENT CURRENT=2.4` on Fine to Strength, from the print preset's Notes. The pack only lowers the configured current; Draft sends nothing and runs `printer.cfg`'s. `END_PRINT` and `CANCEL_PRINT` restore it. |
 | Slicer | Lift to Z5, heat/wait for printing temperature, then call `PURGE_LINE` with nozzle/filament dimensions, flow limit and skirt clearance. |
 | `PURGE_LINE` | Place rings or an edge line and return recorded cleaning/end-retract debt at the deposition position before purging. |
 | Slicer | Continue the print; the public skirt remains enabled even with the pack installed. |

@@ -42,18 +42,21 @@
       "anchor": "derived",
       "derivation": "extrapolate away from Draft past Standard — slower, more shells, artefact removal. Community quality recommendations, not interpolation.",
       "sqv": 3,
+      "xy_current": 2.4,
       "layer_fraction": 0.25
     },
     "Optimal": {
       "anchor": "derived",
       "derivation": "midpoint of Fine and Standard",
       "sqv": 4,
+      "xy_current": 2.4,
       "layer_fraction": 0.375
     },
     "Standard": {
       "anchor": "stock",
       "derivation": "verbatim Sovol stock Orca profile (0.20mm Standard @ 0.4 nozzle)",
       "sqv": 5,
+      "xy_current": 2.4,
       "layer_fraction": 0.5
     },
     "Draft": {
@@ -85,6 +88,7 @@
       "anchor_tier": "Standard",
       "derivation": "Standard's rung and layer height, Optimal's motion envelope, and a heavier shell. Walls hold ~2.4 mm of wall thickness rather than a wall COUNT, which is what lets one rule serve five nozzles: 6 loops at 0.4 and 4 at 0.6 is Bambu's own ladder (0.20mm/0.30mm Strength @BBL X1C) and it holds 2.52 mm both times, so the constant they are really keeping is thickness. Infill 10%% -> 25%% is unanimous across every vendor Strength profile shipped in OrcaSlicer 2.4.2; only Creality disagrees, upward, at 30%%.",
       "sqv": 5,
+      "xy_current": 2.4,
       "layer_fraction": 0.5,
       "off_ramp": true,
       "_why_slower": "PrusaSlicer's STRUCTURAL is the other camp entirely: same geometry as its peers, 45-55%% of their speed and acceleration (0.20mm STRUCTURAL @MK4IS 0.4 runs perimeter 80 against SPEED's 170). Orca's vendors spend geometry; Prusa spends time. Both are cheap here, so this variant takes both -- flow_utilisation 0.7, which is Optimal's, against Standard's 1.0.",
@@ -99,6 +103,7 @@
       "exempt_from_ramp": true
     }
   },
+  "_xy_current_note": "X/Y STEPPER CURRENT, per tier, in A (operator, 2026-10-14). Fine, Optimal, Standard and Strength run X and Y at 2.4 A against printer.cfg's 3.5 A; Draft, Sovol's speedBenchy at stock's accelerations, declares none and keeps printer.cfg's. Precision's current is a machine setting of its mode file, modes.precision.xy_current, 1.4 A. Carried like the SCV: 'SVZERO_XY_CURRENT=<A>A' joins the SCV sentence in the print preset's Notes, and a generated start G-code block after the SCV block (Orca: after START_PRINT, @@XY_CURRENT@@ in tools/start_gcode.py) calls the pack's SVZERO_XY_CURRENT, which only ever lowers the configured run_current. OrcaSlicer resolves the process `notes` in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). It runs after START_PRINT, so homing, probing and the mesh keep printer.cfg's current; END_PRINT and CANCEL_PRINT restore it. Lower current is less torque, and a noise and heat choice (dissipation goes with current squared). 2.4 A is corgi108's published run_current for the Zero's TMC5160s, which other owners run for quieter, cooler motors; that it holds Standard's and Strength's accelerations without lost steps is NOT measured here.",
   "_sqv_note": "SQUARE CORNER VELOCITY (SCV), per tier, in mm/s. Emitted explicitly to every slicer since 2026-10-05; before that it was declared here and emitted NOWHERE -- the 'passed to START_PRINT' path this note used to describe was never built, so every job ran printer.cfg's 5.0. How each slicer carries it (tools/generate.py apply_scv and emit_orca): PrusaSlicer, SuperSlicer and PS3 put 'SVZERO_SCV=<v>mm' in the print preset's Notes and a generated start G-code block turns it into SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY -- a print-scope key all three define, unlike print_custom_variables, which is what broke PrusaSlicer in v1.0.2. OrcaSlicer gets its native per-feature jerk fields, all set to the tier value; measured 2026-10-05 on Orca 2.4.2 Klipper flavour, it emits nothing while default_jerk is 0 and clamps every value to machine_max_jerk_x, so the machine ceiling is raised to the highest tier. END_PRINT and CANCEL_PRINT restore printer.cfg's value. VALUES: Standard is stock, and stock is 5 (Sovol's Zero process sets every jerk to 5 and printer.cfg says 5.0), so Standard moved 7 -> 5 and Optimal 5 -> 4 to keep the ladder monotonic. Sovol's speedBenchy declares jerk 20 but default_jerk 0, so it never emitted them and ran at 5; Draft keeps 9 as the fast end. References for scale, from OrcaSlicer's vendor profiles with inheritance resolved inside each vendor (corrected 2026-10-05; an earlier reading resolved shared parents across vendors): Voron and Creality K2 set default 9 with outer wall 7; Snapmaker sets default 0 (off) with outer 2; Bambu, Qidi, Sovol SV08 and Sovol's own Zero profile leave default_jerk unset, so Orca sends nothing and the printer's configured value applies. Still PROPOSED, not measured on a Zero. Stock stays null: Sovol's stock profile emits no SCV, so neither does the reference.",
   "layer_heights": {
     "_note": "Explicit rather than computed from layer_fraction, because the ladder is a design choice per nozzle and 0.2n deliberately breaks proportional scaling. Values are the existing SuperSlicer ladder, which is correct under Standard = stock: 0.4n Standard = 0.20 = stock's only process.",
@@ -388,7 +393,7 @@
     }
   },
   "modes": {
-    "_why": "A machine mode is a Klipper configuration selected by a mode file and a restart: precision runs X/Y at 64 microsteps, 2.4 A, under a 300 mm/s and 4000 mm/s^2 ceiling. Its tiers belong to a printer of their own, whose start G-code names the mode in SVZERO_REQUIRE, so the handshake refuses a job sliced for the other mode. Standard mode is every printer not listed here.",
+    "_why": "A machine mode is a Klipper configuration selected by a mode file and a restart: precision runs X/Y at 64 microsteps, 1.4 A, under a 300 mm/s and 4000 mm/s^2 ceiling. Its tiers belong to a printer of their own, whose start G-code names the mode in SVZERO_REQUIRE, so the handshake refuses a job sliced for the other mode. Standard mode is every printer not listed here.",
     "precision": {
       "tiers": [
         "Precision"
@@ -412,6 +417,8 @@
         "max_accel": 4000
       },
       "_machine_why": "The ceiling svzero-mode-precision.cfg enforces: 300 mm/s is the step-rate budget at 64 microsteps (5 x microsteps x v x sqrt 2 steps/s at stock's 1200 mm/s and 16), 4000 the highest acceleration any precision tier asks for. The minimum layer, 0.04, is authored on the printer in source/presets.json.",
+      "xy_current": 1.4,
+      "_xy_current_why": "The mode file's X/Y run_current (operator, 2026-10-14; it was corgi108's 2.4 A from 2026-10-05). A machine setting, so it lives in the mode file and the Precision tier's Notes carry none; tests/test_xy_current.py ties the two.",
       "outer_wall_cap": 45,
       "_outer_wall_cap_why": "Prusa Core One 0.25 DETAIL's outer wall speed (operator, 2026-10-05). Binds only at 0.04 mm.",
       "exclude_filament_types": [

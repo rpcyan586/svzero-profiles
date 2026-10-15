@@ -645,6 +645,73 @@ def scv_block(values):
     ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<SCV"])
 
 
+def tier_xy_current(model):
+    """{tier: X/Y driver current in A} for every tier that lowers it (2026-10-14)."""
+    return {t: v["xy_current"] for t, v in model["tiers"].items()
+            if isinstance(v, dict) and v.get("xy_current") is not None}
+
+
+def xy_current_marker(v):
+    return "SVZERO_XY_CURRENT=%gA" % v
+
+
+def xy_current_block(values, newline):
+    """The start G-code block that hands a tier's X/Y current to the pack.
+
+    Same carrier as the SCV, the print preset's Notes, which OrcaSlicer also
+    resolves in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). The `A`
+    suffix keeps =2.4A from matching =12.4A. `newline` is the escaped one for
+    the SuperSlicer source and a real one for Orca JSON.
+    """
+    branches = []
+    for i, v in enumerate(sorted(set(values))):
+        pat = re.escape(xy_current_marker(v)).replace("\\.", "[.]")
+        branches.append("{%s notes=~/.*%s.*/}SVZERO_XY_CURRENT CURRENT=%g"
+                        % ("if" if i == 0 else "elsif", pat, v))
+    return newline.join([
+        ";>>>XY_CURRENT generated from source/model.json tiers -- do not hand-edit",
+        ";  X/Y stepper current is a print-tier setting. The print preset's Notes",
+        ";  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the pack after",
+        ";  START_PRINT, so homing and probing keep printer.cfg's current. The pack",
+        ";  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg's.",
+        ";  A preset without the marker (Draft) keeps the printer's own. Without",
+        ";  the pack it is an unknown command, which Klipper reports and steps over.",
+    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<XY_CURRENT"])
+
+
+def apply_xy_current(model, ss):
+    """X/Y driver current, in every PrusaSlicer/SuperSlicer start G-code.
+
+    apply_scv writes the marker into each tier's Notes, beside its SCV; this puts
+    the block that reads it right after the SCV block. Orca's start G-code gets
+    the same block through @@XY_CURRENT@@ in start_gcode.py. See model.json
+    _xy_current_note.
+    """
+    cur = tier_xy_current(model)
+    if not cur:
+        return 0
+    lost = sorted(set(cur) - set(tier_scv(model)))
+    if lost:
+        raise SystemExit("tiers with an X/Y current but no SCV, so no Notes to carry it: %s" % lost)
+    block = xy_current_block(cur.values(), "\\n")
+    changed = 0
+    for name, sec in ss.items():
+        if not name.startswith("printer:"):
+            continue
+        g = sec.get("start_gcode")
+        if not g:
+            continue
+        if ";>>>XY_CURRENT" in g:
+            new = re.sub(r";>>>XY_CURRENT.*?;<<<XY_CURRENT", lambda m: block, g)
+        elif ";<<<SCV" in g:
+            new = g.replace(";<<<SCV", ";<<<SCV\\n" + block, 1)
+        else:
+            raise SystemExit("%s: no SCV block to follow with the X/Y current block" % name)
+        if new != g:
+            sec["start_gcode"] = new; changed += 1
+    return changed
+
+
 def apply_scv(model, ss):
     """Square corner velocity, explicitly, in every PrusaSlicer/SuperSlicer preset.
 
@@ -658,13 +725,21 @@ def apply_scv(model, ss):
     if not scv:
         return 0
     changed = 0
+    cur = tier_xy_current(model)
     for tier, v in scv.items():
         sec = ss.get("print:*SV Zero - %s*" % tier)
         if sec is None:
             continue
-        note = ("Square corner velocity for this tier: %g mm/s (%s). The start G-code "
-                "sends it to Klipper at print start; edit this value, not the G-code."
-                % (v, scv_marker(v)))
+        # One line: the start G-code matches it with .*, which a newline would stop.
+        if tier in cur:
+            note = ("Square corner velocity for this tier: %g mm/s (%s). X/Y stepper current: "
+                    "%g A (%s). The start G-code sends both to Klipper at print start; edit "
+                    "these values, not the G-code."
+                    % (v, scv_marker(v), cur[tier], xy_current_marker(cur[tier])))
+        else:
+            note = ("Square corner velocity for this tier: %g mm/s (%s). The start G-code "
+                    "sends it to Klipper at print start; edit this value, not the G-code."
+                    % (v, scv_marker(v)))
         if sec.get("notes") != note:
             sec["notes"] = note; changed += 1
     block = scv_block(scv.values())
@@ -776,6 +851,7 @@ def derive(model, ss, keymap):
         "stock": emit_stock_tier(model, ss, keymap, load("tier-anchors.json")),
         "speed": apply_speed_model(model, ss),
         "scv": apply_scv(model, ss),
+        "xy_current": apply_xy_current(model, ss),
         "accel": apply_accel_model(model, ss),
         "flow": apply_flow_model(model, ss),
         "small": apply_small_nozzle_rules(model, ss),
@@ -2490,7 +2566,8 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n" + after.split(ORCA_PURGE_END, 1)[1].lstrip("\n")
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
+                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
             m["machine_start_gcode"] = preamble + tail
         elif g.startswith(ORCA_START_HEADER.split("\n")[0]):
             # Re-generating our own output. Find the PURGE_LINE command and
@@ -2504,7 +2581,8 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n"
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
+                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
             m["machine_start_gcode"] = preamble + tail
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         # Same rule as the user-preset emitter: the vendor bundle is the thing

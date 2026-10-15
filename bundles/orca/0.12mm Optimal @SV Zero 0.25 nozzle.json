@@ -19,7 +19,7 @@
   "wall_loops": "3",
   "initial_layer_infill_speed": "21.0",
   "travel_speed": "756",
-  "notes": "Square corner velocity for this tier: 4 mm/s (SVZERO_SCV=4mm). The start G-code sends it to Klipper at print start; edit this value, not the G-code.",
+  "notes": "Square corner velocity for this tier: 4 mm/s (SVZERO_SCV=4mm). X/Y stepper current: 2.4 A (SVZERO_XY_CURRENT=2.4A). The start G-code sends both to Klipper at print start; edit these values, not the G-code.",
   "bottom_surface_pattern": "monotonic",
   "bottom_shell_layers": "3",
   "bridge_flow": "1",
