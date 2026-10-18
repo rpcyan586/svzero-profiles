@@ -43,6 +43,15 @@ that the Zero is "fully open-source (including hardware, firmware, and
 structure)" under "the open-source guidelines of Voron and Klipper" (SOVOL-ZERO
 README).
 
-The bed SVG and two-triangle STL are original schematic previews, GPL-3.0.
-They are not derived from the third-party assets used in earlier private builds.
+The bed texture PNG is "Sovol Zero buildplate texture" by Chinchill
+(https://www.printables.com/model/1263730), unmodified, under Creative Commons
+Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/); its copy with a
+10 mm grid added, for PrusaSlicer and SuperSlicer, is under the same licence. The bed SVG is
+an original schematic preview, GPL-3.0. The bed STL is Sovol's
+own CAD for the Zero's hotbed (STEP/hotbed kit.STEP in
+https://github.com/Sovol3d/SOVOL-ZERO, which has no licence file; see Sovol's
+statement above), tessellated, placed in the slicer frame and simplified. The
+two lead screws added to it, raised by the 152.4 mm print height, are GPL-3.0.
+Credits: assets/svzero_bed.CREDITS.md. Neither is derived from the third-party
+assets used in earlier private builds.
 The original artwork and the optional Orca validator binary are not distributed.

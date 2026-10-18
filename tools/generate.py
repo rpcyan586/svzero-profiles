@@ -2610,8 +2610,15 @@ def emit_orca_vendor(model, ss, out_dir):
         ("type", "machine_model"), ("name", "SV Zero"), ("model_id", "SV-ZERO"),
         ("nozzle_diameter", ";".join(nozzles)), ("machine_tech", "FFF"),
         ("family", "SOVOL"),
-        ("bed_model", base.get("bed_model", "")),
-        ("bed_texture", base.get("bed_texture", "")),
+        # The bed preview hangs off the PRINTER MODEL, by bare filename. Orca
+        # 2.4.2 resolves it at <datadir>/vendor/SVZero/ and then at its own
+        # resources/profiles/SVZero/ (PresetBundle::get_stl_model_for_printer_model,
+        # PresetUtils::system_printer_bed_model, OrcaSlicer 8500fcd) -- never
+        # at system/SVZero/, where the vendor itself is installed -- so
+        # install-presets.py and the download also place the assets under
+        # vendor/SVZero/. Model only, no texture: see the machine preset loop.
+        ("bed_model", "svzero_bed.stl" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")) else ""),
+        ("bed_texture", "svzero_bed.png" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.png")) else ""),
         ("default_materials", base.get("default_materials", "")),
     ])
     json.dump(mm, open(os.path.join(vend, "machine", "SV Zero.json"), "w",
@@ -2635,7 +2642,7 @@ def emit_orca_vendor(model, ss, out_dir):
     # The credits file travels with the assets. CC BY-SA attribution has to
     # accompany the work, and a downloader who unpacks only the Orca vendor
     # directory must still find out whose model it is.
-    for asset in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+    for asset in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
         src = os.path.join(ROOT, "assets", asset)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
@@ -2761,16 +2768,25 @@ def emit_orca_vendor(model, ss, out_dir):
         # `orca-shadow` were doing: shadow only rewrites machine_start_gcode, so
         # anything missing from the machine profile is missing from both.
         #
-        # MODEL ONLY, NO TEXTURE. Both were set until 2026-09-07, when the
-        # operator reported the texture "largely buried beneath the top surface
-        # of the model". That is inherent, not a z-fight: the texture is painted
+        # (History: model only, no texture, from 2026-09-07 until 2026-10-18,
+        # after the operator reported the texture "largely buried beneath the
+        # top surface of the model". The 2026-10-18 bed has its plate top at
+        # z = 0, and Orca draws a bed model 0.45 mm below the texture's plane
+        # (3DBed.cpp update_model_offset), so the texture now shows; it is on
+        # the printer model, with the bed.)
+        # The original note: That is inherent, not a z-fight: the texture is painted
         # on the flat build rectangle at z=0, and dukinarow's model is a real
         # solid whose plate surface sits ABOVE z=0, so the model occludes it
         # everywhere the two overlap. A texture is what you show INSTEAD of a
         # model, not underneath one. The SVG still ships -- it is the fallback
         # for anyone who removes the model, and the credits cover both.
-        if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")):
-            m["bed_custom_model"] = "svzero_bed.stl"
+        # NO bed_custom_model ON THE MACHINE PRESET. Orca uses that value
+        # verbatim as a file path (Bed3D::set_shape: an existing .stl or
+        # "Unable to load bed model" and nothing), and a non-empty one
+        # overrides the printer model's bed_model. Set to the bare filename it
+        # disabled the preview entirely in Orca, the old square included
+        # (found 2026-10-18 when the real bed did not appear). The printer
+        # model above carries the bed instead.
         fn = "SV Zero %s nozzle.json" % noz
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
         machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})

@@ -3,8 +3,10 @@
 With OrcaSlicer closed, copy `profiles/SVZero.json` and the entire
 `profiles/SVZero/` directory into your Orca configuration directory's `system/`
 folder. Keep that directory intact: Orca needs the individual machine, process
-and filament JSON files, including inherited base definitions. The bed preview
-and its credits are already inside it. Enable SV Zero in printer selection.
+and filament JSON files, including inherited base definitions. Also copy the
+`vendor/SVZero/` directory into the same configuration directory, beside
+`system/`: Orca looks for a vendor's bed preview there, not in `system/`, so
+without it the bed shows as a plain plate. Enable SV Zero in printer selection.
 
 Select the nozzle actually installed, choose print and filament presets, then
 configure your own printer connection. Re-select presets in saved projects and

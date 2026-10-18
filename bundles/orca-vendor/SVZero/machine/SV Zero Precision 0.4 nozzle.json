@@ -117,6 +117,5 @@
   ],
   "single_extruder_multi_material": "0",
   "use_relative_e_distances": "1",
-  "host_type": "octoprint",
-  "bed_custom_model": "svzero_bed.stl"
+  "host_type": "octoprint"
 }

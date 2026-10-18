@@ -12,6 +12,8 @@
         "arc_fitting_tolerance": "5%",
         "autoemit_temperature_commands": "1",
         "bed_custom_model": "svzero_bed.stl",
+        "bed_custom_texture": "svzero_bed_grid.png",
+        "_why_bed_texture": "The gridded copy, for PrusaSlicer and SuperSlicer only: they draw their own 10 mm grid only on the plain fallback bed, never over a custom texture or model (PrusaSlicer 2.9.2 3DBed.cpp render_custom/render_default). OrcaSlicer draws its grid over textures, so its printer model carries the plain svzero_bed.png and shows one grid, not two.",
         "bed_shape": "0x0,152.4x0,152.4x152.4,0x152.4",
         "before_layer_gcode": "TIMELAPSE_TAKE_FRAME\\nG92 E0\\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num+1}",
         "between_objects_gcode": "",

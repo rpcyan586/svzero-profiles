@@ -298,7 +298,7 @@ def install_bed_assets(datadir):
     the slicers' own file dialog would have written.
     """
     n = 0
-    for name in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+    for name in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
         src = os.path.join(ROOT, "assets", name)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(datadir, name))
@@ -566,6 +566,17 @@ def install_orca(datadir):
                 shutil.copy2(s_, d_)
 
     # The SVZero vendor is self-contained. Do not install unrelated vendors.
+
+    # 1b. the bed preview, again, under vendor/SVZero/. Orca resolves a printer
+    #     model's bed_model there or in its own resources, never under system/
+    #     (PresetBundle::get_stl_model_for_printer_model, OrcaSlicer 2.4.2), so
+    #     the copy inside the vendor directory above is invisible to it.
+    vdir = os.path.join(datadir, "vendor", "SVZero")
+    os.makedirs(vdir, exist_ok=True)
+    for name in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+        src = os.path.join(ours_dir, name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(vdir, name))
 
     # 2. clear the user copies. These were the pre-vendor mechanism and are now
     #    the same presets under the same names in two places at once; a user

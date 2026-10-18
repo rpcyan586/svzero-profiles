@@ -8,13 +8,14 @@ your download. The layout below applies from `2.0.3-beta.1` onward.
 
 | Download | Import/copy | Other contents |
 |---|---|---|
-| `orcaslicer` | `profiles/SVZero.json` and `profiles/SVZero/` into Orca's `system/` directory | Bed previews inside the vendor directory |
+| `orcaslicer` | `profiles/SVZero.json` and `profiles/SVZero/` into Orca's `system/` directory; `vendor/SVZero/` beside `system/` | Bed preview under `vendor/SVZero/`, where Orca looks for it |
 | `prusaslicer` | Import `SVZero_PrusaSlicer.ini` | Bed previews under `assets/` |
 | `superslicer` | Import `SVZero_SuperSlicer.ini` | Bed previews under `assets/` |
 
 PrusaSlicer and SuperSlicer each use a single INI; individual presets are not
 repeated in their downloads. Orca's separate JSON files are required by its
-vendor format and must stay together. Its bed assets are not duplicated.
+vendor format and must stay together. Its bed assets also sit under
+`vendor/SVZero/`, the only place Orca reads a vendor's bed preview from.
 
 Every ZIP has an `optional-macros/` directory containing exactly three configs:
 choose **one** native firmware file (`svzero-1.3.7.cfg` or `svzero-1.4.x.cfg`),

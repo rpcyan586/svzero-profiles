@@ -16,7 +16,11 @@
   "products": {
     "orcaslicer": {
       "files": {
-        "bundles/orca-vendor/": "profiles/"
+        "bundles/orca-vendor/": "profiles/",
+        "assets/svzero_bed.stl": "vendor/SVZero/svzero_bed.stl",
+        "assets/svzero_bed.svg": "vendor/SVZero/svzero_bed.svg",
+        "assets/svzero_bed.CREDITS.md": "vendor/SVZero/svzero_bed.CREDITS.md",
+        "assets/svzero_bed.png": "vendor/SVZero/svzero_bed.png"
       },
       "readme": "docs/downloads/orcaslicer.txt"
     },
@@ -25,7 +29,9 @@
         "bundles/SVZero_PrusaSlicer.ini": "SVZero_PrusaSlicer.ini",
         "assets/svzero_bed.stl": "assets/svzero_bed.stl",
         "assets/svzero_bed.svg": "assets/svzero_bed.svg",
-        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md"
+        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md",
+        "assets/svzero_bed.png": "assets/svzero_bed.png",
+        "assets/svzero_bed_grid.png": "assets/svzero_bed_grid.png"
       },
       "readme": "docs/downloads/prusaslicer.txt"
     },
@@ -34,7 +40,9 @@
         "bundles/SVZero_SuperSlicer.ini": "SVZero_SuperSlicer.ini",
         "assets/svzero_bed.stl": "assets/svzero_bed.stl",
         "assets/svzero_bed.svg": "assets/svzero_bed.svg",
-        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md"
+        "assets/svzero_bed.CREDITS.md": "assets/svzero_bed.CREDITS.md",
+        "assets/svzero_bed.png": "assets/svzero_bed.png",
+        "assets/svzero_bed_grid.png": "assets/svzero_bed_grid.png"
       },
       "readme": "docs/downloads/superslicer.txt"
     }

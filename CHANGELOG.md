@@ -44,6 +44,15 @@
 - **The cooldown table has a `pctg` row too**, copied from PETG's: 35 °C
   endpoint. PC's row is the same today, so the cooldown was right by accident.
 
+### Fixed: OrcaSlicer never showed the bed preview
+
+- **OrcaSlicer shows the bed preview at all.** It never did. The machine
+  presets named the model by bare filename in `bed_custom_model`, which Orca
+  uses verbatim as a path, so it failed and blocked the vendor's own preview
+  as well. The printer model now carries it as `bed_model`. Orca only looks
+  for that file under `vendor/SVZero/` in its configuration directory, so the
+  download ships it there, and copying that folder in is a new install step.
+
 ### Brass and Steel take upstream OrcaSlicer's temperatures and flow caps
 
 Profile behaviour change: the Brass and Steel filament presets differ again,
@@ -169,6 +178,20 @@ being measured again.
   should be tuned again from 0.
 - Rendered on Jinja 2.11.3 in both firmware files, every branch asserted.
   Not yet run on a printer.
+
+### Bed preview and texture
+
+- **A real bed in the slicer preview.** `svzero_bed.stl` is now Sovol's own
+  CAD for the Zero's hotbed, with the two lead screws raised to a full-height
+  print, in place of the two-triangle square. It is 26,519 triangles
+  (1.3 MB), within 0.2 mm of the CAD on every visible surface. Provenance and credits: `assets/svzero_bed.CREDITS.md` and
+  `NOTICE`.
+- **A bed texture again**, now that the plate sits below it: Chinchill's
+  Sovol Zero buildplate texture (Printables 1263730, CC BY 4.0), unmodified.
+  Its white border marks the 152.4 mm build area on the larger plate.
+  PrusaSlicer and SuperSlicer get a copy with a 10 mm grid added, because
+  they draw no grid of their own once a texture is set; OrcaSlicer does,
+  over the plain copy.
 
 ## 2.1.1
 
