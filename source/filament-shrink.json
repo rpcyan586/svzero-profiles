@@ -1,45 +1,51 @@
 {
- "_what": "Filament shrinkage per material: the PHYSICAL shrinkage, in percent of the nominal size, for XY and for Z. Not any slicer's notation -- generate.py writes each slicer's own.",
- "_units": "xy and z are how much a cooled part is SMALLER than nominal: 0.8 means a 100 mm feature measures 99.2 mm. The slicers spell the same compensation two ways, and each was read from its own source on 2026-10-13: Orca and SuperSlicer take the MEASURED SIZE as a percentage -- filament_shrink = 99.2% -- and scale by 100/99.2 (Orca Print::shrinkage_compensation: 100.0 / xy_shrinkage_percent; SuperSlicer confirmed by slicing a 20 mm cube: 90% made it 21.8 mm, 110% made it 17.8 mm). PrusaSlicer takes the SHRINKAGE -- 0.8% -- and scales by 100/(100-0.8) (ShrinkageCompensation.cpp). Both give x1.00806. Before 2026-10-13 this file held 100.8%, read as a scale factor: Orca and SuperSlicer then shrank every part by a further 0.8% instead of enlarging it.",
- "_why_not_zero": "Every vendor in the entire OrcaSlicer profile tree ships filament_shrink at 100% -- 64 files checked, not one populated. That is a default nobody filled in, not a finding that plastics do not shrink. Shipping 100% means every part comes out systematically undersized by the material's shrinkage.",
- "_status": "NOMINAL, NOT MEASURED. These are polymer-class typicals, chosen mid-range from the published spread for each family. Real shrinkage on this machine is also a function of chamber temperature, bed temperature and cooling, and the Zero runs a hot small enclosure -- so treat these as a starting point that is right in sign and order of magnitude, and replace them per material with measured values. Procedure: notes/runbook-flow-and-shrinkage.md.",
- "_z_axis": "Z gets the same figure as XY (operator, 2026-10-13). The old reason for leaving it at 0 -- that scaling Z breaks commanded against actual layer height -- was wrong: compensation scales the model, and the layers are still sliced at their commanded height. Prusa ships equal XY and Z compensation for every unfilled engineering material on its enclosed CORE One (ABS and ASA 0.22%, PC 0.18%). SuperSlicer has no Z compensation; only Orca and PrusaSlicer get it.",
- "_prior_art": "Prusa's measured CORE One values are 3-4x below these nominals (ABS 0.22% against 0.8%); the operator's own CaliLantern on a Zero read PLA at 99.69% in Orca's notation, i.e. 0.31% (forum t/9294/9, 2025-12-27). Kept nominal by the operator's choice until measured; see notes/runbook-flow-and-shrinkage.md.",
- "materials": {
-  "PLA": {
-   "xy": 0.3,
-   "z": 0.3,
-   "typical_range": "0.2-0.5%",
-   "note": "lowest-shrinkage common filament"
-  },
-  "PLA Silk": {
-   "xy": 0.3,
-   "z": 0.3,
-   "typical_range": "0.2-0.5%",
-   "note": "PLA base polymer, treated as PLA"
-  },
-  "PETG": {
-   "xy": 0.4,
-   "z": 0.4,
-   "typical_range": "0.2-0.8%",
-   "note": "wide spread by brand"
-  },
-  "ABS": {
-   "xy": 0.8,
-   "z": 0.8,
-   "typical_range": "0.5-1.5%",
-   "note": "strongly chamber-dependent; the Zero's hot enclosure should put it at the low end"
-  },
-  "PC": {
-   "xy": 0.7,
-   "z": 0.7,
-   "typical_range": "0.6-0.9%"
-  },
-  "TPU": {
-   "xy": 0.6,
-   "z": 0.6,
-   "typical_range": "0.5-1.5%",
-   "note": "least reliable of the set -- elastomers recover dimensionally over hours and a single caliper reading is not the whole story"
+  "_what": "Filament shrinkage per material: the PHYSICAL shrinkage, in percent of the nominal size, for XY and for Z. Not any slicer's notation -- generate.py writes each slicer's own.",
+  "_units": "xy and z are how much a cooled part is SMALLER than nominal: 0.8 means a 100 mm feature measures 99.2 mm. The slicers spell the same compensation two ways, and each was read from its own source on 2026-10-13: Orca and SuperSlicer take the MEASURED SIZE as a percentage -- filament_shrink = 99.2% -- and scale by 100/99.2 (Orca Print::shrinkage_compensation: 100.0 / xy_shrinkage_percent; SuperSlicer confirmed by slicing a 20 mm cube: 90% made it 21.8 mm, 110% made it 17.8 mm). PrusaSlicer takes the SHRINKAGE -- 0.8% -- and scales by 100/(100-0.8) (ShrinkageCompensation.cpp). Both give x1.00806. Before 2026-10-13 this file held 100.8%, read as a scale factor: Orca and SuperSlicer then shrank every part by a further 0.8% instead of enlarging it.",
+  "_why_not_zero": "Every vendor in the entire OrcaSlicer profile tree ships filament_shrink at 100% -- 64 files checked, not one populated. That is a default nobody filled in, not a finding that plastics do not shrink. Shipping 100% means every part comes out systematically undersized by the material's shrinkage.",
+  "_status": "NOMINAL, NOT MEASURED. These are polymer-class typicals, chosen mid-range from the published spread for each family. Real shrinkage on this machine is also a function of chamber temperature, bed temperature and cooling, and the Zero runs a hot small enclosure -- so treat these as a starting point that is right in sign and order of magnitude, and replace them per material with measured values. Procedure: notes/runbook-flow-and-shrinkage.md.",
+  "_z_axis": "Z gets the same figure as XY (operator, 2026-10-13). The old reason for leaving it at 0 -- that scaling Z breaks commanded against actual layer height -- was wrong: compensation scales the model, and the layers are still sliced at their commanded height. Prusa ships equal XY and Z compensation for every unfilled engineering material on its enclosed CORE One (ABS and ASA 0.22%, PC 0.18%). SuperSlicer has no Z compensation; only Orca and PrusaSlicer get it.",
+  "_prior_art": "Prusa's measured CORE One values are 3-4x below these nominals (ABS 0.22% against 0.8%); the operator's own CaliLantern on a Zero read PLA at 99.69% in Orca's notation, i.e. 0.31% (forum t/9294/9, 2025-12-27). Kept nominal by the operator's choice until measured; see notes/runbook-flow-and-shrinkage.md.",
+  "materials": {
+    "PLA": {
+      "xy": 0.3,
+      "z": 0.3,
+      "typical_range": "0.2-0.5%",
+      "note": "lowest-shrinkage common filament"
+    },
+    "PLA Silk": {
+      "xy": 0.3,
+      "z": 0.3,
+      "typical_range": "0.2-0.5%",
+      "note": "PLA base polymer, treated as PLA"
+    },
+    "PETG": {
+      "xy": 0.4,
+      "z": 0.4,
+      "typical_range": "0.2-0.8%",
+      "note": "wide spread by brand"
+    },
+    "PCTG": {
+      "xy": 0.4,
+      "z": 0.4,
+      "typical_range": "0.2-0.8% (PETG class)",
+      "note": "NOMINAL, the PETG class's value, not a PCTG measurement. Every filament ships a nominal shrinkage (operator, 2026-10-18). No manufacturer checked publishes a figure (Spectrum, Essentium, Fiberlogy, 3D-Fuel) and Prusa's Generic PCTG ships none; PCTG is a PETG-class copolyester. Replace with a measurement."
+    },
+    "ABS": {
+      "xy": 0.8,
+      "z": 0.8,
+      "typical_range": "0.5-1.5%",
+      "note": "strongly chamber-dependent; the Zero's hot enclosure should put it at the low end"
+    },
+    "PC": {
+      "xy": 0.7,
+      "z": 0.7,
+      "typical_range": "0.6-0.9%"
+    },
+    "TPU": {
+      "xy": 0.6,
+      "z": 0.6,
+      "typical_range": "0.5-1.5%",
+      "note": "least reliable of the set -- elastomers recover dimensionally over hours and a single caliper reading is not the whole story"
+    }
   }
- }
 }

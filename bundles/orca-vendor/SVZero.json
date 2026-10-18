@@ -277,6 +277,10 @@
       "sub_path": "filament/SV Zero PC.json"
     },
     {
+      "name": "SV Zero PCTG",
+      "sub_path": "filament/SV Zero PCTG.json"
+    },
+    {
       "name": "SV Zero PETG - Brass",
       "sub_path": "filament/SV Zero PETG - Brass.json"
     },

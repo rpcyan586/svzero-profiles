@@ -1292,6 +1292,59 @@
     },
     {
       "kind": "filament",
+      "id": "*SV Zero PCTG Base*",
+      "values": {
+        "filament_type": "PCTG",
+        "filament_diameter": "1.75",
+        "filament_cost": "30",
+        "filament_density": "1.23",
+        "_why_density": "Spectrum's PCTG Premium and Essentium's PCTG data sheets both give 1.23; Prusa's Generic PCTG carries the same",
+        "filament_vendor": "Sovol (Orca)",
+        "temperature": "260",
+        "first_layer_temperature": "260",
+        "bed_temperature": "85",
+        "first_layer_bed_temperature": "85",
+        "filament_max_volumetric_speed": "12",
+        "_why_material": "Candidate C, the operator's choice on 2026-10-18: Prusa's Generic PCTG for the CORE One 0.4 nozzle (PrusaSlicer 3 development tree), for the temperatures and flow that belong to the plastic -- nozzle 260/260, bed 85, 12 mm3/s. Nozzle temperature is toolhead-scope elsewhere in this pack (source/filament-8m.json); 260 is a decision, mid-range of Spectrum's and Essentium's 250-270, not a transfer. Cooling and chamber are not C's: see _why_cooling and _why_chamber_minimal.",
+        "_why_volumetric": "12 mm3/s, C's 0.4 figure, on every nozzle. A filament here carries one volumetric limit for all nozzles, as PETG's 15 does, and the process's machine ceiling covers the rest. Prusa raises it per nozzle (14 at 0.5, 17 at 0.6, 22 at 0.8); the pack has no such scheme and this does not invent one.",
+        "default_fan_speed": "10",
+        "max_fan_speed": "40",
+        "fan_below_layer_time": "50",
+        "slowdown_below_layer_time": "10",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "70",
+        "_why_cooling": "PETG's cooling throughout: fan 10-40%, full fan below 50 s layers, slowdown below 10 s, bridge 100%, overhang 70%, full fan from layer 3, 10 mm/s floor. Operator, 2026-10-18: temperatures can carry over from another printer, but fans and the cooling rates they imply do not, so C's CORE One fan values (30-60%, 25 s / 9 s, bridge and overhang 60%) were dropped for the pack's own PETG, the nearest material on this printer.",
+        "extrusion_multiplier": "0.98",
+        "filament_pressure_advance": "0.048",
+        "filament_retract_length": "0.5",
+        "filament_retract_lift": "0.4",
+        "_why_toolhead": "NOT from Prusa. Pressure advance, flow ratio, retraction length and lift are properties of the Zero's extruder, not of the plastic, and a Nextruder's numbers do not describe it. These are PETG's as shipped -- Sovol's SV08 MAX PETG through source/filament-8m.json, the Max's toolhead being the Zero's -- because Sovol publishes no PCTG profile for that toolhead and PCTG is a PETG-class copolyester. Retraction speed stays the printer's, as for every material. INFERRED from PETG, not measured on PCTG.",
+        "chamber_temperature": "40",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "30",
+        "_why_chamber_minimal": "Operator, 2026-10-18: minimum 30, ideal 40. The minimum is the wait (M191 S30, PETG's), the ideal is the exhaust ceiling (M141 S40), between TPU's 35 at the same 85 C bed and PETG's 50. C itself never waits and vents above 35.",
+        "_why_one_preset": "One preset, not PETG's Brass/Steel pair. Since the 2026-09-06 (8M) merge the two PETG presets differ only in name and colour, C has no nozzle-material split, and the clean temperature is keyed on filament_type alone, so a pair would offer a choice with nothing behind it.",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=30"
+      },
+      "variants": [
+        {
+          "id": "SV Zero PCTG",
+          "name": "SV Zero PCTG",
+          "values": {
+            "filament_notes": "Material from Prusa CORE One Generic PCTG. Extruder values from SV Zero PETG: pressure advance, flow ratio, retraction.",
+            "filament_colour": "#1FA7C1"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "filament",
       "id": "*SV Zero PETG Base*",
       "values": {
         "filament_type": "PETG",

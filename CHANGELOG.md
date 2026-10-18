@@ -34,6 +34,16 @@
   and were unaffected. Shipped from 2.0.1 to 2.1.1; found reading the G-code,
   not on a printer.
 
+### Fixed: PCTG cleaned and cooled as PC
+
+- **The macro pack matches a material by prefix**, so with no row of its own
+  `PCTG` matched `PC`: the nozzle was wiped at PC's 200 °C. PCTG now has a row
+  in `_BRUSH_CLEAN_TEMPS`, ordered before `pc`, and wipes at 180 °C, the
+  pack's curve for a 260 °C first layer (20 + ⅔ × 240). This applies to any
+  print or spool named PCTG, from any slicer.
+- **The cooldown table has a `pctg` row too**, copied from PETG's: 35 °C
+  endpoint. PC's row is the same today, so the cooldown was right by accident.
+
 ### Scarf seams
 
 - **Scarf seams on holes as well as outer contours.** OrcaSlicer's
@@ -61,6 +71,29 @@
   `SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1`, after the clearance move. Edit
   it in a machine preset to offset one printer. It adds to the filament's
   per-material offset rather than replacing it.
+
+### PCTG filament preset
+
+Sliced in all three slicers; not yet printed.
+
+- **SV Zero PCTG** takes its material settings from Prusa's Generic PCTG for
+  the CORE One 0.4 nozzle: 260 °C nozzle on every layer, 85 °C bed,
+  12 mm³/s and density 1.23. The 12 mm³/s applies on every nozzle, as each
+  filament's single limit already does.
+- **Cooling is PETG's**: fan 10–40%, full fan below 50 s layers, slowdown
+  below 10 s, bridges at 100% and overhangs at 70%. Temperatures carry over
+  from another printer; fans and the cooling rates they imply do not.
+- **The extruder settings are PETG's**, not Prusa's: pressure advance 0.048,
+  flow ratio 0.98, 0.5 mm retraction with a 0.4 mm lift. They belong to the
+  Zero's extruder rather than to the plastic, and are inferred from PETG,
+  not measured on PCTG.
+- **Chamber: wait for 30 °C, exhaust ceiling 40 °C.**
+- **Shrinkage 0.4%, nominal**: the PETG class's value. No manufacturer
+  publishes a figure for PCTG; to be replaced with a measurement.
+- **One preset, not a brass and steel pair.** PETG's two presets have had
+  identical settings in every public release, so a pair would offer an empty
+  choice.
+- In OrcaSlicer it inherits PETG's base profile, `fdm_filament_pet`.
 
 ## 2.1.1
 

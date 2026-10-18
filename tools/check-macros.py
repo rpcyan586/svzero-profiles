@@ -325,6 +325,13 @@ def check(path):
                 ("fallback", Mock(MATERIAL="Nylon"), "MATERIAL=Nylon", {}, {}, settled),
                 ("explicit", Mock(MATERIAL="ABS", TEMP="150"),
                  "MATERIAL=ABS TEMP=150", {}, {}, settled),
+                # "pctg" starts with "pc". Exact key first, then a name that
+                # only a prefix can resolve, which must find pctg before pc;
+                # PC itself must still find pc, not the 200 fallback.
+                ("pctg", Mock(MATERIAL="PCTG"), "MATERIAL=PCTG", {}, {}, settled),
+                ("pctg-prefix", Mock(MATERIAL="PCTG-Premium"),
+                 "MATERIAL=PCTG-Premium", {}, {}, settled),
+                ("pc", Mock(MATERIAL="PC"), "MATERIAL=PC", {}, {}, settled),
                 # The plate still coming down from a preheat boost: the nozzle
                 # waits at probe_temp, not at the wipe temperature (2026-10-13).
                 ("bed-coming-down", Mock(MATERIAL="ABS"), "MATERIAL=ABS", {}, {},
@@ -750,6 +757,23 @@ def check(path):
                 ("bed-only", params, "", {}, {},
                  dict(hot_bed, **{"save_variables":
                                   Mock(variables=Mock(ch_target=30.0))})),
+                # The slicer named PCTG: its own row, not pc's by prefix. The
+                # rows hold the same numbers, so only the key tells them apart.
+                ("pctg", params, "", {}, {},
+                 dict(hot_bed, **{"gcode_macro _COOL_STATE":
+                                  Mock(material="pctg", policy_set=1, rates_set=0,
+                                       p_final=35.0, p_chamber_rate=0.0,
+                                       p_bed_rate=2.0)})),
+                ("pctg-prefix", params, "", {}, {},
+                 dict(hot_bed, **{"gcode_macro _COOL_STATE":
+                                  Mock(material="pctgpremium", policy_set=1, rates_set=0,
+                                       p_final=35.0, p_chamber_rate=0.0,
+                                       p_bed_rate=2.0)})),
+                ("pc", params, "", {}, {},
+                 dict(hot_bed, **{"gcode_macro _COOL_STATE":
+                                  Mock(material="pc", policy_set=1, rates_set=0,
+                                       p_final=35.0, p_chamber_rate=0.0,
+                                       p_bed_rate=2.0)})),
                 # Nothing above the endpoint at all -- must turn heaters off
                 # rather than schedule a zero-length ramp.
                 ("nothing-to-do", params, "", {}, {},
@@ -1452,6 +1476,17 @@ def check(path):
             ("gcode_macro SET_CLEAN_TEMP", "prefix"): "M104 S170",
             ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
             ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
+            # Named by key, because PC's 200 is also the fallback's.
+            ("gcode_macro SET_CLEAN_TEMP", "pctg"): ["M104 S180", "silicone wipe at 180C (pctg)"],
+            ("gcode_macro SET_CLEAN_TEMP", "pctg-prefix"): ["M104 S180", "silicone wipe at 180C (pctg)"],
+            ("gcode_macro SET_CLEAN_TEMP", "pc"): ["M104 S200", "silicone wipe at 200C (pc)"],
+            ("gcode_macro _COOLDOWN_START", "pctg"):
+                ["bed 110C to 35C at 2.0C/min, 38 min on schedule (pctg from the slicer)",
+                 "VARIABLE=material VALUE='\"pctg\"'"],
+            ("gcode_macro _COOLDOWN_START", "pctg-prefix"):
+                ["(pctg from the slicer)", "VARIABLE=material VALUE='\"pctg\"'"],
+            ("gcode_macro _COOLDOWN_START", "pc"):
+                ["(pc from the slicer)", "VARIABLE=material VALUE='\"pc\"'"],
             ("gcode_macro _PREFLIGHT", "hook"): "_SVZERO_PRINT_START_HOOK",
             ("gcode_macro _PREFLIGHT", "runout-disabled"): "_SVZERO_PRINT_START_HOOK",
             ("gcode_macro _PREFLIGHT", "no-sensor"): "_SVZERO_PRINT_START_HOOK",

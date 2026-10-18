@@ -175,7 +175,7 @@ do not instantiate every hardware object or verify mechanical clearances.
 - Physical flow/temperature calibration of added nozzle sizes; slicing alone
   cannot establish nozzle suitability or print quality.
 - Measured filament shrinkage on a Zero. The shipped figures are nominal for
-  each material class: right in direction, not in magnitude.
+  each material class: right in direction, not in magnitude. PCTG takes the PETG class's value, nominally.
 - Optional macro-pack commissioning on other machines, especially brush pad
   geometry and the 1.4.x fan/probe path.
 
