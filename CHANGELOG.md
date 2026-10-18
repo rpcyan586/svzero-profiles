@@ -62,6 +62,19 @@
   the nozzles it lists, and duplicates an earlier install wrote collapse to
   one. The release downloads do not use this installer.
 
+### Fixed: OrcaSlicer flagged the pack's own nozzle temperatures
+
+- **The recommended nozzle range each OrcaSlicer filament inherits sat below
+  what the presets print.** The base profiles came from Sovol's stock Zero:
+  PLA 190–210 °C against up to 245, PETG 235–240 against 245–265 and PCTG's
+  260, ABS 235–240 against 270–280, TPU 190–210 against 240–250, so Orca
+  marked the temperatures as out of range. Each base's range is now derived
+  from the presets that inherit it, brass and steel included: their lowest and
+  highest nozzle and first-layer temperature, 5 °C beyond, rounded out to 5 °C,
+  and never narrower than Sovol's. PLA 190–250, PETG and PCTG 235–270, ABS
+  235–285, TPU 190–255, PC 255–290. PrusaSlicer and SuperSlicer have no such
+  range.
+
 ### Brass and Steel take upstream OrcaSlicer's temperatures and flow caps
 
 Profile behaviour change: the Brass and Steel filament presets differ again,

@@ -2432,6 +2432,40 @@ ORCA_FILAMENT_PLAIN = ("compatible_printers_condition", "compatible_prints_condi
 ORCA_FILAMENT_ROOTS = ("fdm_filament_common", "fdm_filament_pla", "fdm_filament_pet",
                        "fdm_filament_abs", "fdm_filament_tpu", "fdm_filament_pc")
 
+# Orca flags a nozzle temperature outside nozzle_temperature_range_low/high, a
+# hint every preset inherits from its root. Sovol's pinned roots carry the stock
+# Zero's -- PLA and TPU 190-210, PET and ABS 235-240, PC 260-290 -- below what
+# this pack prints: Steel PLA 230/245, PETG's 265 first layer, ABS 270/280. So a
+# shipped root's range is derived from the presets that inherit it: their
+# lowest and highest nozzle and first-layer temperature, ORCA_TEMP_RANGE_MARGIN
+# beyond, rounded outward to 5 C, and never narrower than Sovol's own.
+# PrusaSlicer and SuperSlicer have no such keys.
+ORCA_TEMP_RANGE_MARGIN = 5
+ORCA_TEMP_KEYS = ("nozzle_temperature", "nozzle_temperature_initial_layer")
+ORCA_TEMP_RANGE = ("nozzle_temperature_range_low", "nozzle_temperature_range_high")
+
+
+def widen_orca_temperature_range(root, text, temps):
+    """A root's JSON text with its range covering `temps`, and the arithmetic.
+
+    Edited in place, like single_extruder_multi_material on the machine root,
+    so the rest of the pinned file ships byte for byte.
+    """
+    doc = json.loads(text)
+    if not all(k in doc for k in ORCA_TEMP_RANGE):
+        raise SystemExit("%s has no nozzle temperature range to widen" % root)
+    m = ORCA_TEMP_RANGE_MARGIN
+    sovol = int(doc[ORCA_TEMP_RANGE[0]][0]), int(doc[ORCA_TEMP_RANGE[1]][0])
+    lo = min(sovol[0], 5 * math.floor((min(temps) - m) / 5))
+    hi = max(sovol[1], 5 * math.ceil((max(temps) + m) / 5))
+    for key, value in zip(ORCA_TEMP_RANGE, (lo, hi)):
+        text, n = re.subn(r'("%s"\s*:\s*\[\s*)"[^"]*"' % key, r'\g<1>"%d"' % value, text, count=1)
+        if n != 1:
+            raise SystemExit("%s: %s is not a one-element list" % (root, key))
+    why = ("%s range %d-%d C: presets %g-%g C, margin %d, Sovol's %d-%d"
+           % (root, lo, hi, min(temps), max(temps), m, sovol[0], sovol[1]))
+    return text, why
+
 
 def emit_orca_filament(model, ss, keymap, out_dir):
     """Filament presets for Orca, which previously got none at all.
@@ -2647,6 +2681,14 @@ def emit_orca_vendor(model, ss, out_dir):
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
 
+    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
+    leaves = [json.load(open(os.path.join(fsrc, f), encoding="utf-8"))
+              for f in sorted(os.listdir(fsrc)) if f.endswith(".json")] if os.path.isdir(fsrc) else []
+    leaf_temps = collections.defaultdict(list)
+    for doc in leaves:
+        for k in ORCA_TEMP_KEYS:
+            leaf_temps[doc["inherits"]] += [float(v) for v in doc.get(k, [])]
+
     machine_list, process_list, filament_list = [], [], []
     roots = [("fdm_process_common", "process", process_list),
              ("fdm_machine_common", "machine", machine_list)]
@@ -2656,6 +2698,12 @@ def emit_orca_vendor(model, ss, out_dir):
         if os.path.exists(src):
             dst = os.path.join(vend, sub, root + ".json")
             shutil.copy2(src, dst)
+            if leaf_temps.get(root):
+                with open(dst, encoding="utf-8") as handle:
+                    text, why = widen_orca_temperature_range(root, handle.read(), leaf_temps[root])
+                with open(dst, "w", encoding="utf-8") as handle:
+                    handle.write(text)
+                print("  Orca %s" % why)
             if root == "fdm_machine_common":
                 # The Zero has one extruder and no filament-changing hardware.
                 # Sovol's inherited "1" exposes multiple filament slots and can
@@ -2671,7 +2719,6 @@ def emit_orca_vendor(model, ss, out_dir):
                     handle.write(common)
             lst.append({"name": root, "sub_path": "%s/%s.json" % (sub, root)})
 
-    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
     for f in sorted(os.listdir(fsrc)) if os.path.isdir(fsrc) else []:
         if not f.endswith(".json"):
             continue
