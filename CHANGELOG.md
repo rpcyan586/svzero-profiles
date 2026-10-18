@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code
+
+- **The per-material Z offset never ran in PrusaSlicer or SuperSlicer**, in
+  any release from 2.0.1-beta.1 to 2.1.1. Each filament's start G-code opens
+  with a `;` comment. The slicers keep that setting as a list, one entry per
+  extruder, and split an unquoted value at every `;`, so the extruder got an
+  empty entry and `SET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1` never reached the
+  G-code. OrcaSlicer was not affected.
+- **PrusaSlicer never applied the filament's pressure advance** in those
+  releases. PrusaSlicer has no pressure-advance setting, so the pack sends it
+  on that same G-code as `SET_PRESSURE_ADVANCE`. Klipper kept the value it
+  already had, printer.cfg's or the previous job's. SuperSlicer sets pressure
+  advance itself and was not affected.
+- **Both now run it**, written quoted as the slicers write it themselves.
+  Sliced at 0.4 Standard, PLA - Brass runs `SET_GCODE_OFFSET Z_ADJUST=0.000
+  MOVE=1` in both, and `SET_PRESSURE_ADVANCE ADVANCE=0.036` in PrusaSlicer.
+  ABS, PC and TPU now get `ADVANCE=0` in PrusaSlicer, as in OrcaSlicer;
+  SuperSlicer sends nothing for them and Klipper keeps its current value.
+- **A filament preset copied from an earlier release still lacks the stub.**
+  Copy it again from this release's preset.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's

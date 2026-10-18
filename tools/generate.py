@@ -100,7 +100,7 @@ def parse_ini(path):
 ANNOTATION_PREFIX = "_"     # authored commentary, never a slicer key
 
 
-def ini_value(v):
+def ini_value(v, key=None):
     """Render a value for a PrusaSlicer-family .ini.
 
     Multi-line G-code is stored as a BACKSLASH-N ESCAPE, not a real newline. An
@@ -119,9 +119,63 @@ def ini_value(v):
 
     Escaping here rather than fixing the master fixes the CLASS: two emitters
     also join G-code fragments with a real newline, and both are covered.
+
+    That fix was half of it. A key in INI_STRING_VECTORS is a LIST, one string
+    per extruder, and is read by a different deserializer: unquoted, it splits
+    on `;` and takes backslashes literally. Every filament's
+    `start_filament_gcode` begins with a `;` comment, so extruder 1 got an empty
+    string and the stub and the appended SET_PRESSURE_ADVANCE landed in a
+    second element nothing reads. Those keys are written as PrusaSlicer writes
+    them -- see ini_strings().
     """
-    t = str(v)
-    return t.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+    t = str(v).replace("\r\n", "\n").replace("\r", "\n")
+    if key in INI_STRING_VECTORS:
+        return ini_strings(t)
+    return t.replace("\n", "\\n")
+
+
+# ConfigOptionStrings options whose master value is ONE element: per-filament
+# or per-extruder text, the Zero having one extruder. Taken from the binaries,
+# not from the PrusaSlicer 3 schema, which types the filament keys as plain
+# String. `--help-fff` prints each default serialized, and only a vector
+# quotes a single complex or empty element: start_gcode's default is
+# unquoted `G28 ; home all axes\n...`, start_filament_gcode's is
+# `"; Filament gcode\n"`. Quoted defaults, PrusaSlicer 2.9.6:
+# custom_parameters_filament, end_filament_gcode, extruder_colour,
+# filament_notes, filament_ramming_parameters, start_filament_gcode.
+# SuperSlicer 2.7.62.0-beta2 adds filament_custom_variables, retract_lift_top
+# and tool_name. A slice's config footer agrees for every key emitted here.
+#
+# NOT here: vectors the master authors as an already `;`-joined LIST --
+# compatible_printers, compatible_prints, post_process. Their elements are
+# preset names and paths, which PrusaSlicer reads unquoted unchanged.
+INI_STRING_VECTORS = frozenset((
+    "custom_parameters_filament", "end_filament_gcode", "extruder_colour",
+    "filament_custom_variables", "filament_notes",
+    "filament_ramming_parameters", "retract_lift_top",
+    "start_filament_gcode", "tool_name",
+))
+
+
+def ini_strings(t):
+    """One string element, serialized as PrusaSlicer's escape_strings_cstyle.
+
+    Quoted when the element holds a space, tab, `;`, `"`, backslash or line
+    break, or is empty; backslash, quote and line breaks escaped inside.
+    The master writes a string in the single-string form (backslash-n for a
+    newline, a real newline also accepted), so that is decoded first, as
+    PrusaSlicer's unescape_string_cstyle would. A value the master already
+    wrote quoted -- retract_lift_top is `"All surfaces"` -- is a serialized
+    vector and passes through.
+    """
+    if t.lstrip().startswith('"'):
+        return t
+    s = re.sub(r"\\(.)", lambda m: {"n": "\n", "r": "\r"}.get(m.group(1), m.group(1)),
+               t, flags=re.S)
+    if s and not re.search(r'[ \t;"\\\r\n]', s):
+        return s
+    return '"%s"' % (s.replace("\\", "\\\\").replace('"', '\\"')
+                      .replace("\r", "\\r").replace("\n", "\\n"))
 
 
 def ini_writable(kv, reject=None):
@@ -237,7 +291,7 @@ def write_ini(path, secs, header, target=None, reject=None):
         for name, kv in secs.items():
             fh.write("[%s]\n" % name)
             for k, v in ini_writable(kv, reject).items():
-                fh.write("%s = %s\n" % (k, ini_value(v)))
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
             fh.write("\n")
 
 
@@ -1551,7 +1605,7 @@ def emit_ps_presets(ss, out_dir):
         with open(path, "w", encoding="utf-8") as fh:
             for k, v in ini_writable(kv).items():
                 if k not in SS_ONLY:
-                    fh.write("%s = %s\n" % (k, ini_value(v)))
+                    fh.write("%s = %s\n" % (k, ini_value(v, k)))
         written += 1
     return written
 
@@ -1606,7 +1660,7 @@ def emit_ss_presets(model, ss, out_dir):
         path = os.path.join(out_dir, kind, "%s.ini" % preset)
         with open(path, "w", encoding="utf-8") as fh:
             for k, v in kv.items():
-                fh.write("%s = %s\n" % (k, ini_value(v)))
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
         written += 1
     return written
 
