@@ -34,6 +34,17 @@
   and were unaffected. Shipped from 2.0.1 to 2.1.1; found reading the G-code,
   not on a printer.
 
+### Scarf seams
+
+- **Scarf seams on holes as well as outer contours.** OrcaSlicer's
+  `seam_slope_type` goes from `external` (Contour) to `all` (Contour and
+  hole), and PrusaSlicer's `scarf_seam_placement` from `contours` to
+  `everywhere`. Inner perimeters stay unscarfed in both, and length and start
+  height stay at the slicers' defaults (20 mm, 0%). Sliced on a 30 mm tube
+  with a 15 mm hole, 0.4 Standard, PLA: the hole's outer wall now carries a
+  scarf ramp in both slicers, and the contour's ramp is unchanged. SuperSlicer
+  has no scarf seam option and is unaffected.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's

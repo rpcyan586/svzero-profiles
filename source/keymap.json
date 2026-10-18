@@ -483,7 +483,8 @@
     "gcode_label_objects": "1",
     "support_type": "tree(auto)",
     "support_critical_regions_only": "1",
-    "seam_slope_type": "external",
+    "seam_slope_type": "all",
+    "_seam_slope_type": "Contour and hole (Orca's label for `all`), 2026-10-18; was `external` (Contour). Matches PrusaSlicer scarf_seam_placement = everywhere in presets.json.",
     "_skirt_start_angle": "Front-right, requested 2026-09-13 to shorten travel from the purge. Orca accepts -180..180 degrees; -45 is equivalent to 315. Dormant when skirt_loops is zero. This sets skirt entry, not model seam placement.",
     "skirt_start_angle": "-45"
   },

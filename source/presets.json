@@ -374,9 +374,9 @@
         "_why_stock_priming": "The profile must still prime when PURGE_LINE is absent on stock firmware. One skirt, extended until 8 mm of filament has been extruded, is the baseline. Personal sandbox installs disable it because the macro purge is present there.",
         "perimeter_generator": "arachne",
         "_why_perimeter_generator": "Set deliberately, 2026-10-05. PrusaSlicer and OrcaSlicer default to Arachne and SuperSlicer to classic, and none of the three was told, so two ran Arachne by accident and one did not (read from each slicer's G-code footer, 0.2n Fine). keymap.json carries it to Orca as wall_generator. Prusa's own Core One presets set arachne explicitly on every nozzle.",
-        "scarf_seam_placement": "contours",
+        "scarf_seam_placement": "everywhere",
         "scarf_seam_only_on_smooth": "0",
-        "_why_scarf_seam": "PrusaSlicer scarf seams on outer contours, matching what the Orca bundle already ships (process_forced seam_slope_type = external, which Orca labels Contour, with seam_slope_conditional left at its default 0, so scarf applies on every contour rather than only smooth ones). Length and start height stay at PrusaSlicer's defaults (20 mm, 0%), which are Orca's too. SuperSlicer has no scarf seam option; the emitter drops these keys there."
+        "_why_scarf_seam": "Scarf seams on outer contours AND holes, published 2026-10-18 at the operator's request (was outer contours only). PrusaSlicer `everywhere` is contours and holes; inner perimeters stay off (scarf_seam_on_inner_perimeters default false). Orca gets the same through process_forced seam_slope_type = all, which Orca labels Contour and hole, with seam_slope_conditional left at 0 so it applies on every contour, not only smooth ones. Length and start height stay at the slicers' shared defaults (20 mm, 0%). SuperSlicer has no scarf seam option; the emitter drops these keys there."
       },
       "variants": [
         {
