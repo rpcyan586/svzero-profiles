@@ -109,6 +109,13 @@ ORCA_START_TAIL = "\n".join([
     "@@XY_CURRENT@@",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
+    # The per-machine Z offset placeholder the PrusaSlicer and SuperSlicer
+    # printer presets have carried since v1.0.2. Z_ADJUST adds to the current
+    # offset (gcode_move.py cmd_SET_GCODE_OFFSET), and START_PRINT's
+    # SET_GCODE_OFFSET Z=0 runs before it, so this composes with the
+    # filament's per-material stub rather than overwriting it. Edit the value
+    # in the machine preset for this printer; + means farther from the bed.
+    "SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1",
     "M104 S[nozzle_temperature_initial_layer]",
     "M109 S[nozzle_temperature_initial_layer]",
     "PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]"

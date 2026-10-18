@@ -54,6 +54,14 @@
   to run the whole start sequence and then print with nothing loaded. A
   sensor that is switched off or absent is not checked.
 
+### OrcaSlicer per-machine Z offset
+
+- **OrcaSlicer machines carry the per-machine Z offset line** that the
+  PrusaSlicer and SuperSlicer printer presets have had since v1.0.2:
+  `SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1`, after the clearance move. Edit
+  it in a machine preset to offset one printer. It adds to the filament's
+  per-material offset rather than replacing it.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's
