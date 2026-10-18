@@ -22,6 +22,24 @@ SPEC.loader.exec_module(G)
 
 
 class ProfileGenerationTests(unittest.TestCase):
+    def test_superslicer_tool_name_is_a_klipper_extruder(self):
+        # SuperSlicer writes SET_PRESSURE_ADVANCE ... EXTRUDER=<tool_name> for
+        # any filament with a nonzero PA, and Klipper rejects a name that is
+        # not a configured extruder, stopping the print. "brass" shipped from
+        # 2.0.1 to 2.1.1. Empty is SuperSlicer's default and writes "extruder".
+        # tool_name is a string vector, so the empty element is written quoted,
+        # `""`, as SuperSlicer's own escape_strings_cstyle writes it.
+        bad = []
+        for path in sorted((ROOT / "bundles/ss-presets/printer").glob("*.ini")) + [ROOT / "bundles/SVZero_SuperSlicer.ini"]:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("tool_name ="):
+                    value = line.split("=", 1)[1].strip()
+                    if len(value) >= 2 and value[0] == value[-1] == '"':
+                        value = value[1:-1]
+                    if value not in ("", "extruder"):
+                        bad.append("%s: %s" % (path.name, value))
+        self.assertEqual(bad, [])
+
     def test_speed_chain_rounds_only_after_computation(self):
         source = {"default_speed": "31.1", "perimeter_speed": "68%",
                   "external_perimeter_speed": "83%", "travel_speed": "1000",

@@ -23,6 +23,17 @@
 - **A filament preset copied from an earlier release still lacks the stub.**
   Copy it again from this release's preset.
 
+### Fixed: SuperSlicer stopped PLA, PLA Silk and PETG jobs at the start
+
+- **SuperSlicer: PLA, PLA Silk and PETG no longer stop at the start.** The
+  printer presets set `tool_name = brass`, and SuperSlicer writes each
+  filament's pressure advance as `SET_PRESSURE_ADVANCE ... EXTRUDER=brass`.
+  Klipper accepts only a configured extruder's name there, so it raised an
+  error and stopped the job. `tool_name` is now empty, SuperSlicer's default,
+  which writes `EXTRUDER=extruder`. ABS, PC and TPU carry no pressure advance
+  and were unaffected. Shipped from 2.0.1 to 2.1.1; found reading the G-code,
+  not on a printer.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's
