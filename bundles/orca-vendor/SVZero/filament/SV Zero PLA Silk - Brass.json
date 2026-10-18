@@ -6,7 +6,7 @@
   "instantiation": "true",
   "inherits": "fdm_filament_pla",
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero PLA Silk - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead)"
+    "Imported from Orca JSON (SV Zero PLA Silk - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PLA Silk @Sovol Zero (interim)"
   ],
   "default_filament_colour": [
     "#DEBA84"
@@ -15,10 +15,10 @@
     "15"
   ],
   "nozzle_temperature": [
-    "230"
+    "220"
   ],
   "nozzle_temperature_initial_layer": [
-    "250"
+    "245"
   ],
   "slow_down_layer_time": [
     "8"

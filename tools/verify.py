@@ -43,10 +43,11 @@ def main():
         if version not in (ROOT/file).read_text():raise RuntimeError('Version mismatch: '+file)
     if 'hosts' in json.loads((ROOT/'source/model.json').read_text()):raise RuntimeError('Public model contains personal hosts')
     if (ROOT/'svzero-personal.cfg').exists() or (ROOT/'klipper/config/svzero-personal.cfg').exists():raise RuntimeError('Personal config must not ship')
-    provenance=json.loads((ROOT/'source/vendor-profiles/provenance.json').read_text())
-    for item in provenance['files']:
-        p=ROOT/'source/vendor-profiles'/item['path']
-        if hashlib.sha256(p.read_bytes()).hexdigest()!=item['sha256']:raise RuntimeError('Upstream checksum mismatch: '+item['path'])
+    # One provenance.json per pinned upstream: Sovol's Orca fork at the top, upstream OrcaSlicer under OrcaSlicer/.
+    for manifest in sorted((ROOT/'source/vendor-profiles').rglob('provenance.json')):
+        for item in json.loads(manifest.read_text())['files']:
+            p=manifest.parent/item['path']
+            if hashlib.sha256(p.read_bytes()).hexdigest()!=item['sha256']:raise RuntimeError('Upstream checksum mismatch: '+str(p.relative_to(ROOT)))
     document_links()
     run('-m','unittest','discover','-s','tests','-p','test_*.py')
     run('tools/validate-bundle.py')

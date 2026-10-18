@@ -12,6 +12,10 @@ and speedBenchy is the hidden SpeedBenchy tier.
 Demand is the slicers' own bead model: a rectangle with semicircular sides,
 w h - h^2 (1 - pi/4), times the filament's flow ratio. Measured against the
 G-code on 2026-10-14, it reproduces OrcaSlicer's extrusion to 0.1%.
+
+The target is the model's 21, not a filament's cap. Since the Brass/Steel
+presets took upstream Orca's flow caps, Brass PLA allows 25 and Steel PLA 21;
+Draft is not re-derived for either, and must sit at or under both.
 """
 
 import collections
@@ -30,7 +34,7 @@ SPEC.loader.exec_module(GEN)
 MODEL = json.loads((ROOT / "source/model.json").read_text(encoding="utf-8"))
 VENDOR = ROOT / "bundles/orca-vendor/SVZero"
 PLA = json.loads((VENDOR / "filament/SV Zero PLA - Brass.json").read_text(encoding="utf-8"))
-CAP = float(PLA["filament_max_volumetric_speed"][0])
+CAP = float(MODEL["flow_model"]["infill_demand"]["Draft"])
 RATIO = float(PLA["filament_flow_ratio"][0])
 
 
@@ -54,6 +58,13 @@ class DraftFlowTest(unittest.TestCase):
                     self.assertLess(demand(doc[speed], float(doc[width]), lh), CAP)
                 # The ordering the clamp destroyed: outer slower than inner.
                 self.assertLess(float(doc["outer_wall_speed"]), float(doc["inner_wall_speed"]))
+
+    def test_no_pla_cap_clamps_draft(self):
+        for name in ("SV Zero PLA - Brass", "SV Zero PLA - Steel"):
+            doc = json.loads((VENDOR / "filament" / (name + ".json")).read_text(encoding="utf-8"))
+            with self.subTest(filament=name):
+                self.assertGreaterEqual(float(doc["filament_max_volumetric_speed"][0]), CAP)
+                self.assertEqual(float(doc["filament_flow_ratio"][0]), RATIO)
 
     def test_draft_is_still_the_fast_end(self):
         # Highest infill flow of the published tiers on every nozzle Draft ships on.

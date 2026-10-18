@@ -44,6 +44,51 @@
 - **The cooldown table has a `pctg` row too**, copied from PETG's: 35 °C
   endpoint. PC's row is the same today, so the cooldown was right by accident.
 
+### Brass and Steel take upstream OrcaSlicer's temperatures and flow caps
+
+Profile behaviour change: the Brass and Steel filament presets differ again,
+in nozzle temperature and, on PLA, in flow cap. Not printed yet.
+
+- **The pairs had been identical since the 2026-09-06 (8M) merge**, which gave
+  both presets of each pair the SV08 Max's single temperature, so choosing a
+  nozzle changed nothing.
+- **Nozzle temperature, first-layer temperature and flow cap now come from
+  OrcaSlicer's built-in Sovol Zero**, as rebuilt by Eric McCann (nuclearmistake)
+  in [OrcaSlicer #15756](https://github.com/OrcaSlicer/OrcaSlicer/pull/15756).
+  Brass presets take its brass filaments, Steel presets its Hardened Steel
+  nozzle ones. The six files are pinned at OrcaSlicer `fd28f6c` with checksums,
+  and the build stops if the pack's table drifts from them. These are
+  upstream's interim values, adopted by the operator's decision; they are not
+  measurements, and the pull request does not say which were printed.
+
+  | Preset | Was: °C, first layer, mm³/s | Now |
+  |---|---|---|
+  | PLA - Brass | 230, 250, 21 | 210, 230, 25 |
+  | PLA - Steel | 230, 250, 21 | 230, 245, 21 |
+  | PLA Silk - Brass | 230, 250, 15 | 220, 245, 15 |
+  | PLA Silk - Steel | 230, 250, 15 | 230, 245, 15 |
+  | PETG - Brass | 255, 265, 15 | 245, 265, 15 |
+  | PETG - Steel | 255, 265, 15 | 250, 265, 15 |
+
+- **Brass PLA prints 20 °C cooler**, at 210 with a 230 first layer: Sovol's
+  original Zero value, which upstream kept, in place of the Max's 230 and 250.
+  This is the operator's decision.
+- **Steel PLA's 20 °C over brass is upstream's number, not an endorsed one.**
+  Sovol's SV08 Max PLA also prints at 230, and one owner measured a stock Max
+  nozzle reading about 20 °C high, so the gap may be a sensor offset carried
+  over rather than what steel needs.
+- **Nothing else changes.** Pressure advance, flow ratio, retraction, cooling
+  and bed are as they were. ABS, PC and TPU, which neither Sovol nor upstream
+  splits by nozzle, keep their temperatures.
+- **The tiers are not re-derived**; every tier is still authored against
+  21 mm³/s, and no print profile changed. On Steel PLA the 21 cap clamps the
+  same moves as before, with identical feedrates in all three slicers. On
+  Brass PLA the 25 cap stops the slicers clamping moves that ask more than 21.
+  Sliced on the 0.4: PrusaSlicer and SuperSlicer run Draft's sparse and solid
+  infill at the asked 216 mm/s instead of trimming it to 212–213. Internal
+  bridges run as asked on Standard (175 mm/s, was 167–171), and on Draft at
+  199–203 mm/s (was 167–171), still capped below the asked 239.
+
 ### Scarf seams
 
 - **Scarf seams on holes as well as outer contours.** OrcaSlicer's

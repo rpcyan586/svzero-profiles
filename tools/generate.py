@@ -947,6 +947,9 @@ def derive(model, ss, keymap):
         "small": apply_small_nozzle_rules(model, ss),
         "shrink": apply_shrinkage(ss, load("filament-shrink.json")),
         "8m": apply_8m_overrides(ss, load("filament-8m.json")),
+        # After 8m, so upstream's per-nozzle temperatures replace the Max's
+        # single one on the six Brass/Steel presets.
+        "nozzle": apply_nozzle_upstream(ss, load("filament-nozzle-upstream.json")),
         "modes": apply_modes(model, ss),
     }
 
@@ -1279,6 +1282,48 @@ def apply_8m_overrides(ss, data):
         if "toolhead-scope" not in note:
             base = note.split(" | [8M]")[0]
             ss[sec]["filament_notes"] = "%s | %s" % (base, tag)
+        n += 1
+    return n
+
+
+UPSTREAM_ORCA_FILAMENT = os.path.join(SOVOL_VENDOR, "OrcaSlicer", "Sovol", "filament")
+
+
+def apply_nozzle_upstream(ss, data):
+    """Upstream Orca's nozzle temperatures and flow caps on the Brass/Steel presets.
+
+    The (8M) merge gave each Brass/Steel pair the SV08 MAX's one temperature, so
+    the split chose nothing. Upstream OrcaSlicer's Zero (PR #15756) keeps brass
+    and hardened steel apart; the operator adopted its temperatures and flow
+    caps on 2026-10-18 as interim values, not measurements. Runs after
+    apply_8m_overrides so these keys win; 8M's pressure advance, flow ratio and
+    retraction stay.
+
+    Each value is read back from the pinned upstream file it names, so the
+    table cannot drift from its source: a mismatch stops the build.
+    """
+    keys = {k: v for k, v in data["_keys"].items() if not k.startswith("_")}
+    n = 0
+    for preset, kv in data["overrides"].items():
+        sec = "filament:%s" % preset
+        src = data["_source_profile"][preset]
+        if sec not in ss:
+            raise SystemExit("filament-nozzle-upstream.json: %s is not in source/presets.json" % preset)
+        if set(kv) != set(keys):
+            raise SystemExit("filament-nozzle-upstream.json: %s sets %s, expected exactly %s"
+                             % (preset, sorted(kv), sorted(keys)))
+        up = json.load(open(os.path.join(UPSTREAM_ORCA_FILAMENT, src + ".json"), encoding="utf-8"))
+        for k, v in kv.items():
+            got = up.get(keys[k])
+            got = got[0] if isinstance(got, list) else got
+            if str(got) != v:
+                raise SystemExit("filament-nozzle-upstream.json: %s %s = %s, but upstream %s has %s = %s"
+                                 % (preset, k, v, src, keys[k], got))
+            ss[sec][k] = v
+        tag = "[Orca #15756]: nozzle temperature and flow cap from upstream %s (interim)" % src
+        note = ss[sec].get("filament_notes", "")
+        if "[Orca #15756]" not in note:
+            ss[sec]["filament_notes"] = "%s | %s" % (note, tag) if note else tag
         n += 1
     return n
 
@@ -2903,6 +2948,8 @@ def main():
     print("  applied small-nozzle rules: %d keys" % done["small"])
     print("  applied nominal shrinkage to %d filament presets" % done["shrink"])
     print("  applied SV08 MAX toolhead values to %d (8M) presets" % done["8m"])
+    print("  applied upstream Orca nozzle temperatures and flow caps to %d Brass/Steel presets"
+          % done["nozzle"])
     print("  applied machine modes: %d keys (%s)" % (done["modes"], ", ".join(sorted(modes(model))) or "none"))
     np_ = emit_physical_printers(model, ss)
     print("  emitted %d physical printers" % np_)

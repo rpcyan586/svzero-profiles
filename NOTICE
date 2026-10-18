@@ -15,6 +15,12 @@ Public upstream inputs:
   source/vendor-profiles/provenance.json. The upstream repository carries
   AGPL-3.0 in OrcaSlicer/LICENSE.txt; a copy is in LICENSES/AGPL-3.0.txt.
   Generation modifies the machine root to describe a single-material printer.
+- source/vendor-profiles/OrcaSlicer: six unmodified Sovol Zero filament JSONs
+  from OrcaSlicer/OrcaSlicer, added there by Eric McCann in PR #15756, with a
+  pinned commit and SHA-256 inventory in its own provenance.json. OrcaSlicer is
+  AGPL-3.0 (LICENSE.txt); a copy is in LICENSES/AGPL-3.0.txt. Generation reads
+  their nozzle temperatures and flow caps through
+  source/filament-nozzle-upstream.json.
 - source/ps3: PrusaSlicer schema files, AGPL-3.0. Their provenance is recorded
   alongside them; the full licence is in LICENSES/AGPL-3.0.txt.
 - Source tables retain stock numerical reference settings used for comparisons.
