@@ -61,11 +61,12 @@ leave room in the arrangement and inspect the preview. Disabling them on stock
 firmware removes this fallback unless you provide another priming sequence.
 
 The other optional calls (`SVZERO_REQUIRE`, `_PREFLIGHT`, `M141`/`M191`,
-`SET_CLEAN_TEMP`, `COOLDOWN_ARM`, `SVZERO_NOZZLE_GROWTH`) likewise do not
-require stub macros on stock Sovol firmware. Expect several unknown-command
-messages, not one combined warning. Unknown commands being harmless does
-**not** make errors in an installed macro harmless; nor does it apply to
-commands such as `SET_GCODE_VARIABLE` naming a nonexistent target.
+`SET_CLEAN_TEMP`, `COOLDOWN_ARM`, `SVZERO_XY_CURRENT`,
+`SVZERO_NOZZLE_GROWTH`) likewise do not require stub macros on stock Sovol
+firmware. Expect several unknown-command messages, not one combined warning.
+Unknown commands being harmless does **not** make errors in an installed macro
+harmless; nor does it apply to commands such as `SET_GCODE_VARIABLE` naming a
+nonexistent target.
 
 **With the pack installed, `SVZERO_REQUIRE` checks two things.**
 - **A different pack version** prints one warning and the job continues.
