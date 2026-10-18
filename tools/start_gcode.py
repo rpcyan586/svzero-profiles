@@ -93,6 +93,14 @@ ORCA_CHAMBER_BLOCK = "\n".join([
     "{else}M191{endif}",
 ])
 
+# What the start G-code says about SVZERO_NOZZLE_GROWTH, in every slicer.
+NOZZLE_GROWTH_COMMENT = "\n".join([
+    ";  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first",
+    ";  layer than when START_PRINT took the Z reference. Off until the printer",
+    ";  stores its own coefficient. Without the pack it is an unknown command,",
+    ";  which Klipper reports and steps over.",
+])
+
 ORCA_START_TAIL = "\n".join([
     "@@CLEAN_TEMP@@",
     # Consumed by END_PRINT, armed here: the policy has to be in RAM before the
@@ -107,6 +115,11 @@ ORCA_START_TAIL = "\n".join([
     # source/model.json by tools/generate.py (xy_current_block). After
     # START_PRINT, so homing and probing keep printer.cfg's current.
     "@@XY_CURRENT@@",
+    # Before any move or heat after START_PRINT, with the same placeholder as
+    # the M104 below. PrusaSlicer and SuperSlicer carry the same line in
+    # source/presets.json; tests/test_nozzle_growth.py holds all of them to it.
+    NOZZLE_GROWTH_COMMENT,
+    "SVZERO_NOZZLE_GROWTH TEMP=[nozzle_temperature_initial_layer]",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
     # The per-machine Z offset placeholder the PrusaSlicer and SuperSlicer

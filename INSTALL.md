@@ -61,11 +61,11 @@ leave room in the arrangement and inspect the preview. Disabling them on stock
 firmware removes this fallback unless you provide another priming sequence.
 
 The other optional calls (`SVZERO_REQUIRE`, `_PREFLIGHT`, `M141`/`M191`,
-`SET_CLEAN_TEMP`, `COOLDOWN_ARM`) likewise do not require stub macros on stock
-Sovol firmware. Expect several unknown-command messages, not one combined
-warning. Unknown commands being harmless does **not** make errors in an
-installed macro harmless; nor does it apply to commands such as
-`SET_GCODE_VARIABLE` naming a nonexistent target.
+`SET_CLEAN_TEMP`, `COOLDOWN_ARM`, `SVZERO_NOZZLE_GROWTH`) likewise do not
+require stub macros on stock Sovol firmware. Expect several unknown-command
+messages, not one combined warning. Unknown commands being harmless does
+**not** make errors in an installed macro harmless; nor does it apply to
+commands such as `SET_GCODE_VARIABLE` naming a nonexistent target.
 
 **With the pack installed, `SVZERO_REQUIRE` checks two things.**
 - **A different pack version** prints one warning and the job continues.
@@ -183,6 +183,17 @@ spool, remembered temperature or configured default where supported. That is
 not a guarantee that arbitrary start G-code is compatible: it still needs bed
 and nozzle waits and sufficient priming, especially with the pack's wipe and
 end-retract bookkeeping.
+
+### Nozzle growth compensation
+
+`SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
+first layer for the nozzle being hotter than when the Z reference was taken.
+It ships **off**: its coefficient is 0 until you measure your machine's own and
+store it with `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=<mm per °C>`.
+Until then each print logs one line saying it is off. Once it is on, re-tune
+any per-filament `Z_ADJUST` you set before, which it adds to. On 1.4.x it also
+needs the eddy calibration's nozzle temperature recorded. Method and limits:
+[Nozzle growth compensation](docs/STARTUP.md#nozzle-growth-compensation).
 
 ### Input shaping
 

@@ -209,6 +209,13 @@ def check(path):
     settings.setdefault("gcode_macro _CH_STATE",
                         Mock(running=1, chamber_slope=0.1,
                              print_bed_target="None"))
+    # nozzle_growth.cfg is optional as well: START_PRINT reaches it through
+    # `'gcode_macro _NOZZLE_GROWTH' in printer`. Supplied here so start_print.cfg
+    # checked on its own renders the reference bookkeeping, not only the
+    # not-installed branch, which "growth-absent" renders by removing it.
+    settings.setdefault("gcode_macro _NOZZLE_GROWTH",
+                        Mock(mm_per_c=0.0, max_adjust=0.25, ref_temp=-1.0,
+                             ref_source="none", applied=0.0))
     printer = Mock(settings)
     printer.update({
         "exclude_object": Mock(objects=[Mock(polygon=box(60, 60, 90, 90))]),
@@ -338,6 +345,12 @@ def check(path):
                  {"heater_bed": Mock(temperature=118.0, target=100.0)}),
             ]
         elif s == "gcode_macro START_PRINT":
+            # The nozzle-growth reference scenarios pin probe_temp to 150: the
+            # standalone _BRUSH mock has none, and START_PRINT would fall back to
+            # the calibrator's 130, which an eddy record could be mistaken for.
+            brush150 = Mock(dict(printer["gcode_macro _BRUSH"], probe_temp=150.0))
+            eddy_record = Mock(variables=Mock(dict(printer.save_variables.variables,
+                                                   nozzle_growth_eddy_ref_temp=140.0)))
             scenarios = [
                 # 1.3.7: a load cell exists, so the tuned overlay path runs.
                 ("load-cell", params, "", {}, {},
@@ -349,6 +362,68 @@ def check(path):
                 ("camera-tuner", params, "", {}, {},
                  {"probe_pressure": Mock(last_z_result=0.0),
                   "camera_tune": Mock(active=False)}),
+                # Tare-tap: the reference is the tap this job, at probe_temp.
+                ("growth-tap", params, "", {}, {},
+                 {"probe_pressure": Mock(last_z_result=0.0),
+                  "gcode_macro _BRUSH": brush150}),
+                # Eddy only, calibrated, temperature recorded: the record.
+                ("growth-eddy-recorded", params, "", {}, {},
+                 {"probe_pressure": None, "gcode_macro _BRUSH": brush150,
+                  "probe_eddy_current eddy": Mock(is_calibrated=True),
+                  "save_variables": eddy_record}),
+                # Eddy only, nothing recorded: unknown, so nothing is applied.
+                ("growth-eddy-unrecorded", params, "", {}, {},
+                 {"probe_pressure": None, "gcode_macro _BRUSH": brush150}),
+                # Eddy only, no eddy data: the calibrator runs now, at probe_temp.
+                ("growth-eddy-new", params, "", {}, {},
+                 {"probe_pressure": None, "gcode_macro _BRUSH": brush150,
+                  "probe_eddy_current eddy": Mock(is_calibrated=False),
+                  "save_variables": eddy_record}),
+                # nozzle_growth.cfg not installed: START_PRINT must not name it.
+                ("growth-absent", params, "", {}, {},
+                 {"probe_pressure": Mock(last_z_result=0.0),
+                  "gcode_macro _NOZZLE_GROWTH": None}),
+            ]
+        elif s == "gcode_macro SVZERO_NOZZLE_GROWTH":
+            # Every branch: off, applied, each reason for applying nothing, the
+            # magnitude guard, and a second call in the same job.
+            growth_base = printer["gcode_macro _NOZZLE_GROWTH"]
+
+            def growth(k=None, **state):
+                out = {"gcode_macro _NOZZLE_GROWTH": Mock(dict(growth_base, **state))}
+                if k is not None:
+                    out["save_variables"] = Mock(variables=Mock(dict(
+                        printer.save_variables.variables, nozzle_growth_mm_per_c=k)))
+                return out
+            tap150 = dict(ref_temp=150.0, ref_source="tap")
+            scenarios = [
+                # Published: k is 0, so nothing moves even with a known reference.
+                ("off", None, "TEMP=280", {}, {}, growth(**tap150)),
+                # 0.0008 x (280 - 150) = 0.104 mm, ABS on the tare-tap path.
+                ("on", None, "TEMP=280", {}, {}, growth(k=0.0008, **tap150)),
+                # The same k from a personal override of the macro default.
+                ("on-macro-k", None, "TEMP=280", {}, {}, growth(mm_per_c=0.0008, **tap150)),
+                ("ref-unknown", None, "TEMP=280", {}, {},
+                 growth(k=0.0008, ref_temp=-1.0, ref_source="eddy_unknown")),
+                ("no-temp", None, "", {}, {}, growth(k=0.0008, **tap150)),
+                # A dropped zero: 0.008 x 130 = 1.04 mm, refused rather than clamped.
+                ("guard", None, "TEMP=280", {}, {}, growth(k=0.008, **tap150)),
+                # Called twice in one job: the second call adds nothing.
+                ("repeat", None, "TEMP=280", {}, {},
+                 growth(k=0.0008, applied=0.104, **tap150)),
+                # Re-targeted in the same job: 0.080 wanted, 0.104 there, -0.024.
+                ("retarget", None, "TEMP=250", {}, {},
+                 growth(k=0.0008, applied=0.104, **tap150)),
+            ]
+        elif s == "gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF":
+            recorded = {"save_variables": Mock(variables=Mock(dict(
+                printer.save_variables.variables, nozzle_growth_eddy_ref_temp=130.0)))}
+            scenarios = [
+                ("record", None, "TEMP=150", {}, {}),
+                ("report-unrecorded", None, "", {}, {}),
+                ("report-recorded", None, "", {}, {}, recorded),
+                ("clear", None, "CLEAR=1", {}, {}, recorded),
+                ("implausible", None, "TEMP=1500", {}, {}),
             ]
         elif s == "gcode_macro ORBIT_WHINE_SWEEP":
             scenarios = [
@@ -1448,6 +1523,54 @@ def check(path):
                  "_COOLDOWN_TAKE_OVER"],
             ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
             ("gcode_macro START_PRINT", "camera-tuner"): "CAMERA_TUNE STARTUP=1",
+            # The reset at the start, then the reference after the calibration.
+            # ref_source names the branch: every path also emits the -1.0 reset.
+            ("gcode_macro START_PRINT", "growth-tap"):
+                ["SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=-1.0",
+                 "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=applied VALUE=0.0",
+                 "METHOD=force_overlay BED_TEMP=65.0 EXTRUDER_TEMP=150.0",
+                 "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=150.0",
+                 "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_source VALUE='\"tap\"'"],
+            ("gcode_macro START_PRINT", "growth-eddy-recorded"):
+                ["SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=140.0",
+                 "VARIABLE=ref_source VALUE='\"eddy_saved\"'"],
+            ("gcode_macro START_PRINT", "growth-eddy-unrecorded"):
+                "VARIABLE=ref_source VALUE='\"eddy_unknown\"'",
+            ("gcode_macro START_PRINT", "growth-eddy-new"):
+                ["SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=150.0",
+                 "VARIABLE=ref_source VALUE='\"eddy_new\"'"],
+            ("gcode_macro START_PRINT", "growth-absent"): "METHOD=force_overlay",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "off"):
+                "nozzle growth compensation off, k=0.0 mm/C from macro default. Nothing applied.",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "on"):
+                ["SET_GCODE_OFFSET Z_ADJUST=0.104 MOVE=1",
+                 "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=applied VALUE=0.104",
+                 "k=0.0008 mm/C (save_variables) x (first layer 280.0C - reference 150.0C,"
+                 " tare-tap at probe temperature this job) = 0.104 mm"],
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "on-macro-k"):
+                ["SET_GCODE_OFFSET Z_ADJUST=0.104 MOVE=1", "k=0.0008 mm/C (macro default)"],
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "ref-unknown"):
+                "reference temperature unknown: stored eddy calibration, its nozzle temperature was never recorded",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "no-temp"): "no first-layer temperature given",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "guard"):
+                ["RESPOND TYPE=error",
+                 "refused: k=0.008 mm/C x (first layer 280.0C - reference 150.0C) = 1.04 mm,"
+                 " beyond the 0.25 mm bound"],
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "repeat"): "already applied 0.104 mm this job",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "retarget"):
+                ["SET_GCODE_OFFSET Z_ADJUST=-0.024 MOVE=1",
+                 "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=applied VALUE=0.08"],
+            ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "record"):
+                "SAVE_VARIABLE VARIABLE=nozzle_growth_eddy_ref_temp VALUE=150.0",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "report-unrecorded"):
+                "eddy calibration nozzle temperature not recorded",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "report-recorded"):
+                "eddy calibration nozzle temperature 130.0C, recorded",
+            ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "clear"):
+                ["SAVE_VARIABLE VARIABLE=nozzle_growth_eddy_ref_temp VALUE=-1.0",
+                 "forgotten (was 130.0C)"],
+            ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "implausible"):
+                "TEMP=1500 is not a nozzle temperature between 0 and 355.0C",
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
             ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
@@ -1733,6 +1856,25 @@ def check(path):
                   # heat-up and a contact probe on EVERY print.
                   ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE"],
                   ("gcode_macro START_PRINT", "load-cell"): "CAMERA_TUNE",
+                  # Eddy paths never force the overlay, and only a fresh
+                  # calibration takes probe_temp as the reference.
+                  ("gcode_macro START_PRINT", "growth-eddy-recorded"):
+                      ["METHOD=force_overlay", "VARIABLE=ref_temp VALUE=150.0"],
+                  ("gcode_macro START_PRINT", "growth-eddy-unrecorded"):
+                      ["METHOD=force_overlay", "VARIABLE=ref_temp VALUE=150.0"],
+                  ("gcode_macro START_PRINT", "growth-eddy-new"):
+                      ["METHOD=force_overlay", "VARIABLE=ref_temp VALUE=140.0"],
+                  # A partial install: SET_GCODE_VARIABLE on a missing macro errors.
+                  ("gcode_macro START_PRINT", "growth-absent"): "_NOZZLE_GROWTH",
+                  # Every branch that applies nothing must move nothing.
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH", "off"): "SET_GCODE_OFFSET",
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH", "ref-unknown"): "SET_GCODE_OFFSET",
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH", "no-temp"): "SET_GCODE_OFFSET",
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH", "guard"): ["SET_GCODE_OFFSET", "VARIABLE=applied"],
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH", "repeat"): ["SET_GCODE_OFFSET", "VARIABLE=applied"],
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "report-unrecorded"): "SAVE_VARIABLE",
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "report-recorded"): "SAVE_VARIABLE",
+                  ("gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF", "implausible"): "SAVE_VARIABLE",
                   # A matching version must say nothing at all.
                   ("gcode_macro SVZERO_REQUIRE", "version-match"): "profile expects",
                   ("gcode_macro SVZERO_REQUIRE", "mode-match"): "profile expects",

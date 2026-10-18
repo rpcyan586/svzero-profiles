@@ -51,6 +51,14 @@ The cooldown ramp changes the bed target; `_COOLDOWN_CONFIG ENABLE=0` disables i
 `COOLDOWN_ABORT` stops the ramp without turning heaters off; use `CANCEL_PRINT`
 for shutdown and cancellation.
 
+Nozzle growth compensation ships off, and each print logs one line saying so.
+It offsets the first layer for the nozzle being hotter than when Z was
+referenced, once you store your machine's own coefficient with
+`SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=<mm per °C>`. The
+consolidated config's `nozzle_growth.cfg` section explains it, and the
+[startup guide](https://github.com/rpcyan586/svzero-profiles/blob/main/docs/STARTUP.md#nozzle-growth-compensation)
+covers measuring it.
+
 ## 2. Optional adaptive preheat and Spoolman
 
 Skip this section to retain native-only behavior. To enable both enhancements:

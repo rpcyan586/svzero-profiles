@@ -140,6 +140,36 @@ Sliced in all three slicers; not yet printed.
   choice.
 - In OrcaSlicer it inherits PETG's base profile, `fdm_filament_pet`.
 
+### Nozzle growth compensation, published off
+
+A hotter nozzle reaches further down, and every print's Z reference is taken
+at one nozzle temperature while the first layer prints at another. On the
+1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
+first layer runs at 280 °C. One Zero measured about 0.75–0.9 µm/°C between 150
+and 190 °C, one clean step; above that the run was spoiled and the range is
+being measured again.
+
+- **`SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature>`** offsets Z by
+  k × (first-layer − reference temperature), + farther from the plate, and
+  reports every input with the result. All three slicers send it after
+  `START_PRINT`, before any move or heat, with the placeholder their own
+  `M104` uses.
+- **k is 0 as published, so nothing moves.** Each machine measures its own
+  and stores it with `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=…`;
+  the method is in [the startup guide](docs/STARTUP.md#nozzle-growth-compensation).
+- **`START_PRINT` records the reference temperature.** On 1.3.7 it is the
+  tap's `probe_temp`, every job. On 1.4.x the reference is the stored eddy
+  calibration, whose temperature is known only if
+  `SVZERO_NOZZLE_GROWTH_EDDY_REF TEMP=` recorded it, or when `START_PRINT`
+  calibrated the eddy itself; otherwise nothing is applied and the console
+  says why. Eddy coil drift is not compensated.
+- **An adjustment over 0.25 mm is refused**, not clamped: the hotend's whole
+  range at the measured rate is 0.20 mm, so a larger one is a mistyped k.
+- **Per-filament `Z_ADJUST` values become residuals** once k is set, and
+  should be tuned again from 0.
+- Rendered on Jinja 2.11.3 in both firmware files, every branch asserted.
+  Not yet run on a printer.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's
