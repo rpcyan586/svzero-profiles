@@ -397,8 +397,10 @@ def check(path):
                 return out
             tap150 = dict(ref_temp=150.0, ref_source="tap")
             scenarios = [
-                # Published: k is 0, so nothing moves even with a known reference.
-                ("off", None, "TEMP=280", {}, {}, growth(**tap150)),
+                # Published: the macro's own k, on with nothing saved.
+                ("published", None, "TEMP=280", {}, {}, growth(**tap150)),
+                # Turned off on one machine: a saved 0 wins over the published k.
+                ("off", None, "TEMP=280", {}, {}, growth(k=0.0, **tap150)),
                 # 0.0008 x (280 - 150) = 0.104 mm, ABS on the tare-tap path.
                 ("on", None, "TEMP=280", {}, {}, growth(k=0.0008, **tap150)),
                 # The same k from a personal override of the macro default.
@@ -1461,6 +1463,8 @@ def check(path):
         # lands in the wrong one renders fine and validates nothing -- the
         # branch it was written for is still unrendered. Naming the expected
         # output turns "it rendered" into "it rendered THIS".
+        # The published nozzle-growth k, read from the file under check.
+        growth_k = float(settings.get("gcode_macro _NOZZLE_GROWTH", {}).get("mm_per_c", 0.0))
         expect = {
             ("gcode_macro M191", "r-heating"): ["CHAMBER_PREHEAT_WAIT MINIMUM=45.0",
                                                 "the slicer's target"],
@@ -1540,8 +1544,14 @@ def check(path):
                 ["SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=150.0",
                  "VARIABLE=ref_source VALUE='\"eddy_new\"'"],
             ("gcode_macro START_PRINT", "growth-absent"): "METHOD=force_overlay",
+            # Computed from the k this file publishes, which is set in one place.
+            ("gcode_macro SVZERO_NOZZLE_GROWTH", "published"):
+                ["SET_GCODE_OFFSET Z_ADJUST=%s MOVE=1" % round(growth_k * 130.0, 4),
+                 "k=%s mm/C (macro default) x (first layer 280.0C - reference 150.0C,"
+                 " tare-tap at probe temperature this job) = %s mm"
+                 % (growth_k, round(growth_k * 130.0, 4))],
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "off"):
-                "nozzle growth compensation off, k=0.0 mm/C from macro default. Nothing applied.",
+                "nozzle growth compensation off, k=0.0 mm/C from save_variables. Nothing applied.",
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "on"):
                 ["SET_GCODE_OFFSET Z_ADJUST=0.104 MOVE=1",
                  "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=applied VALUE=0.104",

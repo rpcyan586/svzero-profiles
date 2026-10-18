@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nozzle growth compensation reaches every slicer, and ships off.
+"""Nozzle growth compensation reaches every slicer, and ships on.
 
 The slicer sends SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature> after
 START_PRINT, with the same placeholder its own M104 uses, and before any move
@@ -91,11 +91,27 @@ class NozzleGrowthTest(unittest.TestCase):
                     m104 = next(line for line in lines[call:] if line.startswith("M104 S"))
                     self.assertEqual(lines[call], "SVZERO_NOZZLE_GROWTH TEMP=" + m104[len("M104 S"):])
 
-    def test_published_off(self):
-        # Published k is 0 until a machine measures its own; see the file.
+    def test_published_on_with_one_k_inside_the_guard(self):
+        # Published on (operator, 2026-10-18): k is the operator's Zero2 value,
+        # provisional, set once in nozzle_growth.cfg. A machine turns it off
+        # with a saved 0; check-macros renders that and the published branch.
         text = GROWTH.read_text(encoding="utf-8")
-        self.assertRegex(text, r"(?m)^variable_mm_per_c:\s*0\.0\s*$")
-        self.assertRegex(text, r"(?m)^variable_max_adjust:\s*0\.25\s*$")
+        ks = re.findall(r"(?m)^variable_mm_per_c:\s*(\S+)\s*$", text)
+        self.assertEqual(len(ks), 1)
+        k = float(ks[0])
+        self.assertGreater(k, 0)
+        guard = re.search(r"(?m)^variable_max_adjust:\s*(\S+)\s*$", text)
+        self.assertEqual(float(guard.group(1)), 0.25)
+        # The whole hotend, 130 C calibrator default to 355 C max_temp, stays
+        # inside the guard at the published k, so it can never refuse itself.
+        self.assertLess(k * (355 - 130), 0.25)
+        self.assertRegex(text, r"PROVISIONAL[^\n]*\n#[^\n]*run 10[^\n]*\n(#[^\n]*\n)*variable_mm_per_c:")
+        # Only nozzle_growth.cfg states it, so the final value is one edit.
+        for path in [*ROOT.glob("klipper/**/*.cfg"), *ROOT.glob("tools/*.py"),
+                     *ROOT.glob("tests/*.py"), *ROOT.glob("docs/**/*.md"),
+                     *ROOT.glob("source/*.json"), ROOT / "INSTALL.md", ROOT / "CHANGELOG.md"]:
+            if path != GROWTH:
+                self.assertNotIn(ks[0], path.read_text(encoding="utf-8"), str(path))
 
     def test_start_print_writes_only_declared_variables(self):
         # SET_GCODE_VARIABLE on an undeclared variable is a Klipper error,

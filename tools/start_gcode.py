@@ -96,9 +96,10 @@ ORCA_CHAMBER_BLOCK = "\n".join([
 # What the start G-code says about SVZERO_NOZZLE_GROWTH, in every slicer.
 NOZZLE_GROWTH_COMMENT = "\n".join([
     ";  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first",
-    ";  layer than when START_PRINT took the Z reference. Off until the printer",
-    ";  stores its own coefficient. Without the pack it is an unknown command,",
-    ";  which Klipper reports and steps over.",
+    ";  layer than when START_PRINT took the Z reference. On as published;",
+    ";  SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.",
+    ";  Without the pack it is an unknown command, which Klipper reports and",
+    ";  steps over.",
 ])
 
 ORCA_START_TAIL = "\n".join([

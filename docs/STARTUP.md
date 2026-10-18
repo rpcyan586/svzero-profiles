@@ -29,7 +29,7 @@ installed version or measured performance.
 | `START_PRINT` | Release any remaining chamber-helper bed carry, park over the pad and return to the slicer. |
 | Slicer | PrusaSlicer/SuperSlicer send the print tier's square corner velocity (`SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY`, from the print preset's Notes); OrcaSlicer sends it with its first printed feature, from its jerk fields. `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value. |
 | Slicer | All three send the print tier's X/Y stepper current, `SVZERO_XY_CURRENT CURRENT=2.4` on Fine to Strength, from the print preset's Notes. The pack only lowers the configured current; Draft sends nothing and runs `printer.cfg`'s. `END_PRINT` and `CANCEL_PRINT` restore it. |
-| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. Once the machine has its own coefficient it offsets Z for the nozzle being hotter than at the Z reference; as published it only reports that it is off. See [below](#nozzle-growth-compensation). |
+| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. It offsets Z for the nozzle being hotter than at the Z reference, with the pack's provisional coefficient unless the machine has stored its own or 0. See [below](#nozzle-growth-compensation). |
 | Slicer | Lift to Z5, heat/wait for printing temperature, then call `PURGE_LINE` with nozzle/filament dimensions, flow limit and skirt clearance. |
 | `PURGE_LINE` | Place rings or an edge line and return recorded cleaning/end-retract debt at the deposition position before purging. |
 | Slicer | Continue the print; the public skirt remains enabled even with the pack installed. |
@@ -76,16 +76,33 @@ linear in the temperature difference:
 reports k, both temperatures and the result. The source is
 [nozzle_growth.cfg](../klipper/config/nozzle_growth.cfg).
 
-**Published off: k is 0.** k belongs to one machine's nozzle, heater block and
-probe. Until a machine stores its own, the call reports that it is off and
-moves nothing.
+**On as published.** The pack's k, `variable_mm_per_c` in `_NOZZLE_GROWTH`,
+was measured on the operator's Zero2 and is provisional until a cleaner run
+finishes. On the 1.3.7 tare-tap path, against the 150 °C probe temperature, it
+moves the first layer farther from the plate by:
+
+| First layer | Presets | Offset |
+|---|---|---|
+| 230 °C | PLA - Brass | +0.07 mm |
+| 245 °C | PLA - Steel, PLA Silk | +0.09 mm |
+| 250 °C | TPU | +0.09 mm |
+| 260 °C | PCTG | +0.10 mm |
+| 265 °C | PETG | +0.10 mm |
+| 280 °C | ABS, PC | +0.12 mm |
+
+k belongs to one machine's nozzle, heater block and probe, so on any other Zero
+it is an estimate. Turn it off on a machine, or use that machine's own k, with
+a saved variable:
+
+    SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0
 
 **What has been measured.** On one Zero (1.3.7, 0.4 nozzle) the tare-tap read
 40–45 µm higher from 150 to 190 °C while the eddy, which sees the plate and not
 the nozzle, rose 10 µm: net, about 0.75–0.9 µm/°C. That is one clean step.
-Above 190 °C plastic on the tip spoiled the run, so whether the rate holds to
-280 °C is not established. If it does, an ABS first layer at 280 °C against a
-150 °C reference sits about 0.10–0.12 mm closer than calibrated.
+Above 190 °C plastic on the tip spoiled the run. A later run on the same
+machine, 150 to 280 °C and back, fit 0.8–1.1 µm/°C with residue on the tip
+still in play. At that rate an ABS first layer at 280 °C against a 150 °C
+reference sits about 0.10–0.14 mm closer than calibrated.
 
 | Firmware | Z reference | Reference temperature |
 |---|---|---|
@@ -110,7 +127,7 @@ says why.
    any movement of the plate itself over the same time. The way down should
    repeat the way up; if it does not, something besides the nozzle moved.
 
-Store it, and set it back to 0 to turn the compensation off:
+Store it in place of the pack's, or store 0 to turn the compensation off:
 
     SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0.0008
 
@@ -130,8 +147,9 @@ idle. `SVZERO_NOZZLE_GROWTH_EDDY_REF` with no argument reports the record, and
 
 - **Per-material offsets become residuals.** Each filament's
   `SET_GCODE_OFFSET Z_ADJUST` runs after this and adds to it. An offset tuned
-  while k was 0 already holds the nozzle's growth for that material, so once k
-  is set, return those offsets to 0 and tune them again.
+  without the compensation, with an earlier pack or with k saved as 0, already
+  holds the nozzle's growth for that material and is now counted twice: return
+  those offsets to 0 and tune them again.
 - **Eddy coil drift is not compensated.** The coil sits beside the nozzle. In
   the same run the eddy rose 56 µm while the nozzle heated from 48 to 150 °C,
   which may be the coil warming rather than the plate moving. Stock

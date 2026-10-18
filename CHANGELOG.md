@@ -171,23 +171,32 @@ Sliced in all three slicers; not yet printed.
   choice.
 - In OrcaSlicer it inherits PETG's base profile, `fdm_filament_pet`.
 
-### Nozzle growth compensation, published off
+### Nozzle growth compensation, on by default
 
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
 1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
-first layer runs at 280 °C. One Zero measured about 0.75–0.9 µm/°C between 150
-and 190 °C, one clean step; above that the run was spoiled and the range is
-being measured again.
+first layer runs at 280 °C. The operator's Zero2 measured about 0.75–0.9 µm/°C
+between 150 and 190 °C, one clean step; a later run from 150 to 280 °C and back
+fit 0.8–1.1 µm/°C with residue on the tip still in play, and a cleaner run is
+in progress.
 
 - **`SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature>`** offsets Z by
   k × (first-layer − reference temperature), + farther from the plate, and
   reports every input with the result. All three slicers send it after
   `START_PRINT`, before any move or heat, with the placeholder their own
   `M104` uses.
-- **k is 0 as published, so nothing moves.** Each machine measures its own
-  and stores it with `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=…`;
-  the method is in [the startup guide](docs/STARTUP.md#nozzle-growth-compensation).
+- **On by default**, the operator's decision. k is the value measured on the
+  operator's Zero2, provisional until the cleaner run finishes, and set in one
+  place, `variable_mm_per_c` in `nozzle_growth.cfg`. On 1.3.7, against the
+  150 °C probe temperature, the first layer moves farther from the bed by
+  about +0.07 mm at 230 °C (PLA - Brass), +0.09 mm at 250 °C, +0.10 mm at
+  PETG's 265 °C and +0.12 mm at ABS's and PC's 280 °C.
+- **Turn it off on a machine** with
+  `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`, or **use that
+  machine's own k** by storing it the same way, in mm per °C. A saved value
+  takes precedence over the pack's and survives updates; the method is in
+  [the startup guide](docs/STARTUP.md#nozzle-growth-compensation).
 - **`START_PRINT` records the reference temperature.** On 1.3.7 it is the
   tap's `probe_temp`, every job. On 1.4.x the reference is the stored eddy
   calibration, whose temperature is known only if
@@ -196,10 +205,11 @@ being measured again.
   says why. Eddy coil drift is not compensated.
 - **An adjustment over 0.25 mm is refused**, not clamped: the hotend's whole
   range at the measured rate is 0.20 mm, so a larger one is a mistyped k.
-- **Per-filament `Z_ADJUST` values become residuals** once k is set, and
-  should be tuned again from 0.
-- Rendered on Jinja 2.11.3 in both firmware files, every branch asserted.
-  Not yet run on a printer.
+- **Per-material `Z_ADJUST` values become residuals.** One tuned with an
+  earlier pack already holds the machine's growth for that material and is
+  now counted twice: return it to 0 and tune it again.
+- Rendered on Jinja 2.11.3 in both firmware files, every branch asserted,
+  the published value and a saved 0 included. Not yet run on a printer.
 
 ### Bed preview and texture
 

@@ -189,11 +189,23 @@ end-retract bookkeeping.
 
 `SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
 first layer for the nozzle being hotter than when the Z reference was taken.
-It ships **off**: its coefficient is 0 until you measure your machine's own and
-store it with `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=<mm per °C>`.
-Until then each print logs one line saying it is off. Once it is on, re-tune
-any per-filament `Z_ADJUST` you set before, which it adds to. On 1.4.x it also
-needs the eddy calibration's nozzle temperature recorded. Method and limits:
+It ships **on**, with a provisional coefficient k measured on the operator's
+Zero2. On 1.3.7 the first layer moves farther from the bed by k × (first-layer
+temperature − the 150 °C probe temperature): about +0.07 mm at 230 °C,
++0.09 mm at 250 °C, +0.10 mm at PETG's 265 °C and +0.12 mm at ABS's 280 °C.
+Each print logs one line with k, both temperatures and the offset.
+
+- **Turn it off** on a machine with
+  `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`.
+- **Use your own k** by measuring it and storing it the same way, in mm per °C.
+  A saved value takes precedence over the pack's and survives updates.
+- **Per-filament `Z_ADJUST` values become residuals.** One tuned with an
+  earlier pack already holds your machine's growth for that material and is
+  now counted twice: return it to 0 and tune it again.
+- On 1.4.x nothing is applied until the eddy calibration's nozzle temperature
+  is recorded, unless `START_PRINT` runs that calibration itself.
+
+Method and limits:
 [Nozzle growth compensation](docs/STARTUP.md#nozzle-growth-compensation).
 
 ### Input shaping
