@@ -607,8 +607,17 @@ def install_orca(datadir):
         mm = json.load(open(os.path.join(ours, "SVZero", entry["sub_path"]), encoding="utf-8"))
         ours_models.append({"model": mm["name"], "nozzle_diameter": mm["nozzle_diameter"],
                             "vendor": "SVZero"})
-    models = ours_models + [{"model": "SOVOL ZERO", "nozzle_diameter": "0.4",
-                             "vendor": "Sovol"}] + models
+    # Registered by (vendor, model), so a second install changes nothing. Only
+    # SVZero's entries were filtered before, and SOVOL ZERO was prepended on
+    # every run: each reinstall added one more copy. A SOVOL ZERO entry already
+    # there is kept as the user left it, nozzles and all; duplicates an earlier
+    # install wrote collapse to the first.
+    key = lambda m: (m.get("vendor"), m.get("model"))
+    sovol = {"model": "SOVOL ZERO", "nozzle_diameter": "0.4", "vendor": "Sovol"}
+    if not any(key(m) == key(sovol) for m in models):
+        models = [sovol] + models
+    seen = set()
+    models = [m for m in ours_models + models if not (key(m) in seen or seen.add(key(m)))]
     d["models"] = models
     # Orca calls the process preset "print" in the conf. Left unset it opens on
     # nothing, which reads as "our profiles are missing" even when they loaded.

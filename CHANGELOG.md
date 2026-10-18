@@ -53,6 +53,15 @@
   for that file under `vendor/SVZero/` in its configuration directory, so the
   download ships it there, and copying that folder in is a new install step.
 
+### Fixed: the Orca installer added a SOVOL ZERO entry on every run
+
+- **`tools/install-presets.py orca` registered Sovol's SOVOL ZERO printer
+  model again each time it ran**, so `OrcaSlicer.conf` gained one more
+  duplicate per install. Models are now registered by vendor and name: a
+  second install leaves the file unchanged, an existing SOVOL ZERO entry keeps
+  the nozzles it lists, and duplicates an earlier install wrote collapse to
+  one. The release downloads do not use this installer.
+
 ### Brass and Steel take upstream OrcaSlicer's temperatures and flow caps
 
 Profile behaviour change: the Brass and Steel filament presets differ again,
