@@ -73,6 +73,13 @@ installed macro harmless; nor does it apply to commands such as
   A mode is a machine configuration selected by an include and a Klipper
   restart. The pack ships one, `standard`.
 - **Older profiles** name no mode, and their jobs run as standard.
+
+**With the pack installed, `_PREFLIGHT` refuses a job started with no
+filament** at the runout sensor, before any heater is commanded. Klipper's own
+runout handling acts only when filament runs out during a print, so without
+this a job started empty heats, soaks, cleans, calibrates and meshes, then
+prints with nothing loaded. A sensor switched off with `SET_FILAMENT_SENSOR
+SENSOR=filament_sensor ENABLE=0`, or absent, is not checked.
 - **In any mode other than standard**, a job that never identifies itself is
   refused when it reaches `START_PRINT`.
 

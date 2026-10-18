@@ -45,6 +45,15 @@
   scarf ramp in both slicers, and the contour's ramp is unchanged. SuperSlicer
   has no scarf seam option and is unaffected.
 
+### Runout sensor checked before the start
+
+- **A job started with no filament is refused.** `_PREFLIGHT` checks the
+  runout sensor before any heater is commanded and stops the job with "No
+  filament at the runout sensor". Klipper runs `runout_gcode` only when the
+  sensor changes from loaded to empty during a print, so an empty start used
+  to run the whole start sequence and then print with nothing loaded. A
+  sensor that is switched off or absent is not checked.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's

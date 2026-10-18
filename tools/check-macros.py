@@ -298,6 +298,18 @@ def check(path):
             scenarios = [
                 ("no-hook", None, "", {}, {}, {"gcode_macro _SVZERO_PRINT_START_HOOK": None}),
                 ("hook", None, "", {}, {}, {"gcode_macro _SVZERO_PRINT_START_HOOK": Mock()}),
+                # The runout guard (2026-10-18): a job started with nothing at
+                # the sensor is refused before any heater; a sensor that is
+                # switched off or absent must not refuse anything.
+                ("runout-empty", None, "", {}, {},
+                 {"gcode_macro _SVZERO_PRINT_START_HOOK": None,
+                  "filament_switch_sensor filament_sensor": Mock(enabled=True, filament_detected=False)}),
+                ("runout-disabled", None, "", {}, {},
+                 {"gcode_macro _SVZERO_PRINT_START_HOOK": Mock(),
+                  "filament_switch_sensor filament_sensor": Mock(enabled=False, filament_detected=False)}),
+                ("no-sensor", None, "", {}, {},
+                 {"gcode_macro _SVZERO_PRINT_START_HOOK": Mock(),
+                  "filament_switch_sensor filament_sensor": None}),
             ]
         elif s == "gcode_macro SET_CLEAN_TEMP":
             # The table moved out of the slicer's G-code on 2026-09-05, so the
@@ -1441,6 +1453,8 @@ def check(path):
             ("gcode_macro SET_CLEAN_TEMP", "fallback"): "M104 S200",
             ("gcode_macro SET_CLEAN_TEMP", "explicit"): "M104 S150",
             ("gcode_macro _PREFLIGHT", "hook"): "_SVZERO_PRINT_START_HOOK",
+            ("gcode_macro _PREFLIGHT", "runout-disabled"): "_SVZERO_PRINT_START_HOOK",
+            ("gcode_macro _PREFLIGHT", "no-sensor"): "_SVZERO_PRINT_START_HOOK",
             ("gcode_macro SET_CLEAN_TEMP", "bed-coming-down"):
                 ["M104 S150", "silicone wipe at 195C (abs), nozzle held at 150C until the bed is at its target",
                  "VARIABLE=clean_temp VALUE=195.0"],
@@ -1804,7 +1818,9 @@ def check(path):
                       "UPDATE_DELAYED_GCODE ID=CHAMBER_GUARD"}
         # Scenarios that MUST raise, with text the error must carry. Any other
         # scenario that raises fails, and any of these that renders fails.
-        refuse = {("gcode_macro SVZERO_SHAPER_CALIBRATE", "precision"):
+        refuse = {("gcode_macro _PREFLIGHT", "runout-empty"):
+                      "No filament at the runout sensor",
+                  ("gcode_macro SVZERO_SHAPER_CALIBRATE", "precision"):
                       "Calibrate in standard mode",
                   ("gcode_macro SVZERO_SHAPER_CALIBRATE", "printing"):
                       "a job is running",

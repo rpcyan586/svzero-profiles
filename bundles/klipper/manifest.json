@@ -4,7 +4,7 @@
     "svzero-1.3.7.cfg": {
       "sources": {
         "klipper/config/cancel_print.cfg": "d60beee0de72be75558fc338fa57a0ec085f63b5c7d19dd8b6f40016434d8994",
-        "klipper/config/chamber_fan.cfg": "895d9f951be01a690d4cd229983a5a500c1fed0a598eafb7176bdc31b20a35a4",
+        "klipper/config/chamber_fan.cfg": "bb688b13e70651bb36a8edbc0248ebfe2627f1759f44ce7b9102b13559261560",
         "klipper/config/chamber_fan_hw_1.3.7.cfg": "1268aa4168b385c7e8719b5adabc28ae1ec4c703f6f33053e6a468112399a4fc",
         "klipper/config/cooldown.cfg": "9ab7cde3e85555a1c776bc3d00ee6d17c498b109c5f1e5c189990a9a7d5a3c63",
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
@@ -19,12 +19,12 @@
         "klipper/config/svzero-1.3.7.cfg": "b2328df81fd9de0e40111616be23711c8e83a1b751ea10bf532bd2e3a2d9b9ec",
         "klipper/config/svzero_pack.cfg": "744c74a489c5c9224fb714142e0454e5afdd4f523542279c1151bcf50a51618f"
       },
-      "sha256": "24ea1dedb61f1ab60e001893acdb9f64e35a95d1e72bdc71299e353e42af1361"
+      "sha256": "ab3592aa5a4456881d6629464a8553e85acb79c58787e90d3bec0b3a2a8c01e9"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
         "klipper/config/cancel_print.cfg": "d60beee0de72be75558fc338fa57a0ec085f63b5c7d19dd8b6f40016434d8994",
-        "klipper/config/chamber_fan.cfg": "895d9f951be01a690d4cd229983a5a500c1fed0a598eafb7176bdc31b20a35a4",
+        "klipper/config/chamber_fan.cfg": "bb688b13e70651bb36a8edbc0248ebfe2627f1759f44ce7b9102b13559261560",
         "klipper/config/chamber_fan_hw_1.4.x.cfg": "0896fd561bdc90b492b90da037c461bce851c5b28354f46928f700eb3d92c464",
         "klipper/config/cooldown.cfg": "9ab7cde3e85555a1c776bc3d00ee6d17c498b109c5f1e5c189990a9a7d5a3c63",
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
@@ -38,7 +38,7 @@
         "klipper/config/svzero-1.4.x.cfg": "ffd2d30008d5c8a48251c004dd7c855940c84df2d32e740323841860ae9e0a39",
         "klipper/config/svzero_pack.cfg": "744c74a489c5c9224fb714142e0454e5afdd4f523542279c1151bcf50a51618f"
       },
-      "sha256": "95166866e4efc65eb76011318ed98f8d665ab1ea7ebc11a032fe09782b19547e"
+      "sha256": "a2fed84aea240397ce032f069563445667cba8a347769a767f5fedf84c5b215c"
     },
     "svzero-python.cfg": {
       "sources": {
