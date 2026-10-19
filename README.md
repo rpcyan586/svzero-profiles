@@ -27,7 +27,7 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 
 <p><img src="docs/images/stock-vs-pack.png" alt="Sovol's one stock profile against the pack's tiers on the 0.4 nozzle: speeds as run with the clamped requests in parentheses, infill flow, peak acceleration, corner velocity, X/Y microsteps and current"></p>
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate, the first-layer lift the macro pack applies to each material, and the rate against garethky's load-cell measurement, RatOS's default and warning band, and Prusa's firmware model"></p>
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate against Sovol stock's zero lift, the first-layer lift the macro pack applies to each material, and the rate against garethky's load-cell measurement, RatOS's default and warning band, and Prusa's firmware model"></p>
 
 <p>
 <img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">
