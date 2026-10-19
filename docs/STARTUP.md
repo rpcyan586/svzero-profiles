@@ -106,6 +106,25 @@ them hot first so a slow drift cancels: 0.67 µm/°C mean, standard error
 0.05. That is the published k. At that rate an ABS first layer at 280 °C
 against a 150 °C reference sits about 0.09 mm closer than calibrated.
 
+**How it compares.** Contact-probe measurements elsewhere land close:
+- **garethky**, a Klipper load-cell developer, on his own printer (a load cell
+  in the toolhead, a clean nozzle, a bare plate):
+  - 0.67 µm/°C from 150 to 260 °C;
+  - 0.51 from 260 back to 150;
+  - he uses 0.59, his average over heating and cooling
+    ([Klipper forum, 2023](https://klipper.discourse.group/t/2134/307)).
+- **RatOS** measures k on each machine with Beacon contact at 150 and 250 °C,
+  defaults to 0.60 µm/°C, and warns outside 0.5–1.0
+  ([util.cfg](https://github.com/Rat-OS/RatOS-configurator/blob/v2.1.x/configuration/macros/util.cfg)).
+- **Models built into firmware run lower.**
+  - Prusa's XL firmware assumes brass over 21 mm, 0.41 µm/°C, from 170 °C
+    ([source](https://github.com/prusa3d/Prusa-Firmware-Buddy/blob/master/src/feature/nozzle_thermal_compensation/nozzle_thermal_compensation.hpp)).
+  - Creality's K2 config reaches 0.05 mm at 260 °C
+    ([printer.cfg](https://github.com/CrealityOfficial/K2_Series_Klipper/blob/main/config/F021_CR0CN200400C10/printer.cfg)).
+- **Fixed offsets are about the size of this pack's lifts.** The Creality K1
+  family adds 0.05–0.09 mm, and Beacon's example start macro adds 0.06 mm
+  ([docs](https://docs.beacon3d.com/contact/)).
+
 | Firmware | Z reference | Reference temperature |
 |---|---|---|
 | 1.3.7, tare-tap (`probe_pressure`) | `Z_OFFSET_CALIBRATION METHOD=force_overlay` taps every print; `G28 Z` and the mesh follow | `_BRUSH` `probe_temp`, 150 °C, every job |
