@@ -123,7 +123,8 @@ These contain the native macros and hardware configuration only. No added
 Python modules are required. The builder includes the pressure-probe sampling
 override from `probe_pressure_1.3.7.cfg` only in the 1.3.7 file.
 The 1.4.x include instead selects `RUN_PROBE_VIR_CONTACT` at Sovol's stock
-X30/Y30 plate-contact location; 1.3.7 keeps its load-cell command/location.
+X30/Y30 plate-contact location; 1.3.7 keeps its tare-tap command and location
+(`RUN_PROBE_PRESSURE`: Sovol's `probe_pressure`, a tared pressure sensor under the bed).
 
 ### Required 1.4.x edit
 

@@ -352,8 +352,8 @@ def check(path):
             saved_k = Mock(variables=Mock(dict(printer.save_variables.variables,
                                                nozzle_growth_mm_per_c=0.0008)))
             scenarios = [
-                # 1.3.7: a load cell exists, so the tuned overlay path runs.
-                ("load-cell", params, "", {}, {},
+                # 1.3.7: the tare-tap exists, so the tuned overlay path runs.
+                ("tare-tap", params, "", {}, {},
                  {"probe_pressure": Mock(last_z_result=0.0)}),
                 # 1.4.x: eddy only. METHOD must be omitted entirely so the
                 # extra's own "already calibrated" skip can fire.
@@ -1536,7 +1536,7 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "settle-cap"):
                 ["the nozzle is still at 250C, above the bed, after 10 min. Ramp starting anyway",
                  "_COOLDOWN_TAKE_OVER"],
-            ("gcode_macro START_PRINT", "load-cell"): "METHOD=force_overlay",
+            ("gcode_macro START_PRINT", "tare-tap"): "METHOD=force_overlay",
             ("gcode_macro START_PRINT", "camera-tuner"): "CAMERA_TUNE STARTUP=1",
             # The reset at the start, then the reference after the calibration.
             # ref_source names the branch: every path also emits the -1.0 reset.
@@ -1870,10 +1870,10 @@ def check(path):
                   # a ring at 500 mm would be off the machine entirely.
                   # No straight dash home: the inbound leg retraces the arcs.
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
-                  # On a machine with no load cell, forcing the overlay costs a
+                  # On a machine with no tare-tap, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
                   ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE"],
-                  ("gcode_macro START_PRINT", "load-cell"): "CAMERA_TUNE",
+                  ("gcode_macro START_PRINT", "tare-tap"): "CAMERA_TUNE",
                   # Eddy paths never force the overlay and never take probe_temp,
                   # or any temperature, as a reference: calibrated or not, off.
                   ("gcode_macro START_PRINT", "growth-eddy-off-calibrated"):

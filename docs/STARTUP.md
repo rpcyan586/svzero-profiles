@@ -52,14 +52,15 @@ mean all heating begins over the pad: `SET_CLEAN_TEMP` already sent `M104`.
 The 1.3.7 pack uses `RUN_PROBE_PRESSURE` for the cleaner's final probe.
 `START_PRINT` then calls `Z_OFFSET_CALIBRATION METHOD=force_overlay` when the
 `probe_pressure` object exists. In the preserved vendor implementation, the
-non-default method bypasses the already-calibrated skip and performs load-cell
-reference work and eddy calibration, not just a scalar G-code offset update.
+non-default method bypasses the already-calibrated skip and performs tare-tap
+reference work (the tare-tap is Sovol's `probe_pressure`, a tared pressure
+sensor under the bed) and eddy calibration, not just a scalar G-code offset update.
 
 The 1.4.x pack selects `RUN_PROBE_VIR_CONTACT` at X30/Y30 for the cleaner.
 Without `probe_pressure`, `START_PRINT` leaves the calibrator's method at its
 default, allowing it to skip work when eddy calibration data already exist.
-This is a firmware/configuration distinction; a physical load cell may still
-be fitted. Both paths pass the brush's probe temperature explicitly, currently
+This is a firmware/configuration distinction; the tare-tap's pressure sensor
+may still be fitted. Both paths pass the brush's probe temperature explicitly, currently
 150°C, rather than silently taking the calibrator's 130°C default.
 
 ## Nozzle growth compensation
