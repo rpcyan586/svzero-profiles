@@ -173,7 +173,7 @@ Sliced in all three slicers; not yet printed.
 
 ### Nozzle growth compensation, on by default
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate, and the first-layer lift the macro pack applies to each material"></p>
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate, the first-layer lift the macro pack applies to each material, and the rate against garethky's load-cell measurement, RatOS's default and warning band, and Prusa's firmware model"></p>
 
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
