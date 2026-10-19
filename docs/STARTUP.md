@@ -29,7 +29,7 @@ installed version or measured performance.
 | `START_PRINT` | Release any remaining chamber-helper bed carry, park over the pad and return to the slicer. |
 | Slicer | PrusaSlicer/SuperSlicer send the print tier's square corner velocity (`SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY`, from the print preset's Notes); OrcaSlicer sends it with its first printed feature, from its jerk fields. `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value. |
 | Slicer | All three send the print tier's X/Y stepper current, `SVZERO_XY_CURRENT CURRENT=2.4` on Fine to Strength, from the print preset's Notes. The pack only lowers the configured current; Draft sends nothing and runs `printer.cfg`'s. `END_PRINT` and `CANCEL_PRINT` restore it. |
-| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. It offsets Z for the nozzle being hotter than at the Z reference, with the pack's provisional coefficient unless the machine has stored its own or 0. See [below](#nozzle-growth-compensation). |
+| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. It offsets Z for the nozzle being hotter than at the Z reference, with the pack's coefficient unless the machine has stored its own or 0. See [below](#nozzle-growth-compensation). |
 | Slicer | Lift to Z5, heat/wait for printing temperature, then call `PURGE_LINE` with nozzle/filament dimensions, flow limit and skirt clearance. |
 | `PURGE_LINE` | Place rings or an edge line and return recorded cleaning/end-retract debt at the deposition position before purging. |
 | Slicer | Continue the print; the public skirt remains enabled even with the pack installed. |
@@ -77,18 +77,17 @@ reports k, both temperatures and the result. The source is
 [nozzle_growth.cfg](../klipper/config/nozzle_growth.cfg).
 
 **On as published.** The pack's k, `variable_mm_per_c` in `_NOZZLE_GROWTH`,
-was measured on the operator's Zero2 and is provisional until a cleaner run
-finishes. On the 1.3.7 tare-tap path, against the 150 °C probe temperature, it
+was measured on the operator's Zero2, run 10 below. On the 1.3.7 tare-tap path, against the 150 °C probe temperature, it
 moves the first layer farther from the plate by:
 
 | First layer | Presets | Offset |
 |---|---|---|
-| 230 °C | PLA - Brass | +0.07 mm |
-| 245 °C | PLA - Steel, PLA Silk | +0.09 mm |
-| 250 °C | TPU | +0.09 mm |
-| 260 °C | PCTG | +0.10 mm |
-| 265 °C | PETG | +0.10 mm |
-| 280 °C | ABS, PC | +0.12 mm |
+| 230 °C | PLA - Brass | +0.05 mm |
+| 245 °C | PLA - Steel, PLA Silk | +0.06 mm |
+| 250 °C | TPU | +0.07 mm |
+| 260 °C | PCTG | +0.07 mm |
+| 265 °C | PETG | +0.08 mm |
+| 280 °C | ABS, PC | +0.09 mm |
 
 k belongs to one machine's nozzle, heater block and probe, so on any other Zero
 it is an estimate. Turn it off on a machine, or use that machine's own k, with
@@ -101,8 +100,11 @@ a saved variable:
 the nozzle, rose 10 µm: net, about 0.75–0.9 µm/°C. That is one clean step.
 Above 190 °C plastic on the tip spoiled the run. A later run on the same
 machine, 150 to 280 °C and back, fit 0.8–1.1 µm/°C with residue on the tip
-still in play. At that rate an ABS first layer at 280 °C against a 150 °C
-reference sits about 0.10–0.14 mm closer than calibrated.
+still in play. Run 10, with the tip cleaned by hand and nothing loaded,
+tapped 8 untouched plate spots once at 150 °C and once at 280 °C, half of
+them hot first so a slow drift cancels: 0.67 µm/°C mean, standard error
+0.05. That is the published k. At that rate an ABS first layer at 280 °C
+against a 150 °C reference sits about 0.09 mm closer than calibrated.
 
 | Firmware | Z reference | Reference temperature |
 |---|---|---|
@@ -162,7 +164,7 @@ idle. `SVZERO_NOZZLE_GROWTH_EDDY_REF` with no argument reports the record, and
   0.20 mm, so a larger value is a mistyped k or a wrong reference rather than
   growth. `variable_max_adjust` in `_NOZZLE_GROWTH` sets the bound.
 - **First layer only.** Later layers keep the first layer's offset; a 10 °C
-  difference between them is 8 µm at 0.8 µm/°C. A second call in the same job
+  difference between them is 7 µm at 0.67 µm/°C. A second call in the same job
   applies only the difference from the first.
 
 ## Sources

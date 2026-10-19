@@ -176,10 +176,10 @@ Sliced in all three slicers; not yet printed.
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
 1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
-first layer runs at 280 °C. The operator's Zero2 measured about 0.75–0.9 µm/°C
-between 150 and 190 °C, one clean step; a later run from 150 to 280 °C and back
-fit 0.8–1.1 µm/°C with residue on the tip still in play, and a cleaner run is
-in progress.
+first layer runs at 280 °C. On the operator's Zero2, with the tip cleaned by
+hand and nothing loaded, 8 untouched plate spots tapped once at 150 °C and
+once at 280 °C gave 0.67 µm/°C (standard error 0.05); earlier runs with residue
+on the tip read 0.75–1.1.
 
 - **`SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature>`** offsets Z by
   k × (first-layer − reference temperature), + farther from the plate, and
@@ -187,11 +187,11 @@ in progress.
   `START_PRINT`, before any move or heat, with the placeholder their own
   `M104` uses.
 - **On by default**, the operator's decision. k is the value measured on the
-  operator's Zero2, provisional until the cleaner run finishes, and set in one
+  operator's Zero2, and set in one
   place, `variable_mm_per_c` in `nozzle_growth.cfg`. On 1.3.7, against the
   150 °C probe temperature, the first layer moves farther from the bed by
-  about +0.07 mm at 230 °C (PLA - Brass), +0.09 mm at 250 °C, +0.10 mm at
-  PETG's 265 °C and +0.12 mm at ABS's and PC's 280 °C.
+  about +0.05 mm at 230 °C (PLA - Brass), +0.07 mm at 250 °C, +0.08 mm at
+  PETG's 265 °C and +0.09 mm at ABS's and PC's 280 °C.
 - **Turn it off on a machine** with
   `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`, or **use that
   machine's own k** by storing it the same way, in mm per °C. A saved value
