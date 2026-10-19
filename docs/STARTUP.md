@@ -29,7 +29,7 @@ installed version or measured performance.
 | `START_PRINT` | Release any remaining chamber-helper bed carry, park over the pad and return to the slicer. |
 | Slicer | PrusaSlicer/SuperSlicer send the print tier's square corner velocity (`SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY`, from the print preset's Notes); OrcaSlicer sends it with its first printed feature, from its jerk fields. `END_PRINT` and `CANCEL_PRINT` restore `printer.cfg`'s value. |
 | Slicer | All three send the print tier's X/Y stepper current, `SVZERO_XY_CURRENT CURRENT=2.4` on Fine to Strength, from the print preset's Notes. The pack only lowers the configured current; Draft sends nothing and runs `printer.cfg`'s. `END_PRINT` and `CANCEL_PRINT` restore it. |
-| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. It offsets Z for the nozzle being hotter than at the Z reference, with the pack's coefficient unless the machine has stored its own or 0. See [below](#nozzle-growth-compensation). |
+| Slicer | All three send `SVZERO_NOZZLE_GROWTH TEMP=` with the first-layer temperature. On 1.3.7 it offsets Z for the nozzle being hotter than at the Z reference, with the pack's coefficient unless the machine has stored its own or 0. On 1.4.x it applies nothing. See [below](#nozzle-growth-compensation). |
 | Slicer | Lift to Z5, heat/wait for printing temperature, then call `PURGE_LINE` with nozzle/filament dimensions, flow limit and skirt clearance. |
 | `PURGE_LINE` | Place rings or an edge line and return recorded cleaning/end-retract debt at the deposition position before purging. |
 | Slicer | Continue the print; the public skirt remains enabled even with the pack installed. |
@@ -76,9 +76,10 @@ linear in the temperature difference:
 reports k, both temperatures and the result. The source is
 [nozzle_growth.cfg](../klipper/config/nozzle_growth.cfg).
 
-**On as published.** The pack's k, `variable_mm_per_c` in `_NOZZLE_GROWTH`,
-was measured on the operator's Zero2, run 10 below. On the 1.3.7 tare-tap path, against the 150 °C probe temperature, it
-moves the first layer farther from the plate by:
+**On as published on 1.3.7, off on 1.4.x.** The pack's k,
+`variable_mm_per_c` in `_NOZZLE_GROWTH`, was measured with the tare-tap on the
+operator's Zero2, run 10 below. On the 1.3.7 tare-tap path, against the
+150 °C probe temperature, it moves the first layer farther from the plate by:
 
 | First layer | Presets | Offset |
 |---|---|---|
@@ -94,6 +95,13 @@ it is an estimate. Turn it off on a machine, or use that machine's own k, with
 a saved variable:
 
     SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0
+
+**Off on 1.4.x, stock behaviour**, the operator's decision of 2026-10-18.
+On eddy-only firmware nothing is applied, whatever k is saved, and there is
+no opt-in. k was measured with the 1.3.7 tare-tap; the eddy path has a term
+of its own, the coil's drift under [Limits](#limits), and has not been
+measured, so the tap's k is not carried over to it. Each print's console says
+so.
 
 **What has been measured.** On one Zero (1.3.7, 0.4 nozzle) the tare-tap read
 40–45 µm higher from 150 to 190 °C while the eddy, which sees the plate and not
@@ -125,15 +133,17 @@ against a 150 °C reference sits about 0.09 mm closer than calibrated.
   family adds 0.05–0.09 mm, and Beacon's example start macro adds 0.06 mm
   ([docs](https://docs.beacon3d.com/contact/)).
 
-| Firmware | Z reference | Reference temperature |
+| Firmware | Z reference | Compensation |
 |---|---|---|
-| 1.3.7, tare-tap (`probe_pressure`) | `Z_OFFSET_CALIBRATION METHOD=force_overlay` taps every print; `G28 Z` and the mesh follow | `_BRUSH` `probe_temp`, 150 °C, every job |
-| 1.4.x, eddy only | `Z_OFFSET_CALIBRATION` returns at once when eddy data exist, so the reference is the stored calibration | Only what `SVZERO_NOZZLE_GROWTH_EDDY_REF` recorded. With no eddy data, the calibration runs during `START_PRINT` at `probe_temp` |
+| 1.3.7, tare-tap (`probe_pressure`) | `Z_OFFSET_CALIBRATION METHOD=force_overlay` taps every print; `G28 Z` and the mesh follow | On, from `_BRUSH` `probe_temp`, 150 °C, every job |
+| 1.4.x, eddy only | `Z_OFFSET_CALIBRATION` returns at once when eddy data exist, so the reference is the stored calibration | Off, stock behaviour: nothing applied, with or without eddy data, whatever k is saved |
 
-When the reference temperature is unknown, nothing is applied and the console
+When nothing is applied, on 1.4.x or with no reference this job, the console
 says why.
 
 ### Measuring k
+
+On 1.3.7, with the tare-tap. On 1.4.x a stored k is not applied.
 
 1. Unload the filament and clean the tip. Plastic on the tip is what spoiled
    the measurement above.
@@ -153,31 +163,23 @@ Store it in place of the pack's, or store 0 to turn the compensation off:
     SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0.0008
 
 The saved variable takes precedence over the macro's default, so it survives
-pack updates. On 1.4.x, also record the temperature of a deliberate eddy
-calibration, and record it again after every calibration:
-
-    Z_OFFSET_CALIBRATION METHOD=force BED_TEMP=100 EXTRUDER_TEMP=150
-    SVZERO_NOZZLE_GROWTH_EDDY_REF TEMP=150
-    SAVE_CONFIG
-
-`SAVE_CONFIG` keeps the calibration and restarts Klipper, so run it only while
-idle. `SVZERO_NOZZLE_GROWTH_EDDY_REF` with no argument reports the record, and
-`CLEAR=1` forgets it.
+pack updates.
 
 ### Limits
 
-- **Per-material offsets become residuals.** Each filament's
+- **Per-material offsets become residuals on 1.3.7.** Each filament's
   `SET_GCODE_OFFSET Z_ADJUST` runs after this and adds to it. An offset tuned
   without the compensation, with an earlier pack or with k saved as 0, already
   holds the nozzle's growth for that material and is now counted twice: return
   those offsets to 0 and tune them again.
-- **Eddy coil drift is not compensated.** The coil sits beside the nozzle. In
+- **Why 1.4.x is off: eddy coil drift.** The coil sits beside the nozzle. In
   the same run the eddy rose 56 µm while the nozzle heated from 48 to 150 °C,
   which may be the coil warming rather than the plate moving. Stock
   `printer.cfg` configures no coil temperature sensor for Klipper's drift
   compensation. It is a second term on the 1.4.x path, not yet separated or
   measured, and not modelled. Nor has 1.4.x's virtual contact, itself an eddy
-  measurement, been checked as an instrument for step 4.
+  measurement, been checked as an instrument for step 4. Until both are, the
+  tare-tap's k is not applied to an eddy reference.
 - **Bounded.** An adjustment over 0.25 mm is refused with an error line, and
   nothing is applied. The hotend's whole range, 130 to 355 °C at 0.9 µm/°C, is
   0.20 mm, so a larger value is a mistyped k or a wrong reference rather than

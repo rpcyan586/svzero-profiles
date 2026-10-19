@@ -171,7 +171,7 @@ Sliced in all three slicers; not yet printed.
   choice.
 - In OrcaSlicer it inherits PETG's base profile, `fdm_filament_pet`.
 
-### Nozzle growth compensation, on by default
+### Nozzle growth compensation, on by default on 1.3.7, off on 1.4.x
 
 <p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift the macro pack applies to each material, and the rate against garethky's load-cell measurement, RatOS's default and warning band, and Prusa's firmware model"></p>
 
@@ -188,8 +188,8 @@ on the tip read 0.75–1.1.
   reports every input with the result. All three slicers send it after
   `START_PRINT`, before any move or heat, with the placeholder their own
   `M104` uses.
-- **On by default**, the operator's decision. k is the value measured on the
-  operator's Zero2, and set in one
+- **On by default on 1.3.7**, the operator's decision. k is the value
+  measured with the tare-tap on the operator's Zero2, and set in one
   place, `variable_mm_per_c` in `nozzle_growth.cfg`. On 1.3.7, against the
   150 °C probe temperature, the first layer moves farther from the bed by
   about +0.05 mm at 230 °C (PLA - Brass), +0.07 mm at 250 °C, +0.08 mm at
@@ -199,19 +199,22 @@ on the tip read 0.75–1.1.
   machine's own k** by storing it the same way, in mm per °C. A saved value
   takes precedence over the pack's and survives updates; the method is in
   [the startup guide](docs/STARTUP.md#nozzle-growth-compensation).
-- **`START_PRINT` records the reference temperature.** On 1.3.7 it is the
-  tap's `probe_temp`, every job. On 1.4.x the reference is the stored eddy
-  calibration, whose temperature is known only if
-  `SVZERO_NOZZLE_GROWTH_EDDY_REF TEMP=` recorded it, or when `START_PRINT`
-  calibrated the eddy itself; otherwise nothing is applied and the console
-  says why. Eddy coil drift is not compensated.
+- **`START_PRINT` records the reference temperature**: on 1.3.7, the
+  tap's `probe_temp`, every job.
+- **Off on 1.4.x, stock behaviour**, also the operator's decision. k was
+  measured with the 1.3.7 tare-tap; the eddy path has a term of its own,
+  possible drift of the coil beside the nozzle, and has not been measured, so
+  the tap's k is not carried over to it. On eddy-only firmware nothing is
+  applied, with or without eddy data and whatever k is saved, there is no
+  opt-in, and the console says so on each print.
 - **An adjustment over 0.25 mm is refused**, not clamped: the hotend's whole
   range at the measured rate is 0.20 mm, so a larger one is a mistyped k.
-- **Per-material `Z_ADJUST` values become residuals.** One tuned with an
-  earlier pack already holds the machine's growth for that material and is
-  now counted twice: return it to 0 and tune it again.
+- **On 1.3.7, per-material `Z_ADJUST` values become residuals.** One tuned
+  with an earlier pack already holds the machine's growth for that material
+  and is now counted twice: return it to 0 and tune it again.
 - Rendered on Jinja 2.11.3 in both firmware files, every branch asserted,
-  the published value and a saved 0 included. Not yet run on a printer.
+  the published value and a saved 0 included, and the 1.4.x path with and
+  without eddy data and with a saved k. Not yet run on a printer.
 
 ### Bed preview and texture
 

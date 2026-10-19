@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Nozzle growth compensation reaches every slicer, and ships on.
+"""Nozzle growth compensation reaches every slicer, ships on for the 1.3.7
+tare-tap, and is off on eddy-only 1.4.x.
 
 The slicer sends SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature> after
 START_PRINT, with the same placeholder its own M104 uses, and before any move
@@ -132,13 +133,34 @@ class NozzleGrowthTest(unittest.TestCase):
         self.assertLess(calibrate, record)
         self.assertLess(record, home)
 
+    def test_eddy_only_firmware_is_off(self):
+        # Operator, 2026-10-18: k was measured with the 1.3.7 tare-tap and the
+        # eddy path is unmeasured, so on eddy-only firmware START_PRINT records
+        # no reference, one source, eddy_off, and SVZERO_NOZZLE_GROWTH tests
+        # for it before k or TEMP. No eddy reference is read or recorded.
+        # check-macros renders it, eddy calibrated and not, with a saved k.
+        start = START.read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'growth_src = "(\w+)"', start), ["tap", "eddy_off"])
+        self.assertRegex(start, r'\{% else %\}\s*\{% set growth_ref = -1\.0 %\}'
+                                r'\s*\{% set growth_src = "eddy_off" %\}')
+        growth = GROWTH.read_text(encoding="utf-8")
+        gate = growth.index('{% if src == "eddy_off" or \'probe_pressure\' not in printer %}')
+        self.assertLess(gate, growth.index("{% elif k <= 0 %}"))
+        for path in (GROWTH, START, *(ROOT / "bundles/klipper" / name
+                                       for name in ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg"))):
+            text = path.read_text(encoding="utf-8")
+            for gone in ("EDDY_REF", "eddy_ref_temp", "eddy_new", "eddy_saved", "eddy_unknown"):
+                with self.subTest(path=path.name, gone=gone):
+                    self.assertNotIn(gone, text)
+
     def test_both_firmware_bundles_ship_it(self):
+        # 1.4.x ships it too, so the slicer's call is a known command that
+        # says it is off rather than an unknown one.
         for name in ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg"):
             text = (ROOT / "bundles/klipper" / name).read_text(encoding="utf-8")
             with self.subTest(bundle=name):
                 for section in ("[gcode_macro _NOZZLE_GROWTH]",
-                                "[gcode_macro SVZERO_NOZZLE_GROWTH]",
-                                "[gcode_macro SVZERO_NOZZLE_GROWTH_EDDY_REF]"):
+                                "[gcode_macro SVZERO_NOZZLE_GROWTH]"):
                     self.assertEqual(text.count(section), 1)
 
 
