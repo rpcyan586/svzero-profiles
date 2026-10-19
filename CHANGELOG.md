@@ -173,6 +173,8 @@ Sliced in all three slicers; not yet printed.
 
 ### Nozzle growth compensation, on by default
 
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate, and the first-layer lift the macro pack applies to each material"></p>
+
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
 1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
