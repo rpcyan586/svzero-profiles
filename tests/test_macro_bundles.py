@@ -40,6 +40,18 @@ def settings(cp):
 
 
 class MacroBundles(unittest.TestCase):
+    def test_brush_tap_waits_like_stock_before_probing(self):
+        # Stock 1.4.7 CLEAN_NOZZLE dwells (G4 P300, M400) between the fast move to the
+        # tap point and RUN_PROBE_VIR_CONTACT. Without it a 1.4.7 owner's START_PRINT
+        # stopped with "Probe triggered prior to movement" (2026-10-19).
+        for name in ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg"):
+            text = (ROOT / "bundles/klipper" / name).read_text()
+            body = text.split("[gcode_macro CLEAN_NOZZLE]", 1)[1].split("\n[", 1)[0]
+            lines = [l.strip() for l in body.splitlines() if l.strip() and not l.strip().startswith("#")]
+            i = lines.index("{b.probe}")
+            self.assertEqual(lines[i - 2:i], ["G4 P300", "M400"], name)
+            self.assertTrue(lines[i - 3].startswith("G1 X{b.tap_x + b.tap_clean_dx} Y{b.tap_y}"), name)
+
     def test_generated_configs_match_ordered_sources(self):
         outputs = B.render(ROOT)
         with tempfile.TemporaryDirectory() as tmp:
