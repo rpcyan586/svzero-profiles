@@ -100,7 +100,7 @@ def parse_ini(path):
 ANNOTATION_PREFIX = "_"     # authored commentary, never a slicer key
 
 
-def ini_value(v):
+def ini_value(v, key=None):
     """Render a value for a PrusaSlicer-family .ini.
 
     Multi-line G-code is stored as a BACKSLASH-N ESCAPE, not a real newline. An
@@ -119,9 +119,63 @@ def ini_value(v):
 
     Escaping here rather than fixing the master fixes the CLASS: two emitters
     also join G-code fragments with a real newline, and both are covered.
+
+    That fix was half of it. A key in INI_STRING_VECTORS is a LIST, one string
+    per extruder, and is read by a different deserializer: unquoted, it splits
+    on `;` and takes backslashes literally. Every filament's
+    `start_filament_gcode` begins with a `;` comment, so extruder 1 got an empty
+    string and the stub and the appended SET_PRESSURE_ADVANCE landed in a
+    second element nothing reads. Those keys are written as PrusaSlicer writes
+    them -- see ini_strings().
     """
-    t = str(v)
-    return t.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+    t = str(v).replace("\r\n", "\n").replace("\r", "\n")
+    if key in INI_STRING_VECTORS:
+        return ini_strings(t)
+    return t.replace("\n", "\\n")
+
+
+# ConfigOptionStrings options whose master value is ONE element: per-filament
+# or per-extruder text, the Zero having one extruder. Taken from the binaries,
+# not from the PrusaSlicer 3 schema, which types the filament keys as plain
+# String. `--help-fff` prints each default serialized, and only a vector
+# quotes a single complex or empty element: start_gcode's default is
+# unquoted `G28 ; home all axes\n...`, start_filament_gcode's is
+# `"; Filament gcode\n"`. Quoted defaults, PrusaSlicer 2.9.6:
+# custom_parameters_filament, end_filament_gcode, extruder_colour,
+# filament_notes, filament_ramming_parameters, start_filament_gcode.
+# SuperSlicer 2.7.62.0-beta2 adds filament_custom_variables, retract_lift_top
+# and tool_name. A slice's config footer agrees for every key emitted here.
+#
+# NOT here: vectors the master authors as an already `;`-joined LIST --
+# compatible_printers, compatible_prints, post_process. Their elements are
+# preset names and paths, which PrusaSlicer reads unquoted unchanged.
+INI_STRING_VECTORS = frozenset((
+    "custom_parameters_filament", "end_filament_gcode", "extruder_colour",
+    "filament_custom_variables", "filament_notes",
+    "filament_ramming_parameters", "retract_lift_top",
+    "start_filament_gcode", "tool_name",
+))
+
+
+def ini_strings(t):
+    """One string element, serialized as PrusaSlicer's escape_strings_cstyle.
+
+    Quoted when the element holds a space, tab, `;`, `"`, backslash or line
+    break, or is empty; backslash, quote and line breaks escaped inside.
+    The master writes a string in the single-string form (backslash-n for a
+    newline, a real newline also accepted), so that is decoded first, as
+    PrusaSlicer's unescape_string_cstyle would. A value the master already
+    wrote quoted -- retract_lift_top is `"All surfaces"` -- is a serialized
+    vector and passes through.
+    """
+    if t.lstrip().startswith('"'):
+        return t
+    s = re.sub(r"\\(.)", lambda m: {"n": "\n", "r": "\r"}.get(m.group(1), m.group(1)),
+               t, flags=re.S)
+    if s and not re.search(r'[ \t;"\\\r\n]', s):
+        return s
+    return '"%s"' % (s.replace("\\", "\\\\").replace('"', '\\"')
+                      .replace("\r", "\\r").replace("\n", "\\n"))
 
 
 def ini_writable(kv, reject=None):
@@ -237,7 +291,7 @@ def write_ini(path, secs, header, target=None, reject=None):
         for name, kv in secs.items():
             fh.write("[%s]\n" % name)
             for k, v in ini_writable(kv, reject).items():
-                fh.write("%s = %s\n" % (k, ini_value(v)))
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
             fh.write("\n")
 
 
@@ -893,6 +947,9 @@ def derive(model, ss, keymap):
         "small": apply_small_nozzle_rules(model, ss),
         "shrink": apply_shrinkage(ss, load("filament-shrink.json")),
         "8m": apply_8m_overrides(ss, load("filament-8m.json")),
+        # After 8m, so upstream's per-nozzle temperatures replace the Max's
+        # single one on the six Brass/Steel presets.
+        "nozzle": apply_nozzle_upstream(ss, load("filament-nozzle-upstream.json")),
         "modes": apply_modes(model, ss),
     }
 
@@ -1110,7 +1167,7 @@ def apply_flow_model(model, ss):
 
 
 PS_TARGET = "2.9.6"          # overwritten from model.json in main()
-PS_CONFIG_VERSION = "2.1.1"  # vendor bundle version; must match the .idx entry
+PS_CONFIG_VERSION = "2.1.2"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
 
 
@@ -1225,6 +1282,48 @@ def apply_8m_overrides(ss, data):
         if "toolhead-scope" not in note:
             base = note.split(" | [8M]")[0]
             ss[sec]["filament_notes"] = "%s | %s" % (base, tag)
+        n += 1
+    return n
+
+
+UPSTREAM_ORCA_FILAMENT = os.path.join(SOVOL_VENDOR, "OrcaSlicer", "Sovol", "filament")
+
+
+def apply_nozzle_upstream(ss, data):
+    """Upstream Orca's nozzle temperatures and flow caps on the Brass/Steel presets.
+
+    The (8M) merge gave each Brass/Steel pair the SV08 MAX's one temperature, so
+    the split chose nothing. Upstream OrcaSlicer's Zero (PR #15756) keeps brass
+    and hardened steel apart; the operator adopted its temperatures and flow
+    caps on 2026-10-18 as interim values, not measurements. Runs after
+    apply_8m_overrides so these keys win; 8M's pressure advance, flow ratio and
+    retraction stay.
+
+    Each value is read back from the pinned upstream file it names, so the
+    table cannot drift from its source: a mismatch stops the build.
+    """
+    keys = {k: v for k, v in data["_keys"].items() if not k.startswith("_")}
+    n = 0
+    for preset, kv in data["overrides"].items():
+        sec = "filament:%s" % preset
+        src = data["_source_profile"][preset]
+        if sec not in ss:
+            raise SystemExit("filament-nozzle-upstream.json: %s is not in source/presets.json" % preset)
+        if set(kv) != set(keys):
+            raise SystemExit("filament-nozzle-upstream.json: %s sets %s, expected exactly %s"
+                             % (preset, sorted(kv), sorted(keys)))
+        up = json.load(open(os.path.join(UPSTREAM_ORCA_FILAMENT, src + ".json"), encoding="utf-8"))
+        for k, v in kv.items():
+            got = up.get(keys[k])
+            got = got[0] if isinstance(got, list) else got
+            if str(got) != v:
+                raise SystemExit("filament-nozzle-upstream.json: %s %s = %s, but upstream %s has %s = %s"
+                                 % (preset, k, v, src, keys[k], got))
+            ss[sec][k] = v
+        tag = "[Orca #15756]: nozzle temperature and flow cap from upstream %s (interim)" % src
+        note = ss[sec].get("filament_notes", "")
+        if "[Orca #15756]" not in note:
+            ss[sec]["filament_notes"] = "%s | %s" % (note, tag) if note else tag
         n += 1
     return n
 
@@ -1551,7 +1650,7 @@ def emit_ps_presets(ss, out_dir):
         with open(path, "w", encoding="utf-8") as fh:
             for k, v in ini_writable(kv).items():
                 if k not in SS_ONLY:
-                    fh.write("%s = %s\n" % (k, ini_value(v)))
+                    fh.write("%s = %s\n" % (k, ini_value(v, k)))
         written += 1
     return written
 
@@ -1606,7 +1705,7 @@ def emit_ss_presets(model, ss, out_dir):
         path = os.path.join(out_dir, kind, "%s.ini" % preset)
         with open(path, "w", encoding="utf-8") as fh:
             for k, v in kv.items():
-                fh.write("%s = %s\n" % (k, ini_value(v)))
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
         written += 1
     return written
 
@@ -2333,6 +2432,40 @@ ORCA_FILAMENT_PLAIN = ("compatible_printers_condition", "compatible_prints_condi
 ORCA_FILAMENT_ROOTS = ("fdm_filament_common", "fdm_filament_pla", "fdm_filament_pet",
                        "fdm_filament_abs", "fdm_filament_tpu", "fdm_filament_pc")
 
+# Orca flags a nozzle temperature outside nozzle_temperature_range_low/high, a
+# hint every preset inherits from its root. Sovol's pinned roots carry the stock
+# Zero's -- PLA and TPU 190-210, PET and ABS 235-240, PC 260-290 -- below what
+# this pack prints: Steel PLA 230/245, PETG's 265 first layer, ABS 270/280. So a
+# shipped root's range is derived from the presets that inherit it: their
+# lowest and highest nozzle and first-layer temperature, ORCA_TEMP_RANGE_MARGIN
+# beyond, rounded outward to 5 C, and never narrower than Sovol's own.
+# PrusaSlicer and SuperSlicer have no such keys.
+ORCA_TEMP_RANGE_MARGIN = 5
+ORCA_TEMP_KEYS = ("nozzle_temperature", "nozzle_temperature_initial_layer")
+ORCA_TEMP_RANGE = ("nozzle_temperature_range_low", "nozzle_temperature_range_high")
+
+
+def widen_orca_temperature_range(root, text, temps):
+    """A root's JSON text with its range covering `temps`, and the arithmetic.
+
+    Edited in place, like single_extruder_multi_material on the machine root,
+    so the rest of the pinned file ships byte for byte.
+    """
+    doc = json.loads(text)
+    if not all(k in doc for k in ORCA_TEMP_RANGE):
+        raise SystemExit("%s has no nozzle temperature range to widen" % root)
+    m = ORCA_TEMP_RANGE_MARGIN
+    sovol = int(doc[ORCA_TEMP_RANGE[0]][0]), int(doc[ORCA_TEMP_RANGE[1]][0])
+    lo = min(sovol[0], 5 * math.floor((min(temps) - m) / 5))
+    hi = max(sovol[1], 5 * math.ceil((max(temps) + m) / 5))
+    for key, value in zip(ORCA_TEMP_RANGE, (lo, hi)):
+        text, n = re.subn(r'("%s"\s*:\s*\[\s*)"[^"]*"' % key, r'\g<1>"%d"' % value, text, count=1)
+        if n != 1:
+            raise SystemExit("%s: %s is not a one-element list" % (root, key))
+    why = ("%s range %d-%d C: presets %g-%g C, margin %d, Sovol's %d-%d"
+           % (root, lo, hi, min(temps), max(temps), m, sovol[0], sovol[1]))
+    return text, why
+
 
 def emit_orca_filament(model, ss, keymap, out_dir):
     """Filament presets for Orca, which previously got none at all.
@@ -2511,8 +2644,15 @@ def emit_orca_vendor(model, ss, out_dir):
         ("type", "machine_model"), ("name", "SV Zero"), ("model_id", "SV-ZERO"),
         ("nozzle_diameter", ";".join(nozzles)), ("machine_tech", "FFF"),
         ("family", "SOVOL"),
-        ("bed_model", base.get("bed_model", "")),
-        ("bed_texture", base.get("bed_texture", "")),
+        # The bed preview hangs off the PRINTER MODEL, by bare filename. Orca
+        # 2.4.2 resolves it at <datadir>/vendor/SVZero/ and then at its own
+        # resources/profiles/SVZero/ (PresetBundle::get_stl_model_for_printer_model,
+        # PresetUtils::system_printer_bed_model, OrcaSlicer 8500fcd) -- never
+        # at system/SVZero/, where the vendor itself is installed -- so
+        # install-presets.py and the download also place the assets under
+        # vendor/SVZero/. Model only, no texture: see the machine preset loop.
+        ("bed_model", "svzero_bed.stl" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")) else ""),
+        ("bed_texture", "svzero_bed.png" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.png")) else ""),
         ("default_materials", base.get("default_materials", "")),
     ])
     json.dump(mm, open(os.path.join(vend, "machine", "SV Zero.json"), "w",
@@ -2536,10 +2676,18 @@ def emit_orca_vendor(model, ss, out_dir):
     # The credits file travels with the assets. CC BY-SA attribution has to
     # accompany the work, and a downloader who unpacks only the Orca vendor
     # directory must still find out whose model it is.
-    for asset in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+    for asset in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
         src = os.path.join(ROOT, "assets", asset)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
+
+    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
+    leaves = [json.load(open(os.path.join(fsrc, f), encoding="utf-8"))
+              for f in sorted(os.listdir(fsrc)) if f.endswith(".json")] if os.path.isdir(fsrc) else []
+    leaf_temps = collections.defaultdict(list)
+    for doc in leaves:
+        for k in ORCA_TEMP_KEYS:
+            leaf_temps[doc["inherits"]] += [float(v) for v in doc.get(k, [])]
 
     machine_list, process_list, filament_list = [], [], []
     roots = [("fdm_process_common", "process", process_list),
@@ -2550,6 +2698,12 @@ def emit_orca_vendor(model, ss, out_dir):
         if os.path.exists(src):
             dst = os.path.join(vend, sub, root + ".json")
             shutil.copy2(src, dst)
+            if leaf_temps.get(root):
+                with open(dst, encoding="utf-8") as handle:
+                    text, why = widen_orca_temperature_range(root, handle.read(), leaf_temps[root])
+                with open(dst, "w", encoding="utf-8") as handle:
+                    handle.write(text)
+                print("  Orca %s" % why)
             if root == "fdm_machine_common":
                 # The Zero has one extruder and no filament-changing hardware.
                 # Sovol's inherited "1" exposes multiple filament slots and can
@@ -2565,7 +2719,6 @@ def emit_orca_vendor(model, ss, out_dir):
                     handle.write(common)
             lst.append({"name": root, "sub_path": "%s/%s.json" % (sub, root)})
 
-    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
     for f in sorted(os.listdir(fsrc)) if os.path.isdir(fsrc) else []:
         if not f.endswith(".json"):
             continue
@@ -2662,16 +2815,25 @@ def emit_orca_vendor(model, ss, out_dir):
         # `orca-shadow` were doing: shadow only rewrites machine_start_gcode, so
         # anything missing from the machine profile is missing from both.
         #
-        # MODEL ONLY, NO TEXTURE. Both were set until 2026-09-07, when the
-        # operator reported the texture "largely buried beneath the top surface
-        # of the model". That is inherent, not a z-fight: the texture is painted
+        # (History: model only, no texture, from 2026-09-07 until 2026-10-18,
+        # after the operator reported the texture "largely buried beneath the
+        # top surface of the model". The 2026-10-18 bed has its plate top at
+        # z = 0, and Orca draws a bed model 0.45 mm below the texture's plane
+        # (3DBed.cpp update_model_offset), so the texture now shows; it is on
+        # the printer model, with the bed.)
+        # The original note: That is inherent, not a z-fight: the texture is painted
         # on the flat build rectangle at z=0, and dukinarow's model is a real
         # solid whose plate surface sits ABOVE z=0, so the model occludes it
         # everywhere the two overlap. A texture is what you show INSTEAD of a
         # model, not underneath one. The SVG still ships -- it is the fallback
         # for anyone who removes the model, and the credits cover both.
-        if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")):
-            m["bed_custom_model"] = "svzero_bed.stl"
+        # NO bed_custom_model ON THE MACHINE PRESET. Orca uses that value
+        # verbatim as a file path (Bed3D::set_shape: an existing .stl or
+        # "Unable to load bed model" and nothing), and a non-empty one
+        # overrides the printer model's bed_model. Set to the bare filename it
+        # disabled the preview entirely in Orca, the old square included
+        # (found 2026-10-18 when the real bed did not appear). The printer
+        # model above carries the bed instead.
         fn = "SV Zero %s nozzle.json" % noz
         json.dump(m, open(os.path.join(vend, "machine", fn), "w", encoding="utf-8"), indent=2)
         machine_list.append({"name": m["name"], "sub_path": "machine/" + fn})
@@ -2731,7 +2893,7 @@ def emit_orca_vendor(model, ss, out_dir):
         process_list.append({"name": doc["name"], "sub_path": "process/" + f})
 
     idx = collections.OrderedDict([
-        ("name", "SVZero"), ("version", "02.01.01.00"), ("force_update", "0"),
+        ("name", "SVZero"), ("version", "02.01.02.00"), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
         ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]
          + mode_models),
@@ -2849,6 +3011,8 @@ def main():
     print("  applied small-nozzle rules: %d keys" % done["small"])
     print("  applied nominal shrinkage to %d filament presets" % done["shrink"])
     print("  applied SV08 MAX toolhead values to %d (8M) presets" % done["8m"])
+    print("  applied upstream Orca nozzle temperatures and flow caps to %d Brass/Steel presets"
+          % done["nozzle"])
     print("  applied machine modes: %d keys (%s)" % (done["modes"], ", ".join(sorted(modes(model))) or "none"))
     np_ = emit_physical_printers(model, ss)
     print("  emitted %d physical printers" % np_)

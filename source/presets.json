@@ -12,6 +12,8 @@
         "arc_fitting_tolerance": "5%",
         "autoemit_temperature_commands": "1",
         "bed_custom_model": "svzero_bed.stl",
+        "bed_custom_texture": "svzero_bed_grid.png",
+        "_why_bed_texture": "The gridded copy, for PrusaSlicer and SuperSlicer only: they draw their own 10 mm grid only on the plain fallback bed, never over a custom texture or model (PrusaSlicer 2.9.2 3DBed.cpp render_custom/render_default). OrcaSlicer draws its grid over textures, so its printer model carries the plain svzero_bed.png and shows one grid, not two.",
         "bed_shape": "0x0,152.4x0,152.4x152.4,0x152.4",
         "before_layer_gcode": "TIMELAPSE_TAKE_FRAME\\nG92 E0\\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num+1}",
         "between_objects_gcode": "",
@@ -96,7 +98,8 @@
         "time_estimation_compensation": "100%",
         "time_start_gcode": "20",
         "time_toolchange": "30",
-        "tool_name": "brass",
+        "tool_name": "",
+        "_why_tool_name": "Empty, 2026-10-18; was \"brass\" from 2.0.1 on. SuperSlicer writes each filament's pressure advance as SET_PRESSURE_ADVANCE ADVANCE=... EXTRUDER=<tool_name>, and Klipper accepts only a configured extruder's name there (gcode.py _cmd_mux: \"The value 'brass' is not valid for EXTRUDER\"), which stops the print. Every SuperSlicer filament with a nonzero PA (PLA, PLA Silk, PETG) was affected; ABS, PC and TPU carry 0 and wrote no line. Empty is SuperSlicer's default and writes EXTRUDER=extruder, the Zero's [extruder] (sliced to check).",
         "travel_lift_before_obstacle": "0",
         "travel_ramping_lift": "0",
         "travel_slope": "0",
@@ -122,7 +125,7 @@
         "z_step": "0",
         "printer_technology": "FFF",
         "printer_notes": "SV Zero (Klipper). Place svzero_bed.stl and svzero_bed.svg where SuperSlicer can find them.",
-        "start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\\n;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per\\n;  job, one of which ran before the bed was at temperature.\\n;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\\n;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C\\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.\\n;  SVZERO_REQUIRE names the pack version and machine mode this profile\\n;  was built for. A different pack version prints one warning; a\\n;  different MODE refuses the job here, before any heater.\\nSVZERO_REQUIRE VERSION=2.1.1 MODE=standard\\n;  _PREFLIGHT is next so a rejected job costs no heating. It is inert\\n;  unless the optional spool_guard extra is installed.\\n_PREFLIGHT\\n;  M140 BEFORE the chamber block, and that order is load-bearing. The\\n;  M191 macro reads printer.heater_bed.target live and hands it to the\\n;  host waiter as BED_TARGET; with no target set yet the waiter is told\\n;  0 and commands the plate OFF for the whole chamber soak. Orca's\\n;  preamble has always had it this way round.\\nM140 S[first_layer_bed_temperature]\\n;>>>CHAMBER emitted per slicer by tools/generate.py -- do not hand-edit\\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\\n;<<<CHAMBER\\n;>>>CLEAN_TEMP\\n;  The material is NAMED here; the temperature table lives in the macro\\n;  pack, in nozzle_brush.cfg's _BRUSH_CLEAN_TEMPS. Same division as\\n;  COOLDOWN_ARM below. Provenance for the curve is\\n;  source/filament-clean-temp.json.\\n;  Safe to omit: without the pack this is an unknown command and only\\n;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.\\nSET_CLEAN_TEMP MATERIAL=[filament_type]\\n;<<<CLEAN_TEMP\\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\\n;  Names the material; the RATES live in cooldown.cfg's\\n;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool\\n;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE\\n;  or BED_RATE here only to OVERRIDE the table for an experiment.\\n;  Omitting this block is safe: END_PRINT then asks spool_guard what is\\n;  loaded, and falls back to the default row if nothing knows.\\nCOOLDOWN_ARM MATERIAL=[filament_type]\\n;<<<COOLDOWN\\n;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE\\n;  needs an empty skew_correction section in printer.cfg -- square\\n;  brackets are left off that name on purpose, the slicer reads them as a\\n;  template variable -- which NEITHER\\n;  firmware ships -- checked against Sovol's own 1.4.x tree, not against\\n;  a machine somebody had already modified -- and a profile YOU\\n;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.\\n;  Uncomment the line below with your own name once you have one.\\n;  Shipping somebody else's skew numbers would be worse than shipping\\n;  none, and naming a profile that does not exist logs a failed load on\\n;  every print -- skew_correction.py answers an unknown name with\\n;  respond_info, so it warns forever rather than failing once.\\n;SKEW_PROFILE LOAD=your_skew_profile\\n;  Stock START_PRINT does not guarantee a settled plate before calibration.\\nM190 S[first_layer_bed_temperature]\\nSTART_PRINT\\nG90\\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\\nG92 E0\\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\\nM104 S[first_layer_temperature]\\nM83\\n;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers\\n;  only it knows. The old inline math is retired: it collapsed algebraically to\\n;  nozzle_diameter/2, ignored the filament's volumetric ceiling (TPU was driven\\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\\n;  See notes/kb/purge-lines.md.\\nM109 S[first_layer_temperature]\\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}",
+        "start_gcode": ";---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\\n;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.\\n;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per\\n;  job, one of which ran before the bed was at temperature.\\n;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\\n;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C\\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.\\n;  SVZERO_REQUIRE names the pack version and machine mode this profile\\n;  was built for. A different pack version prints one warning; a\\n;  different MODE refuses the job here, before any heater.\\nSVZERO_REQUIRE VERSION=2.1.2 MODE=standard\\n;  _PREFLIGHT is next so a rejected job costs no heating. It is inert\\n;  unless the optional spool_guard extra is installed.\\n_PREFLIGHT\\n;  M140 BEFORE the chamber block, and that order is load-bearing. The\\n;  M191 macro reads printer.heater_bed.target live and hands it to the\\n;  host waiter as BED_TARGET; with no target set yet the waiter is told\\n;  0 and commands the plate OFF for the whole chamber soak. Orca's\\n;  preamble has always had it this way round.\\nM140 S[first_layer_bed_temperature]\\n;>>>CHAMBER emitted per slicer by tools/generate.py -- do not hand-edit\\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\\n;<<<CHAMBER\\n;>>>CLEAN_TEMP\\n;  The material is NAMED here; the temperature table lives in the macro\\n;  pack, in nozzle_brush.cfg's _BRUSH_CLEAN_TEMPS. Same division as\\n;  COOLDOWN_ARM below. Provenance for the curve is\\n;  source/filament-clean-temp.json.\\n;  Safe to omit: without the pack this is an unknown command and only\\n;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.\\nSET_CLEAN_TEMP MATERIAL=[filament_type]\\n;<<<CLEAN_TEMP\\n;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit\\n;  Names the material; the RATES live in cooldown.cfg's\\n;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool\\n;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE\\n;  or BED_RATE here only to OVERRIDE the table for an experiment.\\n;  Omitting this block is safe: END_PRINT then asks spool_guard what is\\n;  loaded, and falls back to the default row if nothing knows.\\nCOOLDOWN_ARM MATERIAL=[filament_type]\\n;<<<COOLDOWN\\n;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE\\n;  needs an empty skew_correction section in printer.cfg -- square\\n;  brackets are left off that name on purpose, the slicer reads them as a\\n;  template variable -- which NEITHER\\n;  firmware ships -- checked against Sovol's own 1.4.x tree, not against\\n;  a machine somebody had already modified -- and a profile YOU\\n;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.\\n;  Uncomment the line below with your own name once you have one.\\n;  Shipping somebody else's skew numbers would be worse than shipping\\n;  none, and naming a profile that does not exist logs a failed load on\\n;  every print -- skew_correction.py answers an unknown name with\\n;  respond_info, so it warns forever rather than failing once.\\n;SKEW_PROFILE LOAD=your_skew_profile\\n;  Stock START_PRINT does not guarantee a settled plate before calibration.\\nM190 S[first_layer_bed_temperature]\\nSTART_PRINT\\n;  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first\\n;  layer than when START_PRINT took the Z reference. On as published on\\n;  1.3.7, the tare-tap; off on eddy-only 1.4.x, where it applies nothing.\\n;  SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.\\n;  Without the pack it is an unknown command, which Klipper reports and\\n;  steps over.\\nSVZERO_NOZZLE_GROWTH TEMP=[first_layer_temperature]\\nG90\\nG1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move\\nG92 E0\\nSET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1\\nM104 S[first_layer_temperature]\\nM83\\n;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers\\n;  only it knows. The old inline math is retired: it collapsed algebraically to\\n;  nozzle_diameter/2, ignored the filament's volumetric ceiling (TPU was driven\\n;  3.7x over), and skipped the purge entirely when the part sat near an edge.\\n;  See notes/kb/purge-lines.md.\\nM109 S[first_layer_temperature]\\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\\nSET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}",
         "printer_model": "SV Zero"
       },
       "variants": [
@@ -373,9 +376,9 @@
         "_why_stock_priming": "The profile must still prime when PURGE_LINE is absent on stock firmware. One skirt, extended until 8 mm of filament has been extruded, is the baseline. Personal sandbox installs disable it because the macro purge is present there.",
         "perimeter_generator": "arachne",
         "_why_perimeter_generator": "Set deliberately, 2026-10-05. PrusaSlicer and OrcaSlicer default to Arachne and SuperSlicer to classic, and none of the three was told, so two ran Arachne by accident and one did not (read from each slicer's G-code footer, 0.2n Fine). keymap.json carries it to Orca as wall_generator. Prusa's own Core One presets set arachne explicitly on every nozzle.",
-        "scarf_seam_placement": "contours",
+        "scarf_seam_placement": "everywhere",
         "scarf_seam_only_on_smooth": "0",
-        "_why_scarf_seam": "PrusaSlicer scarf seams on outer contours, matching what the Orca bundle already ships (process_forced seam_slope_type = external, which Orca labels Contour, with seam_slope_conditional left at its default 0, so scarf applies on every contour rather than only smooth ones). Length and start height stay at PrusaSlicer's defaults (20 mm, 0%), which are Orca's too. SuperSlicer has no scarf seam option; the emitter drops these keys there."
+        "_why_scarf_seam": "Scarf seams on outer contours AND holes, published 2026-10-18 at the operator's request (was outer contours only). PrusaSlicer `everywhere` is contours and holes; inner perimeters stay off (scarf_seam_on_inner_perimeters default false). Orca gets the same through process_forced seam_slope_type = all, which Orca labels Contour and hole, with seam_slope_conditional left at 0 so it applies on every contour, not only smooth ones. Length and start height stay at the slicers' shared defaults (20 mm, 0%). SuperSlicer has no scarf seam option; the emitter drops these keys there."
       },
       "variants": [
         {
@@ -1291,6 +1294,59 @@
     },
     {
       "kind": "filament",
+      "id": "*SV Zero PCTG Base*",
+      "values": {
+        "filament_type": "PCTG",
+        "filament_diameter": "1.75",
+        "filament_cost": "30",
+        "filament_density": "1.23",
+        "_why_density": "Spectrum's PCTG Premium and Essentium's PCTG data sheets both give 1.23; Prusa's Generic PCTG carries the same",
+        "filament_vendor": "Sovol (Orca)",
+        "temperature": "260",
+        "first_layer_temperature": "260",
+        "bed_temperature": "85",
+        "first_layer_bed_temperature": "85",
+        "filament_max_volumetric_speed": "12",
+        "_why_material": "Candidate C, the operator's choice on 2026-10-18: Prusa's Generic PCTG for the CORE One 0.4 nozzle (PrusaSlicer 3 development tree), for the temperatures and flow that belong to the plastic -- nozzle 260/260, bed 85, 12 mm3/s. Nozzle temperature is toolhead-scope elsewhere in this pack (source/filament-8m.json); 260 is a decision, mid-range of Spectrum's and Essentium's 250-270, not a transfer. Cooling and chamber are not C's: see _why_cooling and _why_chamber_minimal.",
+        "_why_volumetric": "12 mm3/s, C's 0.4 figure, on every nozzle. A filament here carries one volumetric limit for all nozzles, as PETG's 15 does, and the process's machine ceiling covers the rest. Prusa raises it per nozzle (14 at 0.5, 17 at 0.6, 22 at 0.8); the pack has no such scheme and this does not invent one.",
+        "default_fan_speed": "10",
+        "max_fan_speed": "40",
+        "fan_below_layer_time": "50",
+        "slowdown_below_layer_time": "10",
+        "full_fan_speed_layer": "3",
+        "min_print_speed": "10",
+        "bridge_fan_speed": "100",
+        "overhangs_fan_speed": "70",
+        "_why_cooling": "PETG's cooling throughout: fan 10-40%, full fan below 50 s layers, slowdown below 10 s, bridge 100%, overhang 70%, full fan from layer 3, 10 mm/s floor. Operator, 2026-10-18: temperatures can carry over from another printer, but fans and the cooling rates they imply do not, so C's CORE One fan values (30-60%, 25 s / 9 s, bridge and overhang 60%) were dropped for the pack's own PETG, the nearest material on this printer.",
+        "extrusion_multiplier": "0.98",
+        "filament_pressure_advance": "0.048",
+        "filament_retract_length": "0.5",
+        "filament_retract_lift": "0.4",
+        "_why_toolhead": "NOT from Prusa. Pressure advance, flow ratio, retraction length and lift are properties of the Zero's extruder, not of the plastic, and a Nextruder's numbers do not describe it. These are PETG's as shipped -- Sovol's SV08 MAX PETG through source/filament-8m.json, the Max's toolhead being the Zero's -- because Sovol publishes no PCTG profile for that toolhead and PCTG is a PETG-class copolyester. Retraction speed stays the printer's, as for every material. INFERRED from PETG, not measured on PCTG.",
+        "chamber_temperature": "40",
+        "compatible_printers_condition": "",
+        "compatible_prints": "",
+        "compatible_prints_condition": "",
+        "activate_chamber_temp_control": "1",
+        "chamber_minimal_temperature": "30",
+        "_why_chamber_minimal": "Operator, 2026-10-18: minimum 30, ideal 40. The minimum is the wait (M191 S30, PETG's), the ideal is the exhaust ceiling (M141 S40), between TPU's 35 at the same 85 C bed and PETG's 50. C itself never waits and vents above 35.",
+        "_why_one_preset": "One preset, not PETG's Brass/Steel pair. Since the 2026-09-06 (8M) merge the two PETG presets differ only in name and colour, C has no nozzle-material split, and the clean temperature is keyed on filament_type alone, so a pair would offer a choice with nothing behind it.",
+        "start_filament_gcode": "; Material-specific Z offset: + means farther from bed\nSET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1",
+        "filament_custom_variables": "chamber_min=30"
+      },
+      "variants": [
+        {
+          "id": "SV Zero PCTG",
+          "name": "SV Zero PCTG",
+          "values": {
+            "filament_notes": "Material from Prusa CORE One Generic PCTG. Extruder values from SV Zero PETG: pressure advance, flow ratio, retraction.",
+            "filament_colour": "#1FA7C1"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "filament",
       "id": "*SV Zero PETG Base*",
       "values": {
         "filament_type": "PETG",
@@ -1481,5 +1537,5 @@
       ]
     }
   ],
-  "_z_offset_stub": "Every filament carries a zero SET_GCODE_OFFSET Z_ADJUST stub. The VALUE is deliberately 0.000 in the published pack -- a per-material first-layer offset is a property of one machine's plate, probe and nozzle, and shipping someone else's number is worse than shipping none. The stub is there so the line exists to edit. Operator's live experiment, 2026-09-04: ABS was taking flakes off the plate at 0.020 and is being tried at 0.040."
+  "_z_offset_stub": "Every filament carries a zero SET_GCODE_OFFSET Z_ADJUST stub. The VALUE is deliberately 0.000 in the published pack -- a per-material first-layer offset is a property of one machine's plate, probe and nozzle, and shipping someone else's number is worse than shipping none. The stub is there so the line exists to edit. Operator's live experiment, 2026-09-04: ABS was taking flakes off the plate at 0.020 and is being tried at 0.040. Additive with SVZERO_NOZZLE_GROWTH (klipper/config/nozzle_growth.cfg), which the printer start G-code sends first and which is on as published (2026-10-18): a value tuned with an earlier pack, or with nozzle_growth_mm_per_c saved as 0, already holds the machine's nozzle growth for the material, so with the compensation on these become residuals and are re-tuned from 0."
 }

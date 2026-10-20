@@ -1,0 +1,34 @@
+{
+  "repository": "https://github.com/OrcaSlicer/OrcaSlicer",
+  "commit": "fd28f6c1894a7fb09af2af0d8a8c935d98467e2d",
+  "commit_date": "2026-10-16",
+  "path_prefix": "resources/profiles",
+  "_what": "Upstream OrcaSlicer's built-in Sovol Zero filaments for brass and hardened-steel nozzles, unmodified. Source of the nozzle temperatures and flow caps in source/filament-nozzle-upstream.json.",
+  "_origin": "Added by Eric McCann (GitHub nuclearmistake) in OrcaSlicer PR #15756, merged to main 2026-09-23 as a8f1061a02561aac9658a88910d0c475c705919d. The files last changed in 7a2daaa351 (2026-09-28, 'Make all vendor profiles pass the updated profile checks'), which reordered keys and changed no value. Identical at main 06665d0 on 2026-10-18.",
+  "files": [
+    {
+      "path": "Sovol/filament/Generic PLA @Sovol Zero.json",
+      "sha256": "131c5aacf5efa1528f364690765f872e6f8b57e2c4e96510f775590e53659599"
+    },
+    {
+      "path": "Sovol/filament/Generic PLA @Sovol Zero Hardened Steel nozzle.json",
+      "sha256": "460153d5d66868be99c4d98ff7ac7d56acc9590743e3f98d13330500382810a5"
+    },
+    {
+      "path": "Sovol/filament/Generic PLA Silk @Sovol Zero.json",
+      "sha256": "ffc3633f7d076b5b1bef2bee8d1bfbc1604ed4f82a797fbc789d3ff48e3ac114"
+    },
+    {
+      "path": "Sovol/filament/Generic PLA Silk @Sovol Zero Hardened Steel nozzle.json",
+      "sha256": "72b993bb627a6a8b2ad97076cd8a0b7ff70ad51bc989f3e28be9a9bd7d852665"
+    },
+    {
+      "path": "Sovol/filament/Generic PETG @Sovol Zero.json",
+      "sha256": "7e70cc94b5e09b5534a82858b8aa849aee14fa1b43ce979fa72c7ca1d2521d14"
+    },
+    {
+      "path": "Sovol/filament/Generic PETG @Sovol Zero Hardened Steel nozzle.json",
+      "sha256": "ae4761bc9cda50dbfae58f7e3665b8aa667fbb9333b76395dd04f137adcc540a"
+    }
+  ]
+}

@@ -13,6 +13,7 @@
     "PLA": "Prints with a chamber ceiling at or below the endpoint and a 60 C bed, so the arithmetic degenerates to a short bed-only descent on its own. No special case is needed and none is written.",
     "TPU": "Same as PLA. A 40 C bed is 1 minute of ramp. Self-limiting.",
     "PETG": "Bonds hard to smooth PEI while hot and releases cold. The ramp is the recovered default.",
+    "PCTG": "PETG's row, copied (2026-10-18): a PETG-class copolyester on the same 85 C plate. Before it had a row of its own, pctg matched pc by prefix -- the same endpoint today, by accident rather than by policy.",
     "ABS": "The recovered reference case. Bed 110 chamber 60 gives 16.7 min at 1.5 and 4.5 C/min. Deliberately identical to ASA -- no ABS-specific behaviour is defined here, and the re-warm destress cycle some community macros run after the ramp is explicitly NOT implemented.",
     "ASA": "As ABS.",
     "PA": "Semi-crystalline, unlike everything else in this table. Slower cooling raises crystallinity and therefore total shrinkage, so nylon is the one material where a slower ramp can make dimensional accuracy worse. Left at the default rather than slowed, and it should not be slowed without a measurement.",

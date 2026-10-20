@@ -6,152 +6,152 @@
     "orca|0.25n|Optimal|SV Zero PC|svzero-overhang.stl": {
       "cm3": 1.76,
       "mm": 733.23,
-      "s": 1939.0
+      "s": 2227.0
     },
     "orca|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
       "cm3": 1.28,
       "mm": 530.52,
-      "s": 2175.0
+      "s": 2519.0
     },
-    "orca|0.3n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+    "orca|0.3n|Standard|SV Zero PCTG|svzero-tower.stl": {
       "cm3": 1.61,
       "mm": 667.58,
-      "s": 1924.0
+      "s": 1927.0
     },
-    "orca|0.4n|Draft|SV Zero PETG - Steel|svzero-smallpins.stl": {
+    "orca|0.4n|Draft|SV Zero PETG - Brass|svzero-smallpins.stl": {
       "cm3": 0.75,
       "mm": 313.82,
-      "s": 243.0
+      "s": 252.0
     },
-    "orca|0.5n|Strength|SV Zero PLA - Brass|svzero-featurecube.stl": {
+    "orca|0.5n|Strength|SV Zero PETG - Steel|svzero-featurecube.stl": {
       "cm3": 2.82,
-      "mm": 1170.85,
-      "s": 593.0
+      "mm": 1170.84,
+      "s": 612.0
     },
-    "orca|0.6n|Fine|SV Zero PLA - Steel|svzero-overhang.stl": {
+    "orca|0.6n|Fine|SV Zero PLA - Brass|svzero-overhang.stl": {
       "cm3": 2.98,
       "mm": 1240.67,
-      "s": 1073.0
+      "s": 1150.0
     },
-    "orca|0.8n|Optimal|SV Zero PLA Silk - Brass|svzero-tower.stl": {
+    "orca|0.8n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
       "cm3": 3.17,
       "mm": 1319.68,
-      "s": 1122.0
+      "s": 1133.0
     },
-    "orca|1.0n|Standard|SV Zero PLA Silk - Steel|svzero-smallpins.stl": {
+    "orca|1.0n|Standard|SV Zero PLA Silk - Brass|svzero-smallpins.stl": {
       "cm3": 1.25,
       "mm": 520.0,
-      "s": 288.0
+      "s": 289.0
     },
-    "orca|1.2n|Draft|SV Zero TPU|svzero-featurecube.stl": {
+    "orca|1.2n|Draft|SV Zero PLA Silk - Steel|svzero-featurecube.stl": {
       "cm3": 3.25,
-      "mm": 1351.19,
-      "s": 1154.0
+      "mm": 1351.15,
+      "s": 462.0
     },
-    "orca|1.4n|Strength|SV Zero ABS|svzero-overhang.stl": {
+    "orca|1.4n|Strength|SV Zero TPU|svzero-overhang.stl": {
       "cm3": 4.08,
       "mm": 1695.66,
-      "s": 1702.0
+      "s": 1806.0
     },
     "ps|0.25n|Optimal|SV Zero PC|svzero-overhang.stl": {
       "cm3": 1.49,
       "mm": 618.97,
-      "s": 1506.0
+      "s": 1580.0
     },
     "ps|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
       "cm3": 1.1,
-      "mm": 455.46,
-      "s": 1692.0
+      "mm": 455.47,
+      "s": 1887.0
     },
-    "ps|0.3n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+    "ps|0.3n|Standard|SV Zero PCTG|svzero-tower.stl": {
       "cm3": 1.66,
       "mm": 688.47,
-      "s": 2071.0
+      "s": 2074.0
     },
-    "ps|0.4n|Draft|SV Zero PETG - Steel|svzero-smallpins.stl": {
+    "ps|0.4n|Draft|SV Zero PETG - Brass|svzero-smallpins.stl": {
       "cm3": 0.86,
       "mm": 359.33,
-      "s": 459.0
+      "s": 469.0
     },
-    "ps|0.5n|Strength|SV Zero PLA - Brass|svzero-featurecube.stl": {
+    "ps|0.5n|Strength|SV Zero PETG - Steel|svzero-featurecube.stl": {
       "cm3": 2.97,
-      "mm": 1234.57,
-      "s": 725.0
+      "mm": 1234.64,
+      "s": 737.0
     },
-    "ps|0.6n|Fine|SV Zero PLA - Steel|svzero-overhang.stl": {
+    "ps|0.6n|Fine|SV Zero PLA - Brass|svzero-overhang.stl": {
       "cm3": 2.66,
       "mm": 1105.55,
-      "s": 893.0
+      "s": 914.0
     },
-    "ps|0.8n|Optimal|SV Zero PLA Silk - Brass|svzero-tower.stl": {
+    "ps|0.8n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
       "cm3": 3.28,
       "mm": 1362.16,
-      "s": 1209.0
+      "s": 1223.0
     },
-    "ps|1.0n|Standard|SV Zero PLA Silk - Steel|svzero-smallpins.stl": {
+    "ps|1.0n|Standard|SV Zero PLA Silk - Brass|svzero-smallpins.stl": {
       "cm3": 1.55,
       "mm": 646.1,
-      "s": 429.0
+      "s": 430.0
     },
-    "ps|1.2n|Draft|SV Zero TPU|svzero-featurecube.stl": {
+    "ps|1.2n|Draft|SV Zero PLA Silk - Steel|svzero-featurecube.stl": {
       "cm3": 3.64,
-      "mm": 1514.38,
-      "s": 1299.0
+      "mm": 1514.78,
+      "s": 506.0
     },
-    "ps|1.4n|Strength|SV Zero ABS|svzero-overhang.stl": {
+    "ps|1.4n|Strength|SV Zero TPU|svzero-overhang.stl": {
       "cm3": 3.73,
       "mm": 1549.65,
-      "s": 600.0
+      "s": 1423.0
     },
     "ss|0.25n|Optimal|SV Zero PC|svzero-overhang.stl": {
       "cm3": 1.5,
       "mm": 623.78,
-      "s": 1070.0
+      "s": 1173.0
     },
     "ss|0.2n|Fine|SV Zero ABS|svzero-featurecube.stl": {
       "cm3": 1.05,
       "mm": 435.29,
-      "s": 1431.0
+      "s": 1676.0
     },
-    "ss|0.3n|Standard|SV Zero PETG - Brass|svzero-tower.stl": {
+    "ss|0.3n|Standard|SV Zero PCTG|svzero-tower.stl": {
       "cm3": 1.5,
       "mm": 625.16,
-      "s": 1544.0
+      "s": 1560.0
     },
-    "ss|0.4n|Draft|SV Zero PETG - Steel|svzero-smallpins.stl": {
+    "ss|0.4n|Draft|SV Zero PETG - Brass|svzero-smallpins.stl": {
       "cm3": 0.75,
       "mm": 311.05,
-      "s": 267.0
+      "s": 292.0
     },
-    "ss|0.5n|Strength|SV Zero PLA - Brass|svzero-featurecube.stl": {
-      "cm3": 2.8,
-      "mm": 1164.88,
-      "s": 697.0
+    "ss|0.5n|Strength|SV Zero PETG - Steel|svzero-featurecube.stl": {
+      "cm3": 2.81,
+      "mm": 1166.86,
+      "s": 713.0
     },
-    "ss|0.6n|Fine|SV Zero PLA - Steel|svzero-overhang.stl": {
+    "ss|0.6n|Fine|SV Zero PLA - Brass|svzero-overhang.stl": {
       "cm3": 2.45,
       "mm": 1020.62,
-      "s": 984.0
+      "s": 1008.0
     },
-    "ss|0.8n|Optimal|SV Zero PLA Silk - Brass|svzero-tower.stl": {
+    "ss|0.8n|Optimal|SV Zero PLA - Steel|svzero-tower.stl": {
       "cm3": 2.72,
       "mm": 1132.82,
-      "s": 1212.0
+      "s": 1231.0
     },
-    "ss|1.0n|Standard|SV Zero PLA Silk - Steel|svzero-smallpins.stl": {
+    "ss|1.0n|Standard|SV Zero PLA Silk - Brass|svzero-smallpins.stl": {
       "cm3": 1.3,
       "mm": 538.5,
-      "s": 625.0
+      "s": 632.0
     },
-    "ss|1.2n|Draft|SV Zero TPU|svzero-featurecube.stl": {
-      "cm3": 3.21,
-      "mm": 1334.53,
-      "s": 1207.0
+    "ss|1.2n|Draft|SV Zero PLA Silk - Steel|svzero-featurecube.stl": {
+      "cm3": 3.2,
+      "mm": 1329.15,
+      "s": 612.0
     },
-    "ss|1.4n|Strength|SV Zero ABS|svzero-overhang.stl": {
-      "cm3": 3.44,
-      "mm": 1429.38,
-      "s": 1371.0
+    "ss|1.4n|Strength|SV Zero TPU|svzero-overhang.stl": {
+      "cm3": 3.43,
+      "mm": 1425.65,
+      "s": 1891.0
     }
   }
 }

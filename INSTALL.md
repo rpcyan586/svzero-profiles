@@ -61,11 +61,12 @@ leave room in the arrangement and inspect the preview. Disabling them on stock
 firmware removes this fallback unless you provide another priming sequence.
 
 The other optional calls (`SVZERO_REQUIRE`, `_PREFLIGHT`, `M141`/`M191`,
-`SET_CLEAN_TEMP`, `COOLDOWN_ARM`) likewise do not require stub macros on stock
-Sovol firmware. Expect several unknown-command messages, not one combined
-warning. Unknown commands being harmless does **not** make errors in an
-installed macro harmless; nor does it apply to commands such as
-`SET_GCODE_VARIABLE` naming a nonexistent target.
+`SET_CLEAN_TEMP`, `COOLDOWN_ARM`, `SVZERO_XY_CURRENT`,
+`SVZERO_NOZZLE_GROWTH`) likewise do not require stub macros on stock Sovol
+firmware. Expect several unknown-command messages, not one combined warning.
+Unknown commands being harmless does **not** make errors in an installed macro
+harmless; nor does it apply to commands such as `SET_GCODE_VARIABLE` naming a
+nonexistent target.
 
 **With the pack installed, `SVZERO_REQUIRE` checks two things.**
 - **A different pack version** prints one warning and the job continues.
@@ -73,6 +74,13 @@ installed macro harmless; nor does it apply to commands such as
   A mode is a machine configuration selected by an include and a Klipper
   restart. The pack ships one, `standard`.
 - **Older profiles** name no mode, and their jobs run as standard.
+
+**With the pack installed, `_PREFLIGHT` refuses a job started with no
+filament** at the runout sensor, before any heater is commanded. Klipper's own
+runout handling acts only when filament runs out during a print, so without
+this a job started empty heats, soaks, cleans, calibrates and meshes, then
+prints with nothing loaded. A sensor switched off with `SET_FILAMENT_SENSOR
+SENSOR=filament_sensor ENABLE=0`, or absent, is not checked.
 - **In any mode other than standard**, a job that never identifies itself is
   refused when it reaches `START_PRINT`.
 
@@ -115,7 +123,8 @@ These contain the native macros and hardware configuration only. No added
 Python modules are required. The builder includes the pressure-probe sampling
 override from `probe_pressure_1.3.7.cfg` only in the 1.3.7 file.
 The 1.4.x include instead selects `RUN_PROBE_VIR_CONTACT` at Sovol's stock
-X30/Y30 plate-contact location; 1.3.7 keeps its load-cell command/location.
+X30/Y30 plate-contact location; 1.3.7 keeps its tare-tap command and location
+(`RUN_PROBE_PRESSURE`: Sovol's `probe_pressure`, a tared pressure sensor under the bed).
 
 ### Required 1.4.x edit
 
@@ -176,6 +185,32 @@ spool, remembered temperature or configured default where supported. That is
 not a guarantee that arbitrary start G-code is compatible: it still needs bed
 and nozzle waits and sufficient priming, especially with the pack's wipe and
 end-retract bookkeeping.
+
+### Nozzle growth compensation
+
+`SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
+first layer for the nozzle being hotter than when the Z reference was taken.
+On 1.3.7 it ships **on**, with a coefficient k measured with the tare-tap on
+the operator's Zero2, 1.1 µm/°C. The first layer moves farther from the bed
+by k × (first-layer temperature − the 150 °C probe temperature): about
++0.09 mm at 230 °C, +0.11 mm at 250 °C, +0.13 mm at PETG's 265 °C and
++0.14 mm at ABS's 280 °C. Each print logs one line with k, both temperatures
+and the offset.
+
+- **Turn it off** on a machine with
+  `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`.
+- **Use your own k** by measuring it and storing it the same way, in mm per °C.
+  A saved value takes precedence over the pack's and survives updates.
+- **Per-filament `Z_ADJUST` values become residuals.** One tuned with an
+  earlier pack already holds your machine's growth for that material and is
+  now counted twice: return it to 0 and tune it again.
+
+**On 1.4.x it is off**, stock behaviour: nothing is applied, whatever k is
+saved, and the console says so on each print. k was measured with the 1.3.7
+tare-tap, and the eddy path has not been measured.
+
+Method and limits:
+[Nozzle growth compensation](docs/STARTUP.md#nozzle-growth-compensation).
 
 ### Input shaping
 

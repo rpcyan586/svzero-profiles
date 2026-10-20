@@ -164,13 +164,19 @@ def write_ss_config(ss, printer, prnt, filament, path):
     millimetres and speeds to absolute mm/s for PrusaSlicer, which would hand
     SuperSlicer the answer and measure nothing. The percentages must reach it
     intact -- resolving them is the thing under test.
+
+    Values still go through G.ini_value, which changes their serialization
+    only. Written raw, start_filament_gcode's real newline made its G-code a
+    key of its own: SuperSlicer logged `SET_GCODE_OFFSET Z_ADJUST` as a key it
+    could not load, REJECT matches lowercase option names only, and this pass
+    stayed green with the filament G-code cut to its first line.
     """
     cfg = collections.OrderedDict()
     for name in (printer, prnt, filament):
         cfg.update(G.flatten(ss, name))
     with open(path, "w", encoding="utf-8") as fh:
         for k, v in cfg.items():
-            fh.write("%s = %s\n" % (k, v))
+            fh.write("%s = %s\n" % (k, G.ini_value(v, k)))
     return cfg
 
 

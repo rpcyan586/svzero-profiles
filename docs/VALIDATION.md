@@ -1,5 +1,63 @@
 # Validation and known limitations
 
+## Candidate 2.1.2
+
+The offline suite passes **218 tests**, with macro rendering on Jinja 2.11.3
+and a clean deterministic rebuild. PS vendor `2.1.2`, Orca `02.01.02.00`.
+Profile behaviour changes: the filament start G-code now runs in PrusaSlicer
+and SuperSlicer, SuperSlicer's tool name, scarf seams, upstream OrcaSlicer's
+Brass and Steel temperatures and flow, PCTG, and the per-machine Z line in
+OrcaSlicer's start G-code. The macro pack adds nozzle growth compensation,
+the runout check and the nozzle-clean dwell (see the [changelog](../CHANGELOG.md)).
+
+- **Sliced.** The full matrix produced G-code in SuperSlicer 2.7.62,
+  PrusaSlicer 2.9.6 and OrcaSlicer 2.4.2, with no refused key. It covers 30
+  slices, every nozzle, tier, filament and test object at least once. Every
+  row matched the baseline recorded for this release.
+- **Printed on a 1.3.7 Zero.** Single-layer ABS squares sliced with this
+  release's PrusaSlicer presets (0.4 Standard, SV Zero ABS) printed through
+  the 2.1.2 start G-code on 2.1.1-era macros. `SVZERO_NOZZLE_GROWTH` and
+  `SVZERO_XY_CURRENT` were unknown there, and Klipper stepped over them as
+  documented.
+- **Nozzle growth measured on that machine** (see the
+  [startup guide](STARTUP.md#nozzle-growth-compensation)):
+  - Tap pairs beside the tare-tap's sensor gave 1.13 µm/°C.
+  - Squares printed with lifts for k = 0.67 and 1.0 came out over-squished.
+    The square for 1.3 was flat at 0.273 mm for a 0.25 mm layer.
+  - The published k is 1.1.
+- **Fixed on a 1.4.7 Zero.** The nozzle-clean dwell ended a "Probe triggered
+  prior to movement" stop for an owner who applied it by hand.
+- **Bed preview** shown in all three slicers.
+- **Deployed to that 1.3.7 Zero and called live.** The macros rendered under
+  its own klippy-env (Jinja 2.11.3, Python 3.9) first.
+  - `START_PRINT` ran end to end: the nozzle clean with its dwell, then Sovol's
+    `Z_OFFSET_CALIBRATION` with the tare-tap's median-of-7 sampling, then the
+    mesh. It recorded the growth reference: 150 °C, tare-tap.
+  - `SVZERO_NOZZLE_GROWTH TEMP=280` then applied `Z_ADJUST=0.143`. A second
+    call applied nothing more.
+  - With no reference it applies nothing and says why.
+  - `SVZERO_XY_CURRENT` lowered X and Y to 2.4 A and refused 4.0 A.
+  - `SVZERO_SHAPER_TYPICAL` applied its values.
+  - `_PREFLIGHT` passed with filament at the sensor.
+- **A whole print on that Zero.** A 3DBenchy in ABS, sliced with this
+  release's OrcaSlicer presets (0.4 Draft, 0.25 mm layers), printed to
+  completion in 46 minutes on the 2.1.2 macros, with no per-material Z offset:
+  the spool check, the boosted M191 soak, `START_PRINT`, the lift
+  (`Z_ADJUST=0.143`), the purge ring, `END_PRINT` and the cooldown's hand-off.
+  Draft sends no X/Y current, so `END_PRINT`'s restore ran with nothing
+  lowered.
+- **A cancelled job on that Zero.** A file that only called
+  `SVZERO_XY_CURRENT CURRENT=2.4` and dwelt was started and cancelled from
+  Moonraker. X and Y read 2.41 A while it ran and 3.50 A after
+  `CANCEL_PRINT`, which also stopped the running cooldown and skipped its lift
+  and park on the unhomed machine.
+- **Not run on a printer:**
+  - `END_PRINT` restoring a lowered X/Y current, which needs a Fine to
+    Strength job.
+  - `_PREFLIGHT` refusing with the sensor empty.
+  - `SVZERO_SHAPER_CALIBRATE`.
+  - The eddy-only off path, which has run only in rendering.
+
 ## Candidate 2.1.1
 
 The offline suite passes **195 tests**, with macro rendering on Jinja 2.11.3
@@ -175,12 +233,12 @@ do not instantiate every hardware object or verify mechanical clearances.
 - Physical flow/temperature calibration of added nozzle sizes; slicing alone
   cannot establish nozzle suitability or print quality.
 - Measured filament shrinkage on a Zero. The shipped figures are nominal for
-  each material class: right in direction, not in magnitude.
+  each material class: right in direction, not in magnitude. PCTG takes the PETG class's value, nominally.
 - Optional macro-pack commissioning on other machines, especially brush pad
   geometry and the 1.4.x fan/probe path.
 
-The basic bed preview is an original schematic square, not a mechanical model.
-The beta does not include the earlier third-party bed graphics.
+The bed preview is Sovol's hotbed CAD, simplified, with the original schematic
+square kept as a fallback texture. Neither is a collision model.
 
 The optional Python modules are opt-in, not auto-installed dependencies. A
 configured feature can deliberately refuse a failed check; absence of a feature

@@ -298,7 +298,7 @@ def install_bed_assets(datadir):
     the slicers' own file dialog would have written.
     """
     n = 0
-    for name in ("svzero_bed.stl", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+    for name in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
         src = os.path.join(ROOT, "assets", name)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(datadir, name))
@@ -567,6 +567,17 @@ def install_orca(datadir):
 
     # The SVZero vendor is self-contained. Do not install unrelated vendors.
 
+    # 1b. the bed preview, again, under vendor/SVZero/. Orca resolves a printer
+    #     model's bed_model there or in its own resources, never under system/
+    #     (PresetBundle::get_stl_model_for_printer_model, OrcaSlicer 2.4.2), so
+    #     the copy inside the vendor directory above is invisible to it.
+    vdir = os.path.join(datadir, "vendor", "SVZero")
+    os.makedirs(vdir, exist_ok=True)
+    for name in ("svzero_bed.stl", "svzero_bed.png", "svzero_bed_grid.png", "svzero_bed.svg", "svzero_bed.CREDITS.md"):
+        src = os.path.join(ours_dir, name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(vdir, name))
+
     # 2. clear the user copies. These were the pre-vendor mechanism and are now
     #    the same presets under the same names in two places at once; a user
     #    preset shadows the system one it collides with, which would put us back
@@ -596,8 +607,17 @@ def install_orca(datadir):
         mm = json.load(open(os.path.join(ours, "SVZero", entry["sub_path"]), encoding="utf-8"))
         ours_models.append({"model": mm["name"], "nozzle_diameter": mm["nozzle_diameter"],
                             "vendor": "SVZero"})
-    models = ours_models + [{"model": "SOVOL ZERO", "nozzle_diameter": "0.4",
-                             "vendor": "Sovol"}] + models
+    # Registered by (vendor, model), so a second install changes nothing. Only
+    # SVZero's entries were filtered before, and SOVOL ZERO was prepended on
+    # every run: each reinstall added one more copy. A SOVOL ZERO entry already
+    # there is kept as the user left it, nozzles and all; duplicates an earlier
+    # install wrote collapse to the first.
+    key = lambda m: (m.get("vendor"), m.get("model"))
+    sovol = {"model": "SOVOL ZERO", "nozzle_diameter": "0.4", "vendor": "Sovol"}
+    if not any(key(m) == key(sovol) for m in models):
+        models = [sovol] + models
+    seen = set()
+    models = [m for m in ours_models + models if not (key(m) in seen or seen.add(key(m)))]
     d["models"] = models
     # Orca calls the process preset "print" in the conf. Left unset it opens on
     # nothing, which reads as "our profiles are missing" even when they loaded.

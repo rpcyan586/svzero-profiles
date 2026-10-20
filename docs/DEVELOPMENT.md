@@ -25,7 +25,9 @@ python tools/verify.py
 ```
 
 Pinned public Orca inputs and their checksums live under
-`source/vendor-profiles/`. Schema attribution is in
+`source/vendor-profiles/`: Sovol's Orca fork at the top, upstream OrcaSlicer's
+Zero filaments under `OrcaSlicer/`, each with its own `provenance.json`.
+Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
 PrusaSlicer 3 output remains experimental and is not in the user download.
 

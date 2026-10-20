@@ -22,6 +22,58 @@ SPEC.loader.exec_module(G)
 
 
 class ProfileGenerationTests(unittest.TestCase):
+    def test_orca_filament_temperatures_sit_inside_their_root_range(self):
+        # Orca flags a temperature outside nozzle_temperature_range_low/high.
+        # Sovol's roots carried the stock Zero's (PLA 190-210, ABS 235-240)
+        # while the presets print up to 245 and 280.
+        d = ROOT / "bundles/orca-vendor/SVZero/filament"
+        docs = {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in d.glob("*.json")}
+
+        def resolved(name, key):
+            while name:
+                if key in docs[name]:
+                    return float(docs[name][key][0])
+                name = docs[name].get("inherits")
+            self.fail("%s: no %s anywhere in its chain" % (name, key))
+
+        m, n = G.ORCA_TEMP_RANGE_MARGIN, 0
+        for name, doc in sorted(docs.items()):
+            if name.startswith("fdm_"):
+                continue
+            lo, hi = (resolved(name, k) for k in G.ORCA_TEMP_RANGE)
+            for key in G.ORCA_TEMP_KEYS:
+                t = resolved(name, key)
+                self.assertTrue(lo <= t - m and t + m <= hi,
+                                "%s %s %g outside %g-%g by the %d C margin" % (name, key, t, lo, hi, m))
+                n += 1
+        self.assertGreaterEqual(n, 20)
+        # Widened, never narrowed: Sovol's own range stays inside ours.
+        for root in G.ORCA_FILAMENT_ROOTS:
+            pinned = json.loads((ROOT / "source/vendor-profiles/Sovol/filament" / (root + ".json"))
+                                .read_text(encoding="utf-8"))
+            if G.ORCA_TEMP_RANGE[0] in pinned:
+                lo, hi = (float(docs[root][k][0]) for k in G.ORCA_TEMP_RANGE)
+                self.assertLessEqual(lo, float(pinned[G.ORCA_TEMP_RANGE[0]][0]), root)
+                self.assertGreaterEqual(hi, float(pinned[G.ORCA_TEMP_RANGE[1]][0]), root)
+
+    def test_superslicer_tool_name_is_a_klipper_extruder(self):
+        # SuperSlicer writes SET_PRESSURE_ADVANCE ... EXTRUDER=<tool_name> for
+        # any filament with a nonzero PA, and Klipper rejects a name that is
+        # not a configured extruder, stopping the print. "brass" shipped from
+        # 2.0.1 to 2.1.1. Empty is SuperSlicer's default and writes "extruder".
+        # tool_name is a string vector, so the empty element is written quoted,
+        # `""`, as SuperSlicer's own escape_strings_cstyle writes it.
+        bad = []
+        for path in sorted((ROOT / "bundles/ss-presets/printer").glob("*.ini")) + [ROOT / "bundles/SVZero_SuperSlicer.ini"]:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("tool_name ="):
+                    value = line.split("=", 1)[1].strip()
+                    if len(value) >= 2 and value[0] == value[-1] == '"':
+                        value = value[1:-1]
+                    if value not in ("", "extruder"):
+                        bad.append("%s: %s" % (path.name, value))
+        self.assertEqual(bad, [])
+
     def test_speed_chain_rounds_only_after_computation(self):
         source = {"default_speed": "31.1", "perimeter_speed": "68%",
                   "external_perimeter_speed": "83%", "travel_speed": "1000",

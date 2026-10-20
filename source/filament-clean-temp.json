@@ -5,10 +5,12 @@
   "_status": "PROPOSED commissioning curve, not a measurement. Nothing here has been validated on hardware.",
   "_keyed_on": "filament_type only. The published curve also splits PLA by nozzle material (160 Brass / 170 Hardened Steel) and carries separate 8M values, but no placeholder available in machine start G-code exposes either, and both local nozzles are recorded as material-unverified in notes/kb/nozzles.md -- so we cannot claim to know which case applies. PLA takes the Hardened Steel value; a brass nozzle is then cleaned 10 C hotter than the curve proposes.",
   "_fallback": "200, Sovol's stock cleaning temperature. An unparameterised caller gets vendor behaviour rather than a number of ours. The macro carries the same fallback independently in _BRUSH.retract_temp.",
-  "_floor": "Must stay above the extruder's min_extrude_temp (150 on both units) or CLEAN_NOZZLE refuses to retract and raises rather than aborting mid-scrub.",
+  "_pctg": "Added 2026-10-18 with the PCTG preset: 260 C first layer, 20 + 2/3*240 = 180, already on a 5. It needs its own key in _BRUSH_CLEAN_TEMPS, ordered before pc -- the macro matches by prefix, and without one PCTG cleaned at PC's 200.",
+  "_floor":"Must stay above the extruder's min_extrude_temp (150 on both units) or CLEAN_NOZZLE refuses to retract and raises rather than aborting mid-scrub.",
   "by_type": {
     "PLA": 170,
     "TPU": 175,
+    "PCTG": 180,
     "PETG": 185,
     "ABS": 195,
     "PC": 200

@@ -302,5 +302,34 @@ class InstallPresetsTest(unittest.TestCase):
             self.assertEqual(MODULE.cap_acceleration(directory, 5000), 1)
             self.assertEqual(p.read_text(), "solid_infill_acceleration = 4000\ninfill_acceleration = 5000\n")
 
+    def test_two_orca_installs_leave_one_entry_per_model(self):
+        # Each run used to prepend another SOVOL ZERO to OrcaSlicer.conf.
+        def models(conf):
+            return [(m["vendor"], m["model"], m["nozzle_diameter"])
+                    for m in json.loads(conf.read_text(encoding="utf-8"))["models"]]
+        with tempfile.TemporaryDirectory() as directory:
+            conf = pathlib.Path(directory) / "OrcaSlicer.conf"
+            MODULE.install_orca(directory)
+            first = conf.read_text(encoding="utf-8")
+            MODULE.install_orca(directory)
+            self.assertEqual(conf.read_text(encoding="utf-8"), first)
+            keys = [(v, m) for v, m, _ in models(conf)]
+            self.assertEqual(len(keys), len(set(keys)), keys)
+            self.assertIn(("Sovol", "SOVOL ZERO"), keys)
+            self.assertIn(("SVZero", "SV Zero"), keys)
+            # A datadir an earlier release already doubled, with the user's own
+            # nozzle choice on Sovol's model and another vendor's printer.
+            doc = json.loads(first)
+            doc["models"] = [{"model": "SOVOL ZERO", "nozzle_diameter": "0.4;0.6", "vendor": "Sovol"},
+                             {"model": "SOVOL ZERO", "nozzle_diameter": "0.4", "vendor": "Sovol"},
+                             {"model": "Other", "nozzle_diameter": "0.4", "vendor": "Else"}]
+            conf.write_text(json.dumps(doc), encoding="utf-8")
+            MODULE.install_orca(directory)
+            got = models(conf)
+            self.assertEqual([m for m in got if m[0] == "Sovol"], [("Sovol", "SOVOL ZERO", "0.4;0.6")])
+            self.assertIn(("Else", "Other", "0.4"), got)
+            self.assertEqual(len(got), len({(v, m) for v, m, _ in got}), got)
+
+
 if __name__ == "__main__":
     unittest.main()

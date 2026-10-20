@@ -468,10 +468,11 @@
       "compatible_printers": "Handled structurally, not by name: Orca wants a JSON list of machine preset names, which the emitter builds."
     },
     "_roots": {
-      "_why": "Orca filament presets inherit a per-material root, and each root itself inherits fdm_filament_common. The whole closure must be shipped AND listed in the vendor index -- an unlisted root is an absent root, which fails the entire vendor. Note PETG inherits fdm_filament_pet, not _petg.",
+      "_why": "Orca filament presets inherit a per-material root, and each root itself inherits fdm_filament_common. The whole closure must be shipped AND listed in the vendor index -- an unlisted root is an absent root, which fails the entire vendor. Note PETG inherits fdm_filament_pet, not _petg. PCTG inherits it too (2026-10-18). Sovol's tree has an uninstantiated fdm_filament_pctg, but of the keys our preset leaves to its root it differs from PET's only in two hints, the recommended nozzle range (220-260 against 235-240, which PETG's 255/265 already sit outside) and vitrification (70 against 80); its start G-code drives the exhaust at a fixed duty, which this pack forbids and our preset overrides. Not worth a second pinned upstream file. Without an entry PCTG fell to fdm_filament_common.",
       "PLA": "fdm_filament_pla",
       "PLA Silk": "fdm_filament_pla",
       "PETG": "fdm_filament_pet",
+  "PCTG": "fdm_filament_pet",
       "ABS": "fdm_filament_abs",
       "TPU": "fdm_filament_tpu",
       "PC": "fdm_filament_pc",
@@ -483,7 +484,8 @@
     "gcode_label_objects": "1",
     "support_type": "tree(auto)",
     "support_critical_regions_only": "1",
-    "seam_slope_type": "external",
+    "seam_slope_type": "all",
+    "_seam_slope_type": "Contour and hole (Orca's label for `all`), 2026-10-18; was `external` (Contour). Matches PrusaSlicer scarf_seam_placement = everywhere in presets.json.",
     "_skirt_start_angle": "Front-right, requested 2026-09-13 to shorten travel from the purge. Orca accepts -180..180 degrees; -45 is equivalent to 315. Dormant when skirt_loops is zero. This sets skirt entry, not model seam placement.",
     "skirt_start_angle": "-45"
   },

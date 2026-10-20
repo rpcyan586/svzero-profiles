@@ -1,5 +1,252 @@
 # Changelog
 
+## 2.1.2
+
+### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code
+
+- **The per-material Z offset never ran in PrusaSlicer or SuperSlicer**, in
+  any release from 2.0.1-beta.1 to 2.1.1. Each filament's start G-code opens
+  with a `;` comment. The slicers keep that setting as a list, one entry per
+  extruder, and split an unquoted value at every `;`, so the extruder got an
+  empty entry and `SET_GCODE_OFFSET Z_ADJUST=0.000 MOVE=1` never reached the
+  G-code. OrcaSlicer was not affected.
+- **PrusaSlicer never applied the filament's pressure advance** in those
+  releases. PrusaSlicer has no pressure-advance setting, so the pack sends it
+  on that same G-code as `SET_PRESSURE_ADVANCE`. Klipper kept the value it
+  already had, printer.cfg's or the previous job's. SuperSlicer sets pressure
+  advance itself and was not affected.
+- **Both now run it**, written quoted as the slicers write it themselves.
+  Sliced at 0.4 Standard, PLA - Brass runs `SET_GCODE_OFFSET Z_ADJUST=0.000
+  MOVE=1` in both, and `SET_PRESSURE_ADVANCE ADVANCE=0.036` in PrusaSlicer.
+  ABS, PC and TPU now get `ADVANCE=0` in PrusaSlicer, as in OrcaSlicer;
+  SuperSlicer sends nothing for them and Klipper keeps its current value.
+- **A filament preset copied from an earlier release still lacks the stub.**
+  Copy it again from this release's preset.
+
+### Fixed: 1.4.x prints stopped with "Probe triggered prior to movement"
+
+- **On 1.4.x the macro pack's nozzle clean could stop a print** at its last
+  step, the contact tap at X30 Y30, with "Probe triggered prior to movement".
+  The pack went straight from the 150 mm/s move into
+  `RUN_PROBE_VIR_CONTACT`; Sovol's own `CLEAN_NOZZLE` waits 300 ms first, and
+  the eddy's contact detector fired before the move began.
+- **The clean now waits the same 300 ms** (`G4 P300`, `M400`) before the tap,
+  on both firmwares. Reported on a 1.4.7 Zero with no tare-tap hardware, and
+  confirmed fixed there.
+
+### Fixed: SuperSlicer stopped PLA, PLA Silk and PETG jobs at the start
+
+- **SuperSlicer: PLA, PLA Silk and PETG no longer stop at the start.** The
+  printer presets set `tool_name = brass`, and SuperSlicer writes each
+  filament's pressure advance as `SET_PRESSURE_ADVANCE ... EXTRUDER=brass`.
+  Klipper accepts only a configured extruder's name there, so it raised an
+  error and stopped the job. `tool_name` is now empty, SuperSlicer's default,
+  which writes `EXTRUDER=extruder`. ABS, PC and TPU carry no pressure advance
+  and were unaffected. Shipped from 2.0.1 to 2.1.1; found reading the G-code,
+  not on a printer.
+
+### Fixed: PCTG cleaned and cooled as PC
+
+- **The macro pack matches a material by prefix**, so with no row of its own
+  `PCTG` matched `PC`: the nozzle was wiped at PC's 200 °C. PCTG now has a row
+  in `_BRUSH_CLEAN_TEMPS`, ordered before `pc`, and wipes at 180 °C, the
+  pack's curve for a 260 °C first layer (20 + ⅔ × 240). This applies to any
+  print or spool named PCTG, from any slicer.
+- **The cooldown table has a `pctg` row too**, copied from PETG's: 35 °C
+  endpoint. PC's row is the same today, so the cooldown was right by accident.
+
+### Fixed: OrcaSlicer never showed the bed preview
+
+- **OrcaSlicer shows the bed preview at all.** It never did. The machine
+  presets named the model by bare filename in `bed_custom_model`, which Orca
+  uses verbatim as a path, so it failed and blocked the vendor's own preview
+  as well. The printer model now carries it as `bed_model`. Orca only looks
+  for that file under `vendor/SVZero/` in its configuration directory, so the
+  download ships it there, and copying that folder in is a new install step.
+
+### Fixed: the Orca installer added a SOVOL ZERO entry on every run
+
+- **`tools/install-presets.py orca` registered Sovol's SOVOL ZERO printer
+  model again each time it ran**, so `OrcaSlicer.conf` gained one more
+  duplicate per install. Models are now registered by vendor and name: a
+  second install leaves the file unchanged, an existing SOVOL ZERO entry keeps
+  the nozzles it lists, and duplicates an earlier install wrote collapse to
+  one. The release downloads do not use this installer.
+
+### Fixed: OrcaSlicer flagged the pack's own nozzle temperatures
+
+- **The recommended nozzle range each OrcaSlicer filament inherits sat below
+  what the presets print.** The base profiles came from Sovol's stock Zero:
+  PLA 190–210 °C against up to 245, PETG 235–240 against 245–265 and PCTG's
+  260, ABS 235–240 against 270–280, TPU 190–210 against 240–250, so Orca
+  marked the temperatures as out of range. Each base's range is now derived
+  from the presets that inherit it, brass and steel included: their lowest and
+  highest nozzle and first-layer temperature, 5 °C beyond, rounded out to 5 °C,
+  and never narrower than Sovol's. PLA 190–250, PETG and PCTG 235–270, ABS
+  235–285, TPU 190–255, PC 255–290. PrusaSlicer and SuperSlicer have no such
+  range.
+
+### Brass and Steel take upstream OrcaSlicer's temperatures and flow caps
+
+Profile behaviour change: the Brass and Steel filament presets differ again,
+in nozzle temperature and, on PLA, in flow cap. Not printed yet.
+
+- **The pairs had been identical since the 2026-09-06 (8M) merge**, which gave
+  both presets of each pair the SV08 Max's single temperature, so choosing a
+  nozzle changed nothing.
+- **Nozzle temperature, first-layer temperature and flow cap now come from
+  OrcaSlicer's built-in Sovol Zero**, as rebuilt by Eric McCann (nuclearmistake)
+  in [OrcaSlicer #15756](https://github.com/OrcaSlicer/OrcaSlicer/pull/15756).
+  Brass presets take its brass filaments, Steel presets its Hardened Steel
+  nozzle ones. The six files are pinned at OrcaSlicer `fd28f6c` with checksums,
+  and the build stops if the pack's table drifts from them. These are
+  upstream's interim values, adopted by the operator's decision; they are not
+  measurements, and the pull request does not say which were printed.
+
+  | Preset | Was: °C, first layer, mm³/s | Now |
+  |---|---|---|
+  | PLA - Brass | 230, 250, 21 | 210, 230, 25 |
+  | PLA - Steel | 230, 250, 21 | 230, 245, 21 |
+  | PLA Silk - Brass | 230, 250, 15 | 220, 245, 15 |
+  | PLA Silk - Steel | 230, 250, 15 | 230, 245, 15 |
+  | PETG - Brass | 255, 265, 15 | 245, 265, 15 |
+  | PETG - Steel | 255, 265, 15 | 250, 265, 15 |
+
+- **Brass PLA prints 20 °C cooler**, at 210 with a 230 first layer: Sovol's
+  original Zero value, which upstream kept, in place of the Max's 230 and 250.
+  This is the operator's decision.
+- **Steel PLA's 20 °C over brass is upstream's number, not an endorsed one.**
+  Sovol's SV08 Max PLA also prints at 230, and one owner measured a stock Max
+  nozzle reading about 20 °C high, so the gap may be a sensor offset carried
+  over rather than what steel needs.
+- **Nothing else changes.** Pressure advance, flow ratio, retraction, cooling
+  and bed are as they were. ABS, PC and TPU, which neither Sovol nor upstream
+  splits by nozzle, keep their temperatures.
+- **The tiers are not re-derived**; every tier is still authored against
+  21 mm³/s, and no print profile changed. On Steel PLA the 21 cap clamps the
+  same moves as before, with identical feedrates in all three slicers. On
+  Brass PLA the 25 cap stops the slicers clamping moves that ask more than 21.
+  Sliced on the 0.4: PrusaSlicer and SuperSlicer run Draft's sparse and solid
+  infill at the asked 216 mm/s instead of trimming it to 212–213. Internal
+  bridges run as asked on Standard (175 mm/s, was 167–171), and on Draft at
+  199–203 mm/s (was 167–171), still capped below the asked 239.
+
+### Scarf seams
+
+- **Scarf seams on holes as well as outer contours.** OrcaSlicer's
+  `seam_slope_type` goes from `external` (Contour) to `all` (Contour and
+  hole), and PrusaSlicer's `scarf_seam_placement` from `contours` to
+  `everywhere`. Inner perimeters stay unscarfed in both, and length and start
+  height stay at the slicers' defaults (20 mm, 0%). Sliced on a 30 mm tube
+  with a 15 mm hole, 0.4 Standard, PLA: the hole's outer wall now carries a
+  scarf ramp in both slicers, and the contour's ramp is unchanged. SuperSlicer
+  has no scarf seam option and is unaffected.
+
+### Runout sensor checked before the start
+
+- **A job started with no filament is refused.** `_PREFLIGHT` checks the
+  runout sensor before any heater is commanded and stops the job with "No
+  filament at the runout sensor". Klipper runs `runout_gcode` only when the
+  sensor changes from loaded to empty during a print, so an empty start used
+  to run the whole start sequence and then print with nothing loaded. A
+  sensor that is switched off or absent is not checked.
+
+### OrcaSlicer per-machine Z offset
+
+- **OrcaSlicer machines carry the per-machine Z offset line** that the
+  PrusaSlicer and SuperSlicer printer presets have had since v1.0.2:
+  `SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1`, after the clearance move. Edit
+  it in a machine preset to offset one printer. It adds to the filament's
+  per-material offset rather than replacing it.
+
+### PCTG filament preset
+
+Sliced in all three slicers; not yet printed.
+
+- **SV Zero PCTG** takes its material settings from Prusa's Generic PCTG for
+  the CORE One 0.4 nozzle: 260 °C nozzle on every layer, 85 °C bed,
+  12 mm³/s and density 1.23. The 12 mm³/s applies on every nozzle, as each
+  filament's single limit already does.
+- **Cooling is PETG's**: fan 10–40%, full fan below 50 s layers, slowdown
+  below 10 s, bridges at 100% and overhangs at 70%. Temperatures carry over
+  from another printer; fans and the cooling rates they imply do not.
+- **The extruder settings are PETG's**, not Prusa's: pressure advance 0.048,
+  flow ratio 0.98, 0.5 mm retraction with a 0.4 mm lift. They belong to the
+  Zero's extruder rather than to the plastic, and are inferred from PETG,
+  not measured on PCTG.
+- **Chamber: wait for 30 °C, exhaust ceiling 40 °C.**
+- **Shrinkage 0.4%, nominal**: the PETG class's value. No manufacturer
+  publishes a figure for PCTG; to be replaced with a measurement.
+- **One preset, not a brass and steel pair.** PETG's two presets have had
+  identical settings in every public release, so a pair would offer an empty
+  choice.
+- In OrcaSlicer it inherits PETG's base profile, `fdm_filament_pet`.
+
+### Nozzle growth compensation, on by default on 1.3.7, off on 1.4.x
+
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
+
+A hotter nozzle reaches further down, and every print's Z reference is taken
+at one nozzle temperature while the first layer prints at another. On the
+1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
+first layer runs at 280 °C. On the operator's Zero2 the nozzle reaches about
+0.15 mm further down at 280 °C than at 150 °C:
+- **Taps beside the tare-tap's sensor**, 150 and 280 °C pairs on untouched
+  spots, gave 1.13 µm/°C. Earlier pairs read 0.67, but they sat far from the
+  sensor, which Sovol's CAD puts under the hotbed's front-left corner.
+- **Printed single-layer squares** settled it. Squares lifted for k = 0.67 and
+  1.0 came out over-squished; the one lifted for 1.3 was flat at 0.273 mm for
+  a 0.25 mm layer, which is 1.13 µm/°C.
+- **The published k is 1.1 µm/°C.**
+
+- **`SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature>`** offsets Z by
+  k × (first-layer − reference temperature), + farther from the plate, and
+  reports every input with the result. All three slicers send it after
+  `START_PRINT`, before any move or heat, with the placeholder their own
+  `M104` uses.
+- **On by default on 1.3.7**, the operator's decision. k is the value
+  measured with the tare-tap on the operator's Zero2, and set in one
+  place, `variable_mm_per_c` in `nozzle_growth.cfg`. On 1.3.7, against the
+  150 °C probe temperature, the first layer moves farther from the bed by
+  about +0.09 mm at 230 °C (PLA - Brass), +0.11 mm at 250 °C, +0.13 mm at
+  PETG's 265 °C and +0.14 mm at ABS's and PC's 280 °C.
+- **Turn it off on a machine** with
+  `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`, or **use that
+  machine's own k** by storing it the same way, in mm per °C. A saved value
+  takes precedence over the pack's and survives updates; the method is in
+  [the startup guide](docs/STARTUP.md#nozzle-growth-compensation).
+- **`START_PRINT` records the reference temperature**: on 1.3.7, the
+  tap's `probe_temp`, every job.
+- **Off on 1.4.x, stock behaviour**, also the operator's decision. k was
+  measured with the 1.3.7 tare-tap; the eddy path has a term of its own,
+  possible drift of the coil beside the nozzle, and has not been measured, so
+  the tap's k is not carried over to it. On eddy-only firmware nothing is
+  applied, with or without eddy data and whatever k is saved, there is no
+  opt-in, and the console says so on each print.
+- **An adjustment over 0.35 mm is refused**, not clamped: the hotend's whole
+  range at the highest rate measured is 0.32 mm, so a larger one is a mistyped
+  k.
+- **On 1.3.7, per-material `Z_ADJUST` values become residuals.** One tuned
+  with an earlier pack already holds the machine's growth for that material
+  and is now counted twice: return it to 0 and tune it again.
+- Rendered on Jinja 2.11.3 in both firmware files, every branch asserted,
+  the published value and a saved 0 included, and the 1.4.x path with and
+  without eddy data and with a saved k. Not yet run on a printer.
+
+### Bed preview and texture
+
+- **A real bed in the slicer preview.** `svzero_bed.stl` is now Sovol's own
+  CAD for the Zero's hotbed, with the two lead screws raised to a full-height
+  print, in place of the two-triangle square. It is 26,519 triangles
+  (1.3 MB), within 0.2 mm of the CAD on every visible surface. Provenance and credits: `assets/svzero_bed.CREDITS.md` and
+  `NOTICE`.
+- **A bed texture again**, now that the plate sits below it: Chinchill's
+  Sovol Zero buildplate texture (Printables 1263730, CC BY 4.0), unmodified.
+  Its white border marks the 152.4 mm build area on the larger plate.
+  PrusaSlicer and SuperSlicer get a copy with a 10 mm grid added, because
+  they draw no grid of their own once a texture is set; OrcaSlicer does,
+  over the plain copy.
+
 ## 2.1.1
 
 Profile behaviour changes in this release: accelerations scaled to the Zero's

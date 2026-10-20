@@ -27,6 +27,8 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 
 <p><img src="docs/images/stock-vs-pack.png" alt="Sovol's one stock profile against the pack's tiers on the 0.4 nozzle: speeds as run with the clamped requests in parentheses, infill flow, peak acceleration, corner velocity, X/Y microsteps and current"></p>
 
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
+
 <p>
 <img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">
 <img src="docs/images/bed-boost.png" width="49%" alt="Bed boost against none from a 27 C box: 13.3 minutes to the chamber soak against 25.6">
@@ -81,7 +83,7 @@ by this project.
 | Install | Gain | Without it |
 |---|---|---|
 | Profiles only | Nozzle/material settings, temperature waits, skirt | Uses stock Sovol start/end macros |
-| Firmware-matched macro pack | Chamber control, rear-sensor soak, brush routine, positioned purge, cancellation and bed cooldown | Profiles still use stock behavior |
+| Firmware-matched macro pack | Chamber control, rear-sensor soak, brush routine, positioned purge, first-layer nozzle growth compensation, cancellation and bed cooldown | Profiles still use stock behavior |
 | Preheat Python helper | Nozzle-air qualification, history-assisted waiting, bed boost (on by default) and bounded early handover | Native rear-sensor wait |
 | Spoolman helper | Material and remaining-filament check before heating | Check the spool yourself |
 | Fan/camera helpers | Additional telemetry or tuning for separately configured hardware/services | Core profiles do not require them |

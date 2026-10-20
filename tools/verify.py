@@ -43,14 +43,15 @@ def main():
         if version not in (ROOT/file).read_text():raise RuntimeError('Version mismatch: '+file)
     if 'hosts' in json.loads((ROOT/'source/model.json').read_text()):raise RuntimeError('Public model contains personal hosts')
     if (ROOT/'svzero-personal.cfg').exists() or (ROOT/'klipper/config/svzero-personal.cfg').exists():raise RuntimeError('Personal config must not ship')
-    provenance=json.loads((ROOT/'source/vendor-profiles/provenance.json').read_text())
-    for item in provenance['files']:
-        p=ROOT/'source/vendor-profiles'/item['path']
-        if hashlib.sha256(p.read_bytes()).hexdigest()!=item['sha256']:raise RuntimeError('Upstream checksum mismatch: '+item['path'])
+    # One provenance.json per pinned upstream: Sovol's Orca fork at the top, upstream OrcaSlicer under OrcaSlicer/.
+    for manifest in sorted((ROOT/'source/vendor-profiles').rglob('provenance.json')):
+        for item in json.loads(manifest.read_text())['files']:
+            p=manifest.parent/item['path']
+            if hashlib.sha256(p.read_bytes()).hexdigest()!=item['sha256']:raise RuntimeError('Upstream checksum mismatch: '+str(p.relative_to(ROOT)))
     document_links()
     run('-m','unittest','discover','-s','tests','-p','test_*.py')
     run('tools/validate-bundle.py')
-    macros=['nozzle_brush.cfg','chamber_fan.cfg','start_print.cfg','end_print.cfg','cancel_print.cfg','cooldown.cfg','purge_line.cfg','svzero_pack.cfg','filament_load.cfg','orca_compat.cfg']
+    macros=['nozzle_brush.cfg','chamber_fan.cfg','start_print.cfg','end_print.cfg','cancel_print.cfg','cooldown.cfg','purge_line.cfg','svzero_pack.cfg','filament_load.cfg','orca_compat.cfg','nozzle_growth.cfg']
     run('tools/check-macros.py',*['klipper/config/'+name for name in macros],'klipper/modes/svzero-mode-precision.cfg')
     run('tools/build-macros.py','--check')
     run('tools/check-macros.py','bundles/klipper/svzero-1.3.7.cfg','bundles/klipper/svzero-1.4.x.cfg')

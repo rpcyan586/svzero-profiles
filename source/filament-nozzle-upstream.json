@@ -1,0 +1,63 @@
+{
+  "_what": "Nozzle temperature, first-layer temperature and flow cap (filament_max_volumetric_speed) for the six Brass/Steel filament presets, taken from upstream OrcaSlicer's built-in Sovol Zero filaments: each Brass preset from 'Generic <material> @Sovol Zero', each Steel preset from 'Generic <material> @Sovol Zero Hardened Steel nozzle'. Extracted mechanically from the pinned copies in source/vendor-profiles/OrcaSlicer/ -- do not hand-edit. tools/generate.py stops the build if a value here differs from its pinned file.",
+  "_source": "OrcaSlicer main at fd28f6c1894a7fb09af2af0d8a8c935d98467e2d (2026-10-16), resources/profiles/Sovol/filament/. The values arrived in PR #15756 (https://github.com/OrcaSlicer/OrcaSlicer/pull/15756) by Eric McCann (GitHub nuclearmistake), merged 2026-09-23 as a8f1061a. Checksums and file history: source/vendor-profiles/OrcaSlicer/provenance.json.",
+  "_why": "Operator, 2026-10-18: use upstream Orca's temperatures plus flow caps for now. Since the 2026-09-06 (8M) merge each Brass/Steel pair had carried the SV08 MAX's one temperature, so choosing a nozzle changed nothing. Upstream keeps the pair apart in temperature and, on PLA only, in flow cap. Applied after source/filament-8m.json, so these three keys win on these six presets. Everything else 8M sets on them (pressure advance, flow ratio, retraction) still applies. ABS, PC and TPU, which neither Sovol nor upstream splits by nozzle, keep their 8M values.",
+  "_not_a_measurement": "Upstream's interim values, adopted as such. PR #15756 does not say which of its values came from prints, and no brass-against-steel flow or temperature measurement on any Sovol is known. Replace these with a flow-against-temperature test on the Zero's own 0.4 brass and Sovol's SKD11 0.4 steel nozzle once one exists.",
+  "_steel_pla_plus_20": "Steel PLA runs 20 C above brass (230, first layer 245, against 210 and 230). Nozzle makers claim +5 to +10 C for steel, and CNC Kitchen's one brass-against-steel test (E3D V6 0.4, 15 mm3/s) found steel's flow penalty gone above 215 C. Sovol's SV08 MAX PLA also prints at 230, and one owner measured a stock Max nozzle reading about 20 C high against a thermocouple (https://forum.sovol3d.com/t/8603/4). So the +20 may be a Max sensor offset carried into the Zero's steel profile rather than steel's conductivity [inferred]. Kept as upstream's number, not endorsed as one.",
+  "_brass_pla": "Brass PLA drops from 230 C, first layer 250 (the SV08 MAX's value, through 8M) to 210 C, first layer 230 (Sovol's original Zero value, which upstream kept), and its flow cap rises from 21 to 25 mm3/s. The operator's decision, 2026-10-18. Tiers are not re-derived: model.json flow_model still authors every tier against 21 mm3/s, and Draft's infill asks exactly that, so a 25 cap binds nothing and a 21 cap on Steel PLA is the one Draft was derived to meet.",
+  "_keys": {
+    "_what": "Pack key (the master's PrusaSlicer/SuperSlicer vocabulary) -> the upstream Orca key it is read from.",
+    "temperature": "nozzle_temperature",
+    "first_layer_temperature": "nozzle_temperature_initial_layer",
+    "filament_max_volumetric_speed": "filament_max_volumetric_speed"
+  },
+  "_source_profile": {
+    "SV Zero PLA - Brass": "Generic PLA @Sovol Zero",
+    "SV Zero PLA - Steel": "Generic PLA @Sovol Zero Hardened Steel nozzle",
+    "SV Zero PLA Silk - Brass": "Generic PLA Silk @Sovol Zero",
+    "SV Zero PLA Silk - Steel": "Generic PLA Silk @Sovol Zero Hardened Steel nozzle",
+    "SV Zero PETG - Brass": "Generic PETG @Sovol Zero",
+    "SV Zero PETG - Steel": "Generic PETG @Sovol Zero Hardened Steel nozzle"
+  },
+  "_replaces": {
+    "_what": "What each preset emitted before this table: temperature / first layer / flow cap, and where each came from.",
+    "SV Zero PLA - Brass": "230 / 250 from SOVOL SV08 MAX PLA (8M); 21 from presets.json (Sovol's Zero PLA Basic)",
+    "SV Zero PLA - Steel": "230 / 250 from SOVOL SV08 MAX PLA (8M); 21 inherited from PLA - Brass",
+    "SV Zero PLA Silk - Brass": "230 / 250 from SOVOL SV08 MAX Silk PLA - Hardened Steel (8M); 15 from presets.json",
+    "SV Zero PLA Silk - Steel": "230 / 250 from SOVOL SV08 MAX Silk PLA - Hardened Steel (8M); 15 inherited from PLA Silk - Brass",
+    "SV Zero PETG - Brass": "255 / 265 from SOVOL SV08 MAX PETG (8M); 15 from the PETG base",
+    "SV Zero PETG - Steel": "255 / 265 from SOVOL SV08 MAX PETG (8M); 15 from the PETG base"
+  },
+  "overrides": {
+    "SV Zero PLA - Brass": {
+      "temperature": "210",
+      "first_layer_temperature": "230",
+      "filament_max_volumetric_speed": "25"
+    },
+    "SV Zero PLA - Steel": {
+      "temperature": "230",
+      "first_layer_temperature": "245",
+      "filament_max_volumetric_speed": "21"
+    },
+    "SV Zero PLA Silk - Brass": {
+      "temperature": "220",
+      "first_layer_temperature": "245",
+      "filament_max_volumetric_speed": "15"
+    },
+    "SV Zero PLA Silk - Steel": {
+      "temperature": "230",
+      "first_layer_temperature": "245",
+      "filament_max_volumetric_speed": "15"
+    },
+    "SV Zero PETG - Brass": {
+      "temperature": "245",
+      "first_layer_temperature": "265",
+      "filament_max_volumetric_speed": "15"
+    },
+    "SV Zero PETG - Steel": {
+      "temperature": "250",
+      "first_layer_temperature": "265",
+      "filament_max_volumetric_speed": "15"
+    }
+  }
+}

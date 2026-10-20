@@ -1,6 +1,6 @@
 {
   "name": "SVZero",
-  "version": "02.01.01.00",
+  "version": "02.01.02.00",
   "force_update": "0",
   "description": "SV Zero profile pack \u2014 generated",
   "machine_model_list": [
@@ -275,6 +275,10 @@
     {
       "name": "SV Zero PC",
       "sub_path": "filament/SV Zero PC.json"
+    },
+    {
+      "name": "SV Zero PCTG",
+      "sub_path": "filament/SV Zero PCTG.json"
     },
     {
       "name": "SV Zero PETG - Brass",

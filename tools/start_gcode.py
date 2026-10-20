@@ -26,7 +26,7 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # notes/kb/spool-preflight.md.
 # Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
 # as plain strings and a mismatch only warns -- see the note in that file.
-SVZERO_PACK_VERSION = "2.1.1"
+SVZERO_PACK_VERSION = "2.1.2"
 # The machine mode these profiles are sliced for, compared with
 # _SVZERO_PACK.mode. Unlike the version, a mismatch REFUSES the job: a mode is
 # a machine configuration selected by an include and a restart, and a job
@@ -93,6 +93,16 @@ ORCA_CHAMBER_BLOCK = "\n".join([
     "{else}M191{endif}",
 ])
 
+# What the start G-code says about SVZERO_NOZZLE_GROWTH, in every slicer.
+NOZZLE_GROWTH_COMMENT = "\n".join([
+    ";  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first",
+    ";  layer than when START_PRINT took the Z reference. On as published on",
+    ";  1.3.7, the tare-tap; off on eddy-only 1.4.x, where it applies nothing.",
+    ";  SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.",
+    ";  Without the pack it is an unknown command, which Klipper reports and",
+    ";  steps over.",
+])
+
 ORCA_START_TAIL = "\n".join([
     "@@CLEAN_TEMP@@",
     # Consumed by END_PRINT, armed here: the policy has to be in RAM before the
@@ -107,8 +117,20 @@ ORCA_START_TAIL = "\n".join([
     # source/model.json by tools/generate.py (xy_current_block). After
     # START_PRINT, so homing and probing keep printer.cfg's current.
     "@@XY_CURRENT@@",
+    # Before any move or heat after START_PRINT, with the same placeholder as
+    # the M104 below. PrusaSlicer and SuperSlicer carry the same line in
+    # source/presets.json; tests/test_nozzle_growth.py holds all of them to it.
+    NOZZLE_GROWTH_COMMENT,
+    "SVZERO_NOZZLE_GROWTH TEMP=[nozzle_temperature_initial_layer]",
     "G90",
     "G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move",
+    # The per-machine Z offset placeholder the PrusaSlicer and SuperSlicer
+    # printer presets have carried since v1.0.2. Z_ADJUST adds to the current
+    # offset (gcode_move.py cmd_SET_GCODE_OFFSET), and START_PRINT's
+    # SET_GCODE_OFFSET Z=0 runs before it, so this composes with the
+    # filament's per-material stub rather than overwriting it. Edit the value
+    # in the machine preset for this printer; + means farther from the bed.
+    "SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1",
     "M104 S[nozzle_temperature_initial_layer]",
     "M109 S[nozzle_temperature_initial_layer]",
     "PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]"
