@@ -46,9 +46,14 @@ the runout check and the nozzle-clean dwell (see the [changelog](../CHANGELOG.md
   (`Z_ADJUST=0.143`), the purge ring, `END_PRINT` and the cooldown's hand-off.
   Draft sends no X/Y current, so `END_PRINT`'s restore ran with nothing
   lowered.
+- **A cancelled job on that Zero.** A file that only called
+  `SVZERO_XY_CURRENT CURRENT=2.4` and dwelt was started and cancelled from
+  Moonraker. X and Y read 2.41 A while it ran and 3.50 A after
+  `CANCEL_PRINT`, which also stopped the running cooldown and skipped its lift
+  and park on the unhomed machine.
 - **Not run on a printer:**
-  - `END_PRINT` and `CANCEL_PRINT` restoring a lowered X/Y current, which needs
-    a Fine to Strength job.
+  - `END_PRINT` restoring a lowered X/Y current, which needs a Fine to
+    Strength job.
   - `_PREFLIGHT` refusing with the sensor empty.
   - `SVZERO_SHAPER_CALIBRATE`.
   - The eddy-only off path, which has run only in rendering.
