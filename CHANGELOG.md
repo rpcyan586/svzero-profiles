@@ -23,6 +23,17 @@
 - **A filament preset copied from an earlier release still lacks the stub.**
   Copy it again from this release's preset.
 
+### Fixed: 1.4.x prints stopped with "Probe triggered prior to movement"
+
+- **On 1.4.x the macro pack's nozzle clean could stop a print** at its last
+  step, the contact tap at X30 Y30, with "Probe triggered prior to movement".
+  The pack went straight from the 150 mm/s move into
+  `RUN_PROBE_VIR_CONTACT`; Sovol's own `CLEAN_NOZZLE` waits 300 ms first, and
+  the eddy's contact detector fired before the move began.
+- **The clean now waits the same 300 ms** (`G4 P300`, `M400`) before the tap,
+  on both firmwares. Reported on a 1.4.7 Zero with no tare-tap hardware, and
+  confirmed fixed there.
+
 ### Fixed: SuperSlicer stopped PLA, PLA Silk and PETG jobs at the start
 
 - **SuperSlicer: PLA, PLA Silk and PETG no longer stop at the start.** The
