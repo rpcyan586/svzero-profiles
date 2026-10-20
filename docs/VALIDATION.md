@@ -28,11 +28,23 @@ the runout check and the nozzle-clean dwell (see the [changelog](../CHANGELOG.md
 - **Fixed on a 1.4.7 Zero.** The nozzle-clean dwell ended a "Probe triggered
   prior to movement" stop for an owner who applied it by hand.
 - **Bed preview** shown in all three slicers.
+- **Deployed to that 1.3.7 Zero and called live.** The macros rendered under
+  its own klippy-env (Jinja 2.11.3, Python 3.9) first.
+  - `START_PRINT` ran end to end: the nozzle clean with its dwell, then Sovol's
+    `Z_OFFSET_CALIBRATION` with the tare-tap's median-of-7 sampling, then the
+    mesh. It recorded the growth reference: 150 °C, tare-tap.
+  - `SVZERO_NOZZLE_GROWTH TEMP=280` then applied `Z_ADJUST=0.143`. A second
+    call applied nothing more.
+  - With no reference it applies nothing and says why.
+  - `SVZERO_XY_CURRENT` lowered X and Y to 2.4 A and refused 4.0 A.
+  - `SVZERO_SHAPER_TYPICAL` applied its values.
+  - `_PREFLIGHT` passed with filament at the sensor.
 - **Not run on a printer:**
-  - The 2.1.2 macro files have not been deployed as a set. In particular,
-    `SVZERO_NOZZLE_GROWTH` has not applied a lift on a printer.
-  - Its eddy-only off path has run only in rendering.
-  - The nozzle-clean dwell has not run on 1.3.7.
+  - A whole print on 2.1.2, so `END_PRINT` and `CANCEL_PRINT` restoring the
+    X/Y current.
+  - `_PREFLIGHT` refusing with the sensor empty.
+  - `SVZERO_SHAPER_CALIBRATE`.
+  - The eddy-only off path, which has run only in rendering.
 
 ## Candidate 2.1.1
 
