@@ -1,13 +1,13 @@
 # SV Zero profiles
 
-**[Download the latest release — v2.1.1](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.1.1)**
+**[Download the latest release — v2.1.2](https://github.com/rpcyan586/svzero-profiles/releases/tag/v2.1.2)**
 
-[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-orcaslicer.zip) ·
-[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-prusaslicer.zip) ·
-[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/svzero-profiles-2.1.1-superslicer.zip)
+[OrcaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.2/svzero-profiles-2.1.2-orcaslicer.zip) ·
+[PrusaSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.2/svzero-profiles-2.1.2-prusaslicer.zip) ·
+[SuperSlicer ZIP](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.2/svzero-profiles-2.1.2-superslicer.zip)
 
 [Source in Git](https://github.com/rpcyan586/svzero-profiles) ·
-[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.1/SHA256SUMS) ·
+[Checksums](https://github.com/rpcyan586/svzero-profiles/releases/download/v2.1.2/SHA256SUMS) ·
 [All releases](https://github.com/rpcyan586/svzero-profiles/releases)
 
 Each ZIP includes its installation guide and the optional printer macro pack.
