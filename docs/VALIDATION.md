@@ -39,9 +39,16 @@ the runout check and the nozzle-clean dwell (see the [changelog](../CHANGELOG.md
   - `SVZERO_XY_CURRENT` lowered X and Y to 2.4 A and refused 4.0 A.
   - `SVZERO_SHAPER_TYPICAL` applied its values.
   - `_PREFLIGHT` passed with filament at the sensor.
+- **A whole print on that Zero.** A 3DBenchy in ABS, sliced with this
+  release's OrcaSlicer presets (0.4 Draft, 0.25 mm layers), printed to
+  completion in 46 minutes on the 2.1.2 macros, with no per-material Z offset:
+  the spool check, the boosted M191 soak, `START_PRINT`, the lift
+  (`Z_ADJUST=0.143`), the purge ring, `END_PRINT` and the cooldown's hand-off.
+  Draft sends no X/Y current, so `END_PRINT`'s restore ran with nothing
+  lowered.
 - **Not run on a printer:**
-  - A whole print on 2.1.2, so `END_PRINT` and `CANCEL_PRINT` restoring the
-    X/Y current.
+  - `END_PRINT` and `CANCEL_PRINT` restoring a lowered X/Y current, which needs
+    a Fine to Strength job.
   - `_PREFLIGHT` refusing with the sensor empty.
   - `SVZERO_SHAPER_CALIBRATE`.
   - The eddy-only off path, which has run only in rendering.
@@ -225,8 +232,8 @@ do not instantiate every hardware object or verify mechanical clearances.
 - Optional macro-pack commissioning on other machines, especially brush pad
   geometry and the 1.4.x fan/probe path.
 
-The basic bed preview is an original schematic square, not a mechanical model.
-The beta does not include the earlier third-party bed graphics.
+The bed preview is Sovol's hotbed CAD, simplified, with the original schematic
+square kept as a fallback texture. Neither is a collision model.
 
 The optional Python modules are opt-in, not auto-installed dependencies. A
 configured feature can deliberately refuse a failed check; absence of a feature
