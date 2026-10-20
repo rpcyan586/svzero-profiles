@@ -191,10 +191,10 @@ end-retract bookkeeping.
 `SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
 first layer for the nozzle being hotter than when the Z reference was taken.
 On 1.3.7 it ships **on**, with a coefficient k measured with the tare-tap on
-the operator's Zero2, 0.67 µm/°C. The first layer moves farther from the bed
+the operator's Zero2, 1.1 µm/°C. The first layer moves farther from the bed
 by k × (first-layer temperature − the 150 °C probe temperature): about
-+0.05 mm at 230 °C, +0.07 mm at 250 °C, +0.08 mm at PETG's 265 °C and
-+0.09 mm at ABS's 280 °C. Each print logs one line with k, both temperatures
++0.09 mm at 230 °C, +0.11 mm at 250 °C, +0.13 mm at PETG's 265 °C and
++0.14 mm at ABS's 280 °C. Each print logs one line with k, both temperatures
 and the offset.
 
 - **Turn it off** on a machine with

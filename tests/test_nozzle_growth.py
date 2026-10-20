@@ -94,7 +94,7 @@ class NozzleGrowthTest(unittest.TestCase):
 
     def test_published_on_with_one_k_inside_the_guard(self):
         # Published on (operator, 2026-10-18): k is the operator's Zero2 value,
-        # run 10's mean, set once in nozzle_growth.cfg. A machine turns it off
+        # from runs 12 and 13 (2026-10-19), set once in nozzle_growth.cfg. A machine turns it off
         # with a saved 0; check-macros renders that and the published branch.
         text = GROWTH.read_text(encoding="utf-8")
         ks = re.findall(r"(?m)^variable_mm_per_c:\s*(\S+)\s*$", text)
@@ -102,12 +102,12 @@ class NozzleGrowthTest(unittest.TestCase):
         k = float(ks[0])
         self.assertGreater(k, 0)
         guard = re.search(r"(?m)^variable_max_adjust:\s*(\S+)\s*$", text)
-        self.assertEqual(float(guard.group(1)), 0.25)
+        self.assertEqual(float(guard.group(1)), 0.35)
         # The whole hotend, 130 C calibrator default to 355 C max_temp, stays
         # inside the guard at the published k, so it can never refuse itself.
-        self.assertLess(k * (355 - 130), 0.25)
+        self.assertLess(k * (355 - 130), float(guard.group(1)))
         self.assertNotIn("PROVISIONAL", text)
-        self.assertRegex(text, r"run 10[^\n]*\n(#[^\n]*\n)*variable_mm_per_c:")
+        self.assertRegex(text, r"run 13[^\n]*\n(#[^\n]*\n)*variable_mm_per_c:")
         # Only nozzle_growth.cfg states it, so the final value is one edit.
         for path in [*ROOT.glob("klipper/**/*.cfg"), *ROOT.glob("tools/*.py"),
                      *ROOT.glob("tests/*.py"), *ROOT.glob("docs/**/*.md"),

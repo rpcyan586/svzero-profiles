@@ -214,7 +214,7 @@ def check(path):
     # checked on its own renders the reference bookkeeping, not only the
     # not-installed branch, which "growth-absent" renders by removing it.
     settings.setdefault("gcode_macro _NOZZLE_GROWTH",
-                        Mock(mm_per_c=0.0, max_adjust=0.25, ref_temp=-1.0,
+                        Mock(mm_per_c=0.0, max_adjust=0.35, ref_temp=-1.0,
                              ref_source="none", applied=0.0))
     printer = Mock(settings)
     printer.update({
@@ -1579,7 +1579,7 @@ def check(path):
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "guard"):
                 ["RESPOND TYPE=error",
                  "refused: k=0.008 mm/C x (first layer 280.0C - reference 150.0C) = 1.04 mm,"
-                 " beyond the 0.25 mm bound"],
+                 " beyond the 0.35 mm bound"],
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "repeat"): "already applied 0.104 mm this job",
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "retarget"):
                 ["SET_GCODE_OFFSET Z_ADJUST=-0.024 MOVE=1",

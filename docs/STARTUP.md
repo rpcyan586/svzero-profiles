@@ -79,17 +79,17 @@ reports k, both temperatures and the result. The source is
 
 **On as published on 1.3.7, off on 1.4.x.** The pack's k,
 `variable_mm_per_c` in `_NOZZLE_GROWTH`, was measured with the tare-tap on the
-operator's Zero2, run 10 below. On the 1.3.7 tare-tap path, against the
+operator's Zero2, runs 12 and 13 below. On the 1.3.7 tare-tap path, against the
 150 °C probe temperature, it moves the first layer farther from the plate by:
 
 | First layer | Presets | Offset |
 |---|---|---|
-| 230 °C | PLA - Brass | +0.05 mm |
-| 245 °C | PLA - Steel, PLA Silk | +0.06 mm |
-| 250 °C | TPU | +0.07 mm |
-| 260 °C | PCTG | +0.07 mm |
-| 265 °C | PETG | +0.08 mm |
-| 280 °C | ABS, PC | +0.09 mm |
+| 230 °C | PLA - Brass | +0.09 mm |
+| 245 °C | PLA - Steel, PLA Silk | +0.10 mm |
+| 250 °C | TPU | +0.11 mm |
+| 260 °C | PCTG | +0.12 mm |
+| 265 °C | PETG | +0.13 mm |
+| 280 °C | ABS, PC | +0.14 mm |
 
 k belongs to one machine's nozzle, heater block and probe, so on any other Zero
 it is an estimate. Turn it off on a machine, or use that machine's own k, with
@@ -111,11 +111,28 @@ Above 190 °C plastic on the tip spoiled the run. A later run on the same
 machine, 150 to 280 °C and back, fit 0.8–1.1 µm/°C with residue on the tip
 still in play. Run 10, with the tip cleaned by hand and nothing loaded,
 tapped 8 untouched plate spots once at 150 °C and once at 280 °C, half of
-them hot first so a slow drift cancels: 0.67 µm/°C mean, standard error
-0.05. That is the published k. At that rate an ABS first layer at 280 °C
-against a 150 °C reference sits about 0.09 mm closer than calibrated.
+them hot first so a slow drift cancels: 0.67 µm/°C.
 
-**How it compares.** Contact-probe measurements elsewhere land close:
+Those spots turned out to be far from the tare-tap's sensor. In Sovol's CAD
+it sits under the hotbed's front-left corner screw, near X23 Y24, and a tap
+far from it needs more force before it triggers. Two later runs worked close
+to it:
+- **Run 12** repeated run 10 on the plate's front margin, just outside the
+  print area beside the sensor: 1.13 µm/°C, standard error 0.13.
+- **Run 13** checked the result rather than the probe. Four single-layer
+  squares were printed with the first layer lifted for k = 0.67, 1.0, 1.3 and
+  1.6, and the plate and each square were tapped cold at the same points.
+  - The 0.67 and 1.0 squares came out over-squished, with raised edges and
+    stripes.
+  - The 1.3 square was flat at 0.273 mm for a 0.25 mm layer: 0.147 mm of
+    growth from 150 to 280 °C, 1.13 µm/°C.
+  - The 1.6 square was barely thicker, its bead no longer reaching the
+    nozzle.
+
+The published k is 1.1 µm/°C. At that rate an ABS first layer at 280 °C
+against a 150 °C reference sits about 0.14 mm closer than calibrated.
+
+**How it compares.** Other hotends measure less:
 - **garethky**, a Klipper load-cell developer, on his own printer (a load cell
   in the toolhead, a clean nozzle, a bare plate):
   - 0.67 µm/°C from 150 to 260 °C;
@@ -130,9 +147,15 @@ against a 150 °C reference sits about 0.09 mm closer than calibrated.
     ([source](https://github.com/prusa3d/Prusa-Firmware-Buddy/blob/master/src/feature/nozzle_thermal_compensation/nozzle_thermal_compensation.hpp)).
   - Creality's K2 config reaches 0.05 mm at 260 °C
     ([printer.cfg](https://github.com/CrealityOfficial/K2_Series_Klipper/blob/main/config/F021_CR0CN200400C10/printer.cfg)).
-- **Fixed offsets are about the size of this pack's lifts.** The Creality K1
-  family adds 0.05–0.09 mm, and Beacon's example start macro adds 0.06 mm
+- **Fixed offsets elsewhere** are 0.05–0.09 mm on the Creality K1 family and
+  0.06 mm in Beacon's example start macro
   ([docs](https://docs.beacon3d.com/contact/)).
+- **The Zero's hotend is held rigidly only at its lower screw**, with the top
+  left free to slide as the heat sink grows; one owner measured the heat sink
+  at 72–73 °C after half an hour of ABS at 270 °C
+  ([Sovol forum, 2026](https://forum.sovol3d.com/t/10399)). More of the hot
+  assembly than the nozzle may lengthen, which would explain a higher k. Run 13
+  does not depend on that: it measured the printed first layer itself.
 
 | Firmware | Z reference | Compensation |
 |---|---|---|
@@ -181,12 +204,12 @@ pack updates.
   measured, and not modelled. Nor has 1.4.x's virtual contact, itself an eddy
   measurement, been checked as an instrument for step 4. Until both are, the
   tare-tap's k is not applied to an eddy reference.
-- **Bounded.** An adjustment over 0.25 mm is refused with an error line, and
-  nothing is applied. The hotend's whole range, 130 to 355 °C at 0.9 µm/°C, is
-  0.20 mm, so a larger value is a mistyped k or a wrong reference rather than
-  growth. `variable_max_adjust` in `_NOZZLE_GROWTH` sets the bound.
+- **Bounded.** An adjustment over 0.35 mm is refused with an error line, and
+  nothing is applied. The hotend's whole range, 130 to 355 °C at the highest
+  single-spot rate measured, 1.41 µm/°C, is 0.32 mm, so a larger value is a
+  mistyped k or a wrong reference rather than growth. `variable_max_adjust` in `_NOZZLE_GROWTH` sets the bound.
 - **First layer only.** Later layers keep the first layer's offset; a 10 °C
-  difference between them is 7 µm at 0.67 µm/°C. A second call in the same job
+  difference between them is 11 µm at 1.1 µm/°C. A second call in the same job
   applies only the difference from the first.
 
 ## Sources

@@ -53,8 +53,8 @@ for shutdown and cancellation.
 
 Nozzle growth compensation ships on for 1.3.7. It offsets the first layer for
 the nozzle being hotter than when Z was referenced, with a coefficient
-measured with the tare-tap on one Zero: about +0.05 mm farther from the bed
-at 230 °C up to +0.09 mm at 280 °C. Each print logs one line with the
+measured with the tare-tap on one Zero: about +0.09 mm farther from the bed
+at 230 °C up to +0.14 mm at 280 °C. Each print logs one line with the
 numbers. `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0` turns it off
 on a machine; store your own measured value, in mm per °C, the same way.
 Per-filament Z offsets tuned before become residuals: return them to 0 and

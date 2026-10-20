@@ -173,15 +173,20 @@ Sliced in all three slicers; not yet printed.
 
 ### Nozzle growth compensation, on by default on 1.3.7, off on 1.4.x
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches further down: eight untouched plate spots on one Zero, each tapped at 150 and 280 C, the fitted rate against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift the macro pack applies to each material, and the rate against garethky's load-cell measurement, RatOS's default and warning band, and Prusa's firmware model"></p>
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
 
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
 1.3.7 tare-tap path the reference is the 150 °C probe temperature and ABS's
-first layer runs at 280 °C. On the operator's Zero2, with the tip cleaned by
-hand and nothing loaded, 8 untouched plate spots tapped once at 150 °C and
-once at 280 °C gave 0.67 µm/°C (standard error 0.05); earlier runs with residue
-on the tip read 0.75–1.1.
+first layer runs at 280 °C. On the operator's Zero2 the nozzle reaches about
+0.15 mm further down at 280 °C than at 150 °C:
+- **Taps beside the tare-tap's sensor**, 150 and 280 °C pairs on untouched
+  spots, gave 1.13 µm/°C. Earlier pairs read 0.67, but they sat far from the
+  sensor, which Sovol's CAD puts under the hotbed's front-left corner.
+- **Printed single-layer squares** settled it. Squares lifted for k = 0.67 and
+  1.0 came out over-squished; the one lifted for 1.3 was flat at 0.273 mm for
+  a 0.25 mm layer, which is 1.13 µm/°C.
+- **The published k is 1.1 µm/°C.**
 
 - **`SVZERO_NOZZLE_GROWTH TEMP=<first-layer temperature>`** offsets Z by
   k × (first-layer − reference temperature), + farther from the plate, and
@@ -192,8 +197,8 @@ on the tip read 0.75–1.1.
   measured with the tare-tap on the operator's Zero2, and set in one
   place, `variable_mm_per_c` in `nozzle_growth.cfg`. On 1.3.7, against the
   150 °C probe temperature, the first layer moves farther from the bed by
-  about +0.05 mm at 230 °C (PLA - Brass), +0.07 mm at 250 °C, +0.08 mm at
-  PETG's 265 °C and +0.09 mm at ABS's and PC's 280 °C.
+  about +0.09 mm at 230 °C (PLA - Brass), +0.11 mm at 250 °C, +0.13 mm at
+  PETG's 265 °C and +0.14 mm at ABS's and PC's 280 °C.
 - **Turn it off on a machine** with
   `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`, or **use that
   machine's own k** by storing it the same way, in mm per °C. A saved value
@@ -207,8 +212,9 @@ on the tip read 0.75–1.1.
   the tap's k is not carried over to it. On eddy-only firmware nothing is
   applied, with or without eddy data and whatever k is saved, there is no
   opt-in, and the console says so on each print.
-- **An adjustment over 0.25 mm is refused**, not clamped: the hotend's whole
-  range at the measured rate is 0.20 mm, so a larger one is a mistyped k.
+- **An adjustment over 0.35 mm is refused**, not clamped: the hotend's whole
+  range at the highest rate measured is 0.32 mm, so a larger one is a mistyped
+  k.
 - **On 1.3.7, per-material `Z_ADJUST` values become residuals.** One tuned
   with an earlier pack already holds the machine's growth for that material
   and is now counted twice: return it to 0 and tune it again.
