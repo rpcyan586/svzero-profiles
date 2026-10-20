@@ -26,7 +26,7 @@ begin with it. `scripts/test-install-presets.py` asserts that.
 # notes/kb/spool-preflight.md.
 # Bump alongside _SVZERO_PACK.version in svzero_pack.cfg. The two are compared
 # as plain strings and a mismatch only warns -- see the note in that file.
-SVZERO_PACK_VERSION = "2.1.1"
+SVZERO_PACK_VERSION = "2.1.2"
 # The machine mode these profiles are sliced for, compared with
 # _SVZERO_PACK.mode. Unlike the version, a mismatch REFUSES the job: a mode is
 # a machine configuration selected by an include and a restart, and a job

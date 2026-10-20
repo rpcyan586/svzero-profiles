@@ -1,5 +1,39 @@
 # Validation and known limitations
 
+## Candidate 2.1.2
+
+The offline suite passes **218 tests**, with macro rendering on Jinja 2.11.3
+and a clean deterministic rebuild. PS vendor `2.1.2`, Orca `02.01.02.00`.
+Profile behaviour changes: the filament start G-code now runs in PrusaSlicer
+and SuperSlicer, SuperSlicer's tool name, scarf seams, upstream OrcaSlicer's
+Brass and Steel temperatures and flow, PCTG, and the per-machine Z line in
+OrcaSlicer's start G-code. The macro pack adds nozzle growth compensation,
+the runout check and the nozzle-clean dwell (see the [changelog](../CHANGELOG.md)).
+
+- **Sliced.** The full matrix produced G-code in SuperSlicer 2.7.62,
+  PrusaSlicer 2.9.6 and OrcaSlicer 2.4.2, with no refused key. It covers 30
+  slices, every nozzle, tier, filament and test object at least once. Every
+  row matched the baseline recorded for this release.
+- **Printed on a 1.3.7 Zero.** Single-layer ABS squares sliced with this
+  release's PrusaSlicer presets (0.4 Standard, SV Zero ABS) printed through
+  the 2.1.2 start G-code on 2.1.1-era macros. `SVZERO_NOZZLE_GROWTH` and
+  `SVZERO_XY_CURRENT` were unknown there, and Klipper stepped over them as
+  documented.
+- **Nozzle growth measured on that machine** (see the
+  [startup guide](STARTUP.md#nozzle-growth-compensation)):
+  - Tap pairs beside the tare-tap's sensor gave 1.13 µm/°C.
+  - Squares printed with lifts for k = 0.67 and 1.0 came out over-squished.
+    The square for 1.3 was flat at 0.273 mm for a 0.25 mm layer.
+  - The published k is 1.1.
+- **Fixed on a 1.4.7 Zero.** The nozzle-clean dwell ended a "Probe triggered
+  prior to movement" stop for an owner who applied it by hand.
+- **Bed preview** shown in all three slicers.
+- **Not run on a printer:**
+  - The 2.1.2 macro files have not been deployed as a set. In particular,
+    `SVZERO_NOZZLE_GROWTH` has not applied a lift on a printer.
+  - Its eddy-only off path has run only in rendering.
+  - The nozzle-clean dwell has not run on 1.3.7.
+
 ## Candidate 2.1.1
 
 The offline suite passes **195 tests**, with macro rendering on Jinja 2.11.3

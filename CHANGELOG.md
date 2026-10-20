@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.2
 
 ### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code
 
