@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed: a chamber dip mid-print stopped the exhaust loop
+
+- **The chamber loop no longer turns itself off while the bed or a chamber
+  heater is on.** Once the chamber had reached its target, a reading 5 °C
+  under it (`ch_auto_off`) stopped the loop and the exhaust for good, even
+  mid-print. Opening the door was enough, and the chamber then ran
+  uncontrolled for the rest of the print. Auto-off is meant for after the
+  print, so it now waits until the bed target is 0, and the chamber heater's
+  too where one is fitted. A print that ends with a cooldown ramp is
+  unaffected: the ramp stops the loop itself.
+
 ## 2.1.2
 
 ### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code

@@ -615,6 +615,17 @@ def check(path):
                  {"observer_source": 1, "proxy_valid": 1,
                   "proxy_anchor": 41.2, "stock_anchor": 45.4},
                  {"power": 0.5}),
+                # A primed loop 6 C under its 32 C target. Mid-print (bed on)
+                # that is a door opened, not the end of a print.
+                ("dip-bed-on", params, "", {"primed": 1}, {},
+                 {"temperature_sensor chamber_temp": Mock(temperature=26.0)}),
+                ("dip-bed-off", params, "", {"primed": 1}, {},
+                 {"temperature_sensor chamber_temp": Mock(temperature=26.0),
+                  "heater_bed": Mock(temperature=60.0, target=0.0)}),
+                ("dip-chamber-heater", params, "", {"primed": 1}, {},
+                 {"temperature_sensor chamber_temp": Mock(temperature=26.0),
+                  "heater_bed": Mock(temperature=60.0, target=0.0),
+                  "heater_generic chamber_heater": Mock(temperature=26.0, target=40.0)}),
             ]
         # These pass None for params: klipper_params derives them from the raw
         # command line below, the way the dispatcher actually would.
@@ -2074,6 +2085,14 @@ def check(path):
                 forbid[(s, label)] = 'TEMPERATURE_WAIT SENSOR="temperature_sensor chamber_temp"'
             expect[(s, "without-python")] = 'TEMPERATURE_WAIT SENSOR="temperature_sensor chamber_temp" MINIMUM=30.0'
             forbid[(s, "without-python")] = "CHAMBER_PREHEAT_WAIT"
+        if s == "gcode_macro _CHAMBER_LOOP":
+            # Auto-off waits for the heat sources: a dip with the bed or the
+            # chamber heater on keeps the loop running and re-armed.
+            for label in ("dip-bed-on", "dip-chamber-heater"):
+                expect[(s, label)] = "UPDATE_DELAYED_GCODE ID=CHAMBER_TIMER DURATION=15"
+                forbid[(s, label)] = "_CHAMBER_OFF"
+            expect[(s, "dip-bed-off")] = "_CHAMBER_OFF"
+            forbid[(s, "dip-bed-off")] = "UPDATE_DELAYED_GCODE ID=CHAMBER_TIMER DURATION=15"
         scenarios = [sc if len(sc) == 6 else sc + ({},) for sc in scenarios]
 
         for label, scenario_params, scenario_rawparams, state_patch, extruder_patch, printer_patch in scenarios:
