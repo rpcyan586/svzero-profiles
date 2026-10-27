@@ -13,6 +13,24 @@
   too where one is fitted. A print that ends with a cooldown ramp is
   unaffected: the ramp stops the loop itself.
 
+### Changed: square corner velocity raised at the fine end
+
+- **Precision 4, Fine 5, Optimal 6, Standard 7** (were 1, 3, 4 and 5).
+  Strength (5) and Draft (9) are unchanged.
+- **Why:** square corner velocity limits curves as well as corners. Klipper
+  caps the speed at every joint of a faceted curve, by SCV and the joint's
+  angle, and the acceleration doesn't enter into it. So a low value slows
+  every round feature.
+- **Measured offline, not printed.** We ran Klipper's corner formula over
+  Precision 0.4 G-code for small test pins. Outer walls the slicer sends at
+  44 mm/s averaged 9-20 mm/s at SCV 1 and 18-39 mm/s at 4; the acceleration
+  alone allows 19-42. Thanks to corgi108 for pointing at it.
+- **Standard is no longer stock's 5.** OrcaSlicer's bundled Klipper profiles
+  that set it per tier use about 7-8 on outer walls at every quality, and
+  none goes below 4.
+- **Not yet printed.** The visible effect on corners and curves still needs
+  an A/B print.
+
 ## 2.1.2
 
 ### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code
