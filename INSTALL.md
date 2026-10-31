@@ -306,6 +306,10 @@ prefer one.
 On a machine whose crowsnest camera is `/dev/null`, such as one running go2rtc,
 it reports that and does nothing.
 
+A Sovol OTA or factory reset replaces `printer.cfg`, so add the include back
+afterwards. Neither touches `camera_auto.py`, its state file or
+`crowsnest.conf`, so the camera keeps its last settings meanwhile.
+
 `CAMERA_AUTO_RESET` forgets the learned reference. To remove the extra, remove
 its include, put back `crowsnest.conf.camera-auto-orig` if you want crowsnest's
 old line, and restart while idle.
