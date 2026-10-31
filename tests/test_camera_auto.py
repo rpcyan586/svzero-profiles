@@ -48,6 +48,12 @@ class StartPhaseTests(unittest.TestCase):
         self.assertEqual((new, ratio), (240, 2.0))
         self.assertEqual(C.start_exposure(500, 5, 60, 60, 2.0, 20, 600)[0], 600)
 
+    def test_the_response_exponent_damps_the_step(self):
+        # Zero1's MGS1 at brightness 0: the median goes as exposure ** 1.4, so
+        # doubling the median takes 2 ** (1 / 1.4) = 1.64x the exposure, not 2x.
+        new, ratio, _ = C.start_exposure(120, 30, 60, 60, 2.0, 20, 600, 1.4)
+        self.assertEqual((new, ratio), (197, 1.641))
+
     def test_first_run_meters_toward_the_target(self):
         new, _, goal = C.start_exposure(120, 40, None, 60, 2.0, 20, 600)
         self.assertEqual((new, goal), (180, 60))
@@ -100,6 +106,11 @@ class WhiteBalanceTests(unittest.TestCase):
 
 class CrowsnestTests(unittest.TestCase):
     managed = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=0, exposure_time_absolute=150)
+
+    def test_brightness_is_managed_and_set_before_exposure(self):
+        value = C.merge_v4l2ctl("brightness=64,contrast=32", dict(self.managed, brightness=0))
+        self.assertEqual(value, "contrast=32,auto_exposure=1,exposure_dynamic_framerate=0,"
+                                "brightness=0,gain=0,exposure_time_absolute=150")
 
     def test_gates_come_before_values_and_unmanaged_entries_stay(self):
         value = C.merge_v4l2ctl("brightness=10,exposure_time_absolute=999,auto_exposure=3", self.managed)

@@ -25,6 +25,13 @@ trap). The start phase never searches: it only restores the plate's brightness
 to what the end phase chose with a real part in frame, by a bounded ratio. The
 end phase is where clipping can bind, because there is something on the plate.
 
+WHAT IS MEASURED is a fixed crop of the frame, `roi`, not the plate: the bed
+moves in Z, so the plate moves through the frame. The two phases still compare
+like with like, because the bed does not move between one print's end and the
+next one's start. brightness is pinned (an additive offset would swamp the
+exposure signal), and the start's correction allows for the median growing
+roughly as exposure ** response_exponent (camera_auto.cfg has the sweep).
+
 White balance stays on the camera's automatic unless neutral_patch names a
 region that is grey in this unit's view. A plate is not grey (gold PEI), so
 without a patch any correction would chase the sheet, not the light.
@@ -49,7 +56,7 @@ except ImportError:  # the pure functions below still import for tests
 # white_balance_temperature until white_balance_automatic=0, and a value written
 # to an inactive control is silently dropped (notes/runbook-webcam.md).
 MANAGED_ORDER = ("auto_exposure", "exposure_dynamic_framerate",
-                 "white_balance_automatic", "gain",
+                 "white_balance_automatic", "brightness", "gain",
                  "white_balance_temperature", "exposure_time_absolute")
 
 
@@ -93,11 +100,13 @@ def temporal_noise(lum_a, lum_b):
     return round(float(np.abs(lum_a - lum_b).mean()), 3)
 
 
-def start_exposure(exposure, median, reference, target, max_step, lo, hi):
+def start_exposure(exposure, median, reference, target, max_step, lo, hi, response=1.0):
     """The start phase's correction: back to the reference brightness, or to the
-    target when there is none, by a ratio bounded to max_step either way."""
+    target when there is none. The plate median goes roughly as exposure to the
+    power `response`, so exposure moves by the brightness ratio to 1/response,
+    bounded to max_step either way."""
     goal = reference if reference else target
-    ratio = clamp(goal / max(median, 1.0), 1.0 / max_step, max_step)
+    ratio = clamp((goal / max(median, 1.0)) ** (1.0 / response), 1.0 / max_step, max_step)
     return int(clamp(round(exposure * ratio), lo, hi)), round(ratio, 3), goal
 
 
@@ -205,7 +214,7 @@ class CameraAuto:
         self.cam = config.get("cam", "1")
         self.device_cfg = config.get("device", "")
         self.snapshot_url = config.get("snapshot_url", "http://127.0.0.1:8080/?action=snapshot")
-        self.roi = self._box(config, "roi", "0.16,0.40,0.78,0.71")
+        self.roi = self._box(config, "roi", "0.10,0.10,0.90,0.90")
         patch = config.get("neutral_patch", "")
         self.patch = self._box(config, "neutral_patch", patch) if patch else None
         self.lo = config.getint("exposure_min", 20, minval=1, maxval=5000)
@@ -219,6 +228,8 @@ class CameraAuto:
         self.max_step = config.getfloat("start_max_step", 2.0, minval=1.0, maxval=4.0)
         self.bracket_step = config.getfloat("end_bracket_step", 1.4, minval=1.05, maxval=2.0)
         self.gain = config.getint("gain", 0, minval=0, maxval=100)
+        self.brightness = config.getint("brightness", 0, minval=-64, maxval=64)
+        self.response = config.getfloat("response_exponent", 1.4, minval=0.5, maxval=3.)
         self.wb_slope = config.getfloat("wb_slope", 0.27, above=0.)
         self.settle = config.getfloat("settle_seconds", 0.8, minval=0.2, maxval=5.)
         self.budget = config.getfloat("max_seconds", 30., minval=5., maxval=120.)
@@ -313,7 +324,7 @@ class CameraAuto:
                 break
             s = self._measure(device, exposure)
             new, ratio, goal = start_exposure(exposure, s["median"], reference, self.target,
-                                              self.max_step, self.lo, self.hi)
+                                              self.max_step, self.lo, self.hi, self.response)
             steps.append(dict(exposure=exposure, median=s["median"], clip=s["clip"], ratio=ratio, next=new))
             if abs(s["median"] - goal) <= 0.1 * goal or new == exposure:
                 break
@@ -393,7 +404,8 @@ class CameraAuto:
         return dev
 
     def _gates(self, device):
-        gates = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain)
+        gates = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
+                     brightness=self.brightness)
         if self.patch:
             gates["white_balance_automatic"] = 0
         self._set(device, **gates)
@@ -453,7 +465,7 @@ class CameraAuto:
         backup of the original exists. Crowsnest applies v4l2ctl each time its
         stream starts (libs/v4l2_control.sh), so a restart starts here."""
         managed = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
-                       exposure_time_absolute=exposure)
+                       brightness=self.brightness, exposure_time_absolute=exposure)
         if wb is not None:
             managed.update(white_balance_automatic=0, white_balance_temperature=wb)
         with open(self.conf_path) as f:

@@ -275,10 +275,11 @@ ships: `v4l2-ctl`, `ffmpeg`, crowsnest's snapshot and NumPy in klippy-env.
    into `~/printer_data/config/svzero/`.
 2. Add `[include svzero/camera_auto.cfg]` after the pack's includes and restart
    the Klipper service while idle.
-3. Check its plate region. Open `http://<printer>:8080/?action=snapshot`: the
-   frame is upside down, as the camera is. `roi` in `camera_auto.cfg` is the
-   plate as fractions of that frame. The default is one unit's measured plate,
-   and mounts differ.
+3. Check what it measures. Open `http://<printer>:8080/?action=snapshot`: the
+   frame is upside down, as the camera is. `roi` in `camera_auto.cfg` is a crop
+   of that frame, as fractions. It is not the plate, which moves with the bed's
+   Z. The default keeps the central 80%; crop further to drop the room seen
+   through the door and lid in your view.
 
 What it does, once installed:
 
