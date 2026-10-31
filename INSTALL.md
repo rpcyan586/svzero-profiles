@@ -293,10 +293,18 @@ What it does, once installed:
   that on every start, so a restart begins there too. The original file is
   kept once as `crowsnest.conf.camera-auto-orig`.
 
-It moves, heats and lights nothing, and runs no G-code. White balance stays
-automatic unless you give it a `neutral_patch`, a region of the frame that is
-grey. On a machine whose crowsnest camera is `/dev/null`, such as one running
-go2rtc, it reports that and does nothing.
+It moves, heats and lights nothing, and runs no G-code.
+
+It also turns the camera's automatic white balance on and keeps it on, in
+`crowsnest.conf` too. A fixed white balance is where the stock camera's green
+cast comes from: under the stock LED bar no manual temperature is neutral. The
+camera's own AWB makes the dark-grey interior neutral within a couple of
+seconds. Each result line reports the interior's colour as a check, and
+`white_balance_temperature` in `camera_auto.cfg` pins a manual value if you
+prefer one.
+
+On a machine whose crowsnest camera is `/dev/null`, such as one running go2rtc,
+it reports that and does nothing.
 
 `CAMERA_AUTO_RESET` forgets the learned reference. To remove the extra, remove
 its include, put back `crowsnest.conf.camera-auto-orig` if you want crowsnest's

@@ -3,7 +3,7 @@
 
 The extra itself runs on a printer; what is tested here is everything that
 decides: the start phase's bounded correction, the end phase's pick, the
-dark-plate trap, the white-balance step, and the one line of crowsnest.conf
+dark-plate trap, the colour check, and the one line of crowsnest.conf
 it may change. Frame statistics need NumPy and are skipped without it.
 """
 import importlib.util
@@ -96,12 +96,30 @@ class EndPhaseTests(unittest.TestCase):
         self.assertEqual(best["exposure"], 428)
 
 
-class WhiteBalanceTests(unittest.TestCase):
-    def test_a_blue_patch_raises_the_temperature_and_steps_are_bounded(self):
-        self.assertEqual(C.wb_step(1.054, 4000, 0.27, 1000, 2800, 6500), 4200)
-        self.assertEqual(C.wb_step(0.9, 4000, 0.27, 1000, 2800, 6500), 3630)
-        self.assertEqual(C.wb_step(2.0, 4000, 0.27, 1000, 2800, 6500), 5000)
-        self.assertEqual(C.wb_step(2.0, 6000, 0.27, 1000, 2800, 6500), 6500)
+class ColourTests(unittest.TestCase):
+    def test_neutral_within_tolerance(self):
+        # AWB on Zero1's interior, 2026-10-31.
+        self.assertEqual(C.colour_note(1.03, 0.99, 0.15), "colour neutral (R/G 1.03 B/G 0.99)")
+
+    def test_the_stock_green_cast_is_named(self):
+        # Manual 4600 K under the stock LED bar, the same interior.
+        self.assertEqual(C.colour_note(0.33, 0.81, 0.15), "colour cast green (R/G 0.33 B/G 0.81)")
+        self.assertEqual(C.colour_note(1.3, 0.8, 0.15), "colour cast red (R/G 1.30 B/G 0.80)")
+        self.assertEqual(C.colour_note(0.8, 1.3, 0.15), "colour cast blue (R/G 0.80 B/G 1.30)")
+
+    def test_unmeasured_says_so(self):
+        self.assertEqual(C.colour_note(None, 0.9, 0.15), "colour unmeasured")
+
+    def test_awb_drops_a_stale_temperature_and_a_pin_writes_gates_first(self):
+        base = dict(auto_exposure=1, exposure_dynamic_framerate=0, exposure_time_absolute=300)
+        self.assertEqual(C.merge_v4l2ctl("white_balance_temperature=4000,white_balance_automatic=0",
+                                         dict(base, white_balance_automatic=1)),
+                         "auto_exposure=1,exposure_dynamic_framerate=0,"
+                         "white_balance_automatic=1,exposure_time_absolute=300")
+        self.assertEqual(C.merge_v4l2ctl("", dict(base, white_balance_automatic=0,
+                                                  white_balance_temperature=5000)),
+                         "auto_exposure=1,exposure_dynamic_framerate=0,white_balance_automatic=0,"
+                         "white_balance_temperature=5000,exposure_time_absolute=300")
 
 
 class CrowsnestTests(unittest.TestCase):
@@ -113,8 +131,8 @@ class CrowsnestTests(unittest.TestCase):
                                 "brightness=0,gain=0,exposure_time_absolute=150")
 
     def test_gates_come_before_values_and_unmanaged_entries_stay(self):
-        value = C.merge_v4l2ctl("brightness=10,exposure_time_absolute=999,auto_exposure=3", self.managed)
-        self.assertEqual(value, "brightness=10,auto_exposure=1,exposure_dynamic_framerate=0,"
+        value = C.merge_v4l2ctl("contrast=24,exposure_time_absolute=999,auto_exposure=3", self.managed)
+        self.assertEqual(value, "contrast=24,auto_exposure=1,exposure_dynamic_framerate=0,"
                                 "gain=0,exposure_time_absolute=150")
 
     def test_adds_the_line_after_device_and_touches_nothing_else(self):

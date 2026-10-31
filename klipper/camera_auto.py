@@ -32,9 +32,14 @@ next one's start. brightness is pinned (an additive offset would swamp the
 exposure signal), and the start's correction allows for the median growing
 roughly as exposure ** response_exponent (camera_auto.cfg has the sweep).
 
-White balance stays on the camera's automatic unless neutral_patch names a
-region that is grey in this unit's view. A plate is not grey (gold PEI), so
-without a patch any correction would chase the sheet, not the light.
+WHITE BALANCE is the camera's own automatic, kept on and persisted. Under the
+stock white LED bar no manual temperature is neutral: the MGS1's one axis trades
+red against blue, and on Zero1's dark-grey interior R/G stayed between 0.20 and
+0.54 from 2800 to 6500 K, a green cast. The camera's AWB made it neutral (R/G
+1.03, B/G 0.99) within 1.6 s, and switching AWB off returns to the manual
+gains at once, so its result cannot be frozen (2026-10-31). Each phase reports
+the interior's colour, R/G and B/G over the crop's mid-tones, as the check that
+it is still grey. white_balance_temperature pins a manual value instead.
 
 Crowsnest must own the camera. When its [cam] device is /dev/null or missing,
 as on a go2rtc machine, every command reports that and does nothing.
@@ -138,11 +143,15 @@ def choose(samples, band, max_clip, max_dark):
     return min(samples, key=lambda s: (violation(s), s["exposure"])), "least-violation"
 
 
-def wb_step(bg, current, slope_per_1000k, max_step, lo, hi):
-    """One white-balance step toward a grey patch. B/G falls by slope per
-    +1000 K, so a blue patch needs a higher temperature."""
-    delta = clamp((bg - 1.0) / slope_per_1000k * 1000.0, -max_step, max_step)
-    return int(clamp(round(current + delta), lo, hi))
+def colour_note(rg, bg, tolerance):
+    """The interior's colour, for the console: neutral when both ratios are
+    within tolerance of 1, otherwise which way it is cast."""
+    if rg is None or bg is None:
+        return "colour unmeasured"
+    if abs(rg - 1) <= tolerance and abs(bg - 1) <= tolerance:
+        return "colour neutral (R/G %.2f B/G %.2f)" % (rg, bg)
+    cast = "green" if rg < 1 and bg < 1 else "red" if rg > bg else "blue"
+    return "colour cast %s (R/G %.2f B/G %.2f)" % (cast, rg, bg)
 
 
 def parse_v4l2ctl(value):
@@ -156,9 +165,11 @@ def parse_v4l2ctl(value):
 
 
 def merge_v4l2ctl(existing, managed):
-    """The v4l2ctl value with `managed` set: unmanaged entries keep their order
-    and go first, then the managed ones in MANAGED_ORDER, gates before values."""
-    keep = [(k, v) for k, v in parse_v4l2ctl(existing) if k not in managed]
+    """The v4l2ctl value with `managed` set. camera_auto owns every control in
+    MANAGED_ORDER, so an old value for one of them goes even when it is not set
+    now (a pinned temperature once AWB is back on). Other entries keep their
+    order and go first, then the managed ones, gates before values."""
+    keep = [(k, v) for k, v in parse_v4l2ctl(existing) if k not in MANAGED_ORDER]
     ordered = [(k, str(managed[k])) for k in MANAGED_ORDER if k in managed]
     return ",".join("%s=%s" % kv for kv in keep + ordered)
 
@@ -215,8 +226,6 @@ class CameraAuto:
         self.device_cfg = config.get("device", "")
         self.snapshot_url = config.get("snapshot_url", "http://127.0.0.1:8080/?action=snapshot")
         self.roi = self._box(config, "roi", "0.10,0.10,0.90,0.90")
-        patch = config.get("neutral_patch", "")
-        self.patch = self._box(config, "neutral_patch", patch) if patch else None
         self.lo = config.getint("exposure_min", 20, minval=1, maxval=5000)
         self.hi = config.getint("exposure_max", 600, minval=self.lo, maxval=5000)
         self.first_exposure = config.getint("exposure_initial", 120, minval=self.lo, maxval=self.hi)
@@ -230,7 +239,10 @@ class CameraAuto:
         self.gain = config.getint("gain", 0, minval=0, maxval=100)
         self.brightness = config.getint("brightness", 0, minval=-64, maxval=64)
         self.response = config.getfloat("response_exponent", 1.4, minval=0.5, maxval=3.)
-        self.wb_slope = config.getfloat("wb_slope", 0.27, above=0.)
+        self.wb_temperature = config.getint("white_balance_temperature", 0, minval=0, maxval=6500)
+        if 0 < self.wb_temperature < 2800:
+            raise config.error("camera_auto white_balance_temperature is 0 (automatic) or 2800..6500")
+        self.colour_tolerance = config.getfloat("colour_tolerance", 0.15, above=0., maxval=1.)
         self.settle = config.getfloat("settle_seconds", 0.8, minval=0.2, maxval=5.)
         self.budget = config.getfloat("max_seconds", 30., minval=5., maxval=120.)
         self.width = config.getint("analysis_width", 320, minval=64, maxval=1280)
@@ -325,24 +337,24 @@ class CameraAuto:
             s = self._measure(device, exposure)
             new, ratio, goal = start_exposure(exposure, s["median"], reference, self.target,
                                               self.max_step, self.lo, self.hi, self.response)
-            steps.append(dict(exposure=exposure, median=s["median"], clip=s["clip"], ratio=ratio, next=new))
+            steps.append(dict(exposure=exposure, median=s["median"], clip=s["clip"], ratio=ratio, next=new,
+                              rg=s["rg"], bg=s["bg"]))
             if abs(s["median"] - goal) <= 0.1 * goal or new == exposure:
                 break
             exposure = new
         self._set(device, exposure_time_absolute=exposure)
-        wb = self._wb_trim(device, state)
         state.update(exposure=exposure)
         if not reference:
             # First run: this becomes the baseline until an end phase replaces it.
             state["reference"] = dict(median=self.target, exposure=exposure, source="first-start")
-            self._persist(exposure, wb)
+            self._persist(exposure)
         self._save_state(state)
-        msg = "start: exposure %d (reference median %s, steps %s)%s" % (
+        last = steps[-1] if steps else {}
+        colour = colour_note(last.get("rg"), last.get("bg"), self.colour_tolerance)
+        self._say("start: exposure %d (reference median %s, steps %s), %s" % (
             exposure, reference if reference else "none, target %g" % self.target,
-            " ".join("%d:%.0f" % (st["exposure"], st["median"]) for st in steps),
-            "" if wb is None else ", white balance %d K" % wb)
-        self._say(msg)
-        return dict(status="started", exposure=exposure, reference=reference, steps=steps, wb=wb)
+            " ".join("%d:%.0f" % (st["exposure"], st["median"]) for st in steps), colour))
+        return dict(status="started", exposure=exposure, reference=reference, steps=steps, colour=colour)
 
     def _end(self, device, exposure, state, cancel, started):
         samples = []
@@ -352,42 +364,30 @@ class CameraAuto:
             a = self._measure(device, e)
             b = self._capture_stats()
             samples.append(dict(exposure=e, median=a["median"], clip=a["clip"], dark=a["dark"],
-                                sharp=a["sharp"], noise=temporal_noise(a["lum"], b["lum"])))
+                                sharp=a["sharp"], noise=temporal_noise(a["lum"], b["lum"]),
+                                rg=a["rg"], bg=a["bg"]))
         if not samples:
             self._set(device, exposure_time_absolute=exposure)
             return dict(status="cancelled", exposure=exposure)
         best, how = choose(samples, self.band, self.max_clip, self.max_dark)
         exposure = best["exposure"]
         self._set(device, exposure_time_absolute=exposure)
-        wb = self._wb_trim(device, state)
+        colour = colour_note(best.get("rg"), best.get("bg"), self.colour_tolerance)
         state.update(exposure=exposure, reference=dict(
             median=best["median"], exposure=exposure, source="end-of-print",
             at=time.strftime("%Y-%m-%dT%H:%M:%S")))
         self._save_state(state)
-        self._persist(exposure, wb)
-        self._say("end: kept exposure %d (%s; tried %s); reference median %.0f, written to crowsnest.conf"
+        self._persist(exposure)
+        self._say("end: kept exposure %d (%s; tried %s); reference median %.0f, %s; written to crowsnest.conf"
                   % (exposure, how, " ".join("%d:%.0f/%.3f" % (s["exposure"], s["median"], s["clip"])
-                                             for s in samples), best["median"]))
-        return dict(status=how, exposure=exposure, samples=samples, wb=wb)
+                                             for s in samples), best["median"], colour))
+        return dict(status=how, exposure=exposure, samples=samples, colour=colour)
 
-    def _wb_trim(self, device, state):
-        if not self.patch:
-            return None
-        current = int(state.get("wb") or 4600)
-        self._set(device, white_balance_temperature=current)
-        before = self._patch_stats()
-        if before.get("bg") is None:
-            return current
-        new = wb_step(before["bg"], current, self.wb_slope, 1000, 2800, 6500)
-        if new != current:
-            self._set(device, white_balance_temperature=new)
-            after = self._patch_stats()
-            if after.get("bg") is not None and abs(after["bg"] - 1) < abs(before["bg"] - 1):
-                current = new
-            else:
-                self._set(device, white_balance_temperature=current)
-        state["wb"] = current
-        return current
+    def _white_balance(self):
+        """The white-balance controls: the camera's automatic, or a pinned value."""
+        if self.wb_temperature:
+            return dict(white_balance_automatic=0, white_balance_temperature=self.wb_temperature)
+        return dict(white_balance_automatic=1)
 
     # -- camera and files
     def _crowsnest_device(self):
@@ -405,10 +405,9 @@ class CameraAuto:
 
     def _gates(self, device):
         gates = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
-                     brightness=self.brightness)
-        if self.patch:
-            gates["white_balance_automatic"] = 0
+                     brightness=self.brightness, **self._white_balance())
         self._set(device, **gates)
+        time.sleep(self.settle)  # AWB settles within 1.6 s; a measurement follows a further settle
 
     def _set(self, device, **controls):
         for name in MANAGED_ORDER:
@@ -439,9 +438,6 @@ class CameraAuto:
     def _capture_stats(self):
         return frame_stats(self._frame(), self.roi)
 
-    def _patch_stats(self):
-        return frame_stats(self._frame(), self.patch)
-
     def _measure(self, device, exposure):
         self._set(device, exposure_time_absolute=exposure)
         self._frame()  # discard: the stream may still hold a frame from before
@@ -460,14 +456,13 @@ class CameraAuto:
             json.dump(state, f, indent=1, sort_keys=True)
         os.replace(tmp, self.state_path)
 
-    def _persist(self, exposure, wb):
+    def _persist(self, exposure):
         """Write the chosen controls into crowsnest.conf, atomically, once a
         backup of the original exists. Crowsnest applies v4l2ctl each time its
         stream starts (libs/v4l2_control.sh), so a restart starts here."""
         managed = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
-                       brightness=self.brightness, exposure_time_absolute=exposure)
-        if wb is not None:
-            managed.update(white_balance_automatic=0, white_balance_temperature=wb)
+                       brightness=self.brightness, exposure_time_absolute=exposure,
+                       **self._white_balance())
         with open(self.conf_path) as f:
             text = f.read()
         old = crowsnest_param(text, self.cam, "v4l2ctl") or ""
