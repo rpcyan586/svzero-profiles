@@ -9,7 +9,7 @@
     "20"
   ],
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero PLA - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PLA @Sovol Zero (interim)"
+    "Imported from Orca JSON (SV Zero PLA - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PLA @Sovol Zero (interim) | [PT1000]: nozzle temperatures rebased from Sovol's sensor curve (temperature 210->204, first_layer_temperature 230->223)"
   ],
   "default_filament_colour": [
     "#C8AF89"
@@ -21,10 +21,10 @@
     "25"
   ],
   "nozzle_temperature": [
-    "210"
+    "204"
   ],
   "nozzle_temperature_initial_layer": [
-    "230"
+    "223"
   ],
   "slow_down_layer_time": [
     "8"

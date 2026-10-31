@@ -4,7 +4,8 @@
 source/filament-nozzle-upstream.json is read from the pinned files in
 source/vendor-profiles/OrcaSlicer/ and applied after the (8M) table, on the six
 Brass/Steel presets only (operator, 2026-10-18). Interim values, not
-measurements; see the table's own annotations.
+measurements; see the table's own annotations. The emitted temperatures are
+the table's rebased for the PT1000 reading (source/hotend-sensor.json).
 """
 import copy
 import importlib.util
@@ -22,6 +23,14 @@ EIGHT_M = G.load("filament-8m.json")["overrides"]
 KEYS = {k: v for k, v in TABLE["_keys"].items() if not k.startswith("_")}
 ORCA = ROOT / "bundles/orca-vendor/SVZero/filament"
 UNSPLIT = ("SV Zero ABS", "SV Zero PC", "SV Zero TPU")
+SENSOR = G.load("hotend-sensor.json")
+
+
+def expected(key, value):
+    """The table's value as emitted: temperatures rebased for the PT1000 reading."""
+    if key in SENSOR["keys"]:
+        return str(G.rebased_temperature(SENSOR, value))
+    return value
 
 
 def derived():
@@ -57,7 +66,7 @@ class NozzleUpstreamTests(unittest.TestCase):
             flat = G.flatten(self.ss, "filament:" + preset)
             with self.subTest(preset=preset):
                 for key, value in kv.items():
-                    self.assertEqual(flat[key], value)
+                    self.assertEqual(flat[key], expected(key, value))
                 # 8M's pressure advance, flow ratio and retraction still apply.
                 for key, value in EIGHT_M[preset].items():
                     if key not in kv:
@@ -67,7 +76,7 @@ class NozzleUpstreamTests(unittest.TestCase):
             flat = G.flatten(self.ss, "filament:" + preset)
             with self.subTest(preset=preset):
                 for key in ("temperature", "first_layer_temperature"):
-                    self.assertEqual(flat[key], EIGHT_M[preset][key])
+                    self.assertEqual(flat[key], expected(key, EIGHT_M[preset][key]))
                 self.assertNotIn("[Orca #15756]", flat["filament_notes"])
 
     def test_pairs_differ_where_upstream_differs(self):
@@ -82,7 +91,7 @@ class NozzleUpstreamTests(unittest.TestCase):
             doc = json.loads((ORCA / (preset + ".json")).read_text(encoding="utf-8"))
             for key, value in kv.items():
                 with self.subTest(preset=preset, key=key):
-                    self.assertEqual(doc[KEYS[key]], [value])
+                    self.assertEqual(doc[KEYS[key]], [expected(key, value)])
 
 
 if __name__ == "__main__":

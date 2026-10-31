@@ -186,16 +186,41 @@ not a guarantee that arbitrary start G-code is compatible: it still needs bed
 and nozzle waits and sufficient priming, especially with the pack's wipe and
 end-retract bookkeeping.
 
+### Hotend sensor: PT1000
+
+Both firmware files read the hotend with Klipper's own `sensor_type: PT1000`
+on a 10 kΩ pull-up, in place of Sovol's three-point table on 11 500 Ω, which
+ran the nozzle cold: 5.1 °C at a 200 °C set point, 7.8 at 250, 9.8 at 300.
+`hotend_pt1000.cfg` explains it and `source/hotend-sensor.json` has the method
+and the measurements.
+
+- **The pack's profiles are rebased to match.** Every Sovol-derived nozzle and
+  first-layer temperature is now what the nozzle reached at the old set point,
+  so a print reaches the temperature it did before. PCTG is not rebased.
+- **Profiles from elsewhere print hotter.** Sovol's stock filaments, or your
+  own, now print 5–11 °C hotter at the same number. Lower them by the table in
+  `hotend_pt1000.cfg` to keep their result.
+- **`max_temp` is 344**, the stock 355 rebased the same way, so the hottest
+  the nozzle can be set to has not moved.
+- **An OTA or `factory_resets.sh` copies Sovol's `printer.cfg` over yours**
+  and drops the pack's include with it. The nozzle then runs cold by that
+  table, not hot. Add the include back.
+- **To use Sovol's curve instead**, restore its three values in your own file
+  included after the pack: `sensor_type: my_thermistor_e`,
+  `pullup_resistor: 11500` and `max_temp: 355` under `[extruder]`. The pack's
+  profiles then print 5–11 °C cold.
+
 ### Nozzle growth compensation
 
 `SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
 first layer for the nozzle being hotter than when the Z reference was taken.
 On 1.3.7 it ships **on**, with a coefficient k measured with the tare-tap on
-the operator's Zero2, 1.1 µm/°C. The first layer moves farther from the bed
-by k × (first-layer temperature − the 150 °C probe temperature): about
-+0.09 mm at 230 °C, +0.11 mm at 250 °C, +0.13 mm at PETG's 265 °C and
-+0.14 mm at ABS's 280 °C. Each print logs one line with k, both temperatures
-and the offset.
+the operator's Zero2: 1.1 µm/°C per degree on Sovol's sensor curve, 1.15 per
+real degree with the PT1000 reading above. The first layer moves farther from
+the bed by k × (first-layer temperature − the 150 °C probe temperature): about
++0.08 mm at Brass PLA's 223 °C, +0.11 mm at TPU's 242 °C, +0.12 mm at PETG's
+257 °C and +0.14 mm at ABS's 271 °C. Each print logs one line with k, both
+temperatures and the offset.
 
 - **Turn it off** on a machine with
   `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`.

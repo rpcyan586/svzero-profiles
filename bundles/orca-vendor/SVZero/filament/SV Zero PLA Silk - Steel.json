@@ -6,7 +6,7 @@
   "instantiation": "true",
   "inherits": "fdm_filament_pla",
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero PLA Silk - Steel). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PLA Silk @Sovol Zero Hardened Steel nozzle (interim)"
+    "Imported from Orca JSON (SV Zero PLA Silk - Steel). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PLA Silk @Sovol Zero Hardened Steel nozzle (interim) | [PT1000]: nozzle temperatures rebased from Sovol's sensor curve (temperature 230->223, first_layer_temperature 245->237)"
   ],
   "default_filament_colour": [
     "#B1B9C5"
@@ -24,10 +24,10 @@
     "99.7%"
   ],
   "nozzle_temperature": [
-    "230"
+    "223"
   ],
   "nozzle_temperature_initial_layer": [
-    "245"
+    "237"
   ],
   "filament_flow_ratio": [
     "0.98"

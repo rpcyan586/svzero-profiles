@@ -103,9 +103,12 @@ class NozzleGrowthTest(unittest.TestCase):
         self.assertGreater(k, 0)
         guard = re.search(r"(?m)^variable_max_adjust:\s*(\S+)\s*$", text)
         self.assertEqual(float(guard.group(1)), 0.35)
-        # The whole hotend, 130 C calibrator default to 355 C max_temp, stays
-        # inside the guard at the published k, so it can never refuse itself.
-        self.assertLess(k * (355 - 130), float(guard.group(1)))
+        # The whole hotend, 130 C calibrator default to hotend_pt1000.cfg's
+        # max_temp, stays inside the guard at the published k, so it can never
+        # refuse itself.
+        hotend = (ROOT / "klipper/config/hotend_pt1000.cfg").read_text(encoding="utf-8")
+        max_temp = float(re.search(r"(?m)^max_temp:\s*(\S+)\s*$", hotend).group(1))
+        self.assertLess(k * (max_temp - 130), float(guard.group(1)))
         self.assertNotIn("PROVISIONAL", text)
         self.assertRegex(text, r"run 13[^\n]*\n(#[^\n]*\n)*variable_mm_per_c:")
         # Only nozzle_growth.cfg states it, so the final value is one edit.

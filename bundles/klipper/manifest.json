@@ -10,17 +10,18 @@
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
         "klipper/config/end_print.cfg": "13830b16972c1200e2de8874669b5090feeaf2741ce4493d53bdddb848fd9678",
         "klipper/config/filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
+        "klipper/config/hotend_pt1000.cfg": "625c8273047114855eb3cda474627c793d283bc188bd1e68dd0b63f3a3e1c537",
         "klipper/config/input_shaper.cfg": "da40a2efecfd97a612b6d94fc38728cbbcaf76836f4202de8e83d6f848a4b21e",
         "klipper/config/nozzle_brush.cfg": "50f023222a778feafc6ac5e1d5623c53b8199077d5972b1cb14a2040d8154ed7",
-        "klipper/config/nozzle_growth.cfg": "bc72ca2e55c3ca092a910e29630d05a58b7c8a2f593e255a8adc48a4df40b7bc",
+        "klipper/config/nozzle_growth.cfg": "b55cf87ae49cd652a00e92a1d6629e9531c70e61793dc93136cac7faec3664fc",
         "klipper/config/orca_compat.cfg": "566f903ec02eaba35cd760015695787b7a68935b03e74e9bc55006a16a7e4e72",
         "klipper/config/probe_pressure_1.3.7.cfg": "c063f371406b21bbb9fc4c8e74bf9ea3911cb866f2ec0d82252964aaf43a2b78",
         "klipper/config/purge_line.cfg": "59e2c186f29aee00162246af10b39c49f3bd945893cb2a898b13048ba8cc6ab4",
         "klipper/config/start_print.cfg": "6ebe44d005fe28904e0fe88666136cba5fa6d8498e3129029364398295a6cef3",
-        "klipper/config/svzero-1.3.7.cfg": "2b83bff744d4ff586344b4475771169d01f0d9420e0a0d61fae48b558b8537dc",
+        "klipper/config/svzero-1.3.7.cfg": "8229f6f8e3f15de973f7e6bcaf9fad99dc8d40c07ddd113a085d1b3c75d0d285",
         "klipper/config/svzero_pack.cfg": "9dd2c414b52c9204bb82ccfe9be587108003b5197e8850021462e41db4c38f0e"
       },
-      "sha256": "0c8a14ef043b2761e1e39cc9adcf6578f24c47d2a38e5a9118a5af3927495403"
+      "sha256": "a9e7e009f7810d4f541e4b73825b911ebe5c79b9fa0a7326b74fc1daad45b1b8"
     },
     "svzero-1.4.x.cfg": {
       "sources": {
@@ -31,16 +32,17 @@
         "klipper/config/curtain_fan.cfg": "e89925b273b44a4cdf46ff3cd52bc2c1be0e34ff820dedaa64ffe792a775bd90",
         "klipper/config/end_print.cfg": "13830b16972c1200e2de8874669b5090feeaf2741ce4493d53bdddb848fd9678",
         "klipper/config/filament_load.cfg": "2cb8a8b1eb34ead4dc4287fd49f3a2f39590d0ad4e7e40ffe8ebf4220d4a20e1",
+        "klipper/config/hotend_pt1000.cfg": "625c8273047114855eb3cda474627c793d283bc188bd1e68dd0b63f3a3e1c537",
         "klipper/config/input_shaper.cfg": "da40a2efecfd97a612b6d94fc38728cbbcaf76836f4202de8e83d6f848a4b21e",
         "klipper/config/nozzle_brush.cfg": "50f023222a778feafc6ac5e1d5623c53b8199077d5972b1cb14a2040d8154ed7",
-        "klipper/config/nozzle_growth.cfg": "bc72ca2e55c3ca092a910e29630d05a58b7c8a2f593e255a8adc48a4df40b7bc",
+        "klipper/config/nozzle_growth.cfg": "b55cf87ae49cd652a00e92a1d6629e9531c70e61793dc93136cac7faec3664fc",
         "klipper/config/orca_compat.cfg": "566f903ec02eaba35cd760015695787b7a68935b03e74e9bc55006a16a7e4e72",
         "klipper/config/purge_line.cfg": "59e2c186f29aee00162246af10b39c49f3bd945893cb2a898b13048ba8cc6ab4",
         "klipper/config/start_print.cfg": "6ebe44d005fe28904e0fe88666136cba5fa6d8498e3129029364398295a6cef3",
-        "klipper/config/svzero-1.4.x.cfg": "cb7266f92a68f974a43fc76c8a41b980257b7fe3571d1f2d69d355a669aad632",
+        "klipper/config/svzero-1.4.x.cfg": "98ae2518a71d6ec99ac4d633307889c5e730307f7ccfb31b8d6357eb1dbbbabb",
         "klipper/config/svzero_pack.cfg": "9dd2c414b52c9204bb82ccfe9be587108003b5197e8850021462e41db4c38f0e"
       },
-      "sha256": "51ec595bab754594fad1c428101b017ca1910b90a6ae3b54f974e5c8cbbc8fe2"
+      "sha256": "c321267fd521d82dfc45fbabaf7aa5ce29b451316a107b598d7448d29b511415"
     },
     "svzero-python.cfg": {
       "sources": {
