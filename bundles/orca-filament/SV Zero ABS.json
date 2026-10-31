@@ -6,7 +6,7 @@
   "instantiation": "true",
   "inherits": "fdm_filament_abs",
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero ABS). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead)"
+    "Imported from Orca JSON (SV Zero ABS). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [PT1000]: nozzle temperatures rebased from Sovol's sensor curve (temperature 270->261, first_layer_temperature 280->271)"
   ],
   "default_filament_colour": [
     "#1FA7C1"
@@ -21,10 +21,10 @@
     "99.2%"
   ],
   "nozzle_temperature": [
-    "270"
+    "261"
   ],
   "nozzle_temperature_initial_layer": [
-    "280"
+    "271"
   ],
   "filament_flow_ratio": [
     "0.98"

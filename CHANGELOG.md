@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Changed: the hotend reads as a PT1000, and the profiles move with it
+
+- **Klipper's own PT1000 conversion replaces Sovol's sensor table.** Sovol's
+  three-point table on an 11 500 Ω pull-up ran the nozzle 5.1 °C cold at a
+  200 °C set point, 7.8 at 250 and 9.8 at 300. The part is a catalogue PT1000
+  on a 10 kΩ pull-up. pi.r measured it inside a Zero's block (forum t/10515),
+  torch on a stock SV08 MAX, and both of the operator's Zeros read within
+  0.5% of 10 kΩ at room temperature. `hotend_pt1000.cfg` sets
+  `sensor_type: PT1000`, `pullup_resistor: 10000` and `max_temp: 344` over
+  `printer.cfg`'s `[extruder]`.
+- **The profiles' nozzle temperatures are rebased, so prints do not change.**
+  Each Sovol-derived temperature is what the nozzle reached at the old set
+  point, to the degree: Brass PLA 210/230 → 204/223, Steel PLA 230/245 →
+  223/237, Silk PLA 220–230/245 → 214–223/237, PETG 245–250/265 →
+  237–242/257, ABS 270/280 → 261/271, TPU 240/250 → 233/242, PC 260/280 →
+  252/271. `tools/generate.py` computes
+  them from `source/hotend-sensor.json`; none is typed.
+- **PCTG keeps its temperatures** (operator's own preset, not Sovol's), so
+  it now prints about 8 °C hotter than before: 260 °C at the nozzle where
+  Sovol's curve gave 252.
+- **`max_temp` 355 → 344**, the same rule, so the hottest the nozzle can be
+  set to has not moved.
+- **Nozzle growth k 1.1 → 1.15 µm/°C.** It was measured per degree on Sovol's
+  curve; the runs' 150 and 280 °C set points were 146.6 and 270.9 °C at the
+  nozzle, so the same growth is 1.1 × 130 / 124.3 per real degree. The
+  first-layer offsets are unchanged to within 0.01 mm.
+- **Profiles from elsewhere now print 5–11 °C hotter** at the same number,
+  Sovol's stock filaments included. An OTA or factory reset drops the pack's
+  include and the nozzle runs cold by the same amount, not hot. See INSTALL.md,
+  "Hotend sensor: PT1000".
+
 ### Fixed: a chamber dip mid-print stopped the exhaust loop
 
 - **The chamber loop no longer turns itself off while the bed or a chamber

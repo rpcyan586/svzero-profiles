@@ -1,0 +1,22 @@
+{
+  "_what": "Rebases the Sovol-derived nozzle temperatures from Sovol's hotend sensor curve to Klipper's own PT1000 conversion, which klipper/config/hotend_pt1000.cfg switches the extruder to. Each set point becomes the temperature the nozzle actually reached at it on Sovol's curve, rounded to the nearest degree, so a print reaches the temperature it did before and the number now means what it says. tools/generate.py applies it last among the filament stages, after source/filament-8m.json and source/filament-nozzle-upstream.json, and computes every value from this table: no rebased temperature is typed anywhere.",
+  "_why": "Sovol's [extruder] reads the hotend's PT1000B through a three-point [adc_temperature my_thermistor_e] table with pullup_resistor: 11500. The part is a catalogue IEC 751 class B PT1000 (Sovol drawing JXHMP4602-08052-f, 3850 ppm/K) on a real 10 kOhm pull-up, so the pair reads high and the nozzle runs cold: 5.1 C at a 200 C set point, 7.8 at 250, 9.8 at 300, 11.0 at 350. The table is identical in every Zero package from 1.3.1 to 1.4.7 and in the SV08 MAX's 2.1.9; 1.3.0 ran colder still. Operator, 2026-10-31: adopt Klipper's PT1000 with a 10 kOhm pull-up, default on, with the Sovol-derived temperatures rebased.",
+  "_derivation": "Klipper's LinearResistance (klippy/extras/adc_temperature.py, unmodified in Sovol's 1.3.7, 1.4.7 and Max 2.1.9 trees) computes R = pullup * adc / (1 - adc) and interpolates the table piecewise-linearly in R, extrapolating past either end along the end segment. With the configured 11500 on a real 10000, the R it computes is 1.15 times the sensor's. For a true temperature t, the sensor is R(t) = R0 (1 + A t + B t^2), the Callendar-Van Dusen equation above 0 C. The reported temperature is the table interpolated at R(t) * 11500 / 10000; the rebased set point is the t that reports the old set point, found by bisection, rounded to the nearest degree, halves up.",
+  "_evidence": "pi.r measured inside a Zero's heater block and found the stock curve about 5 C cold at 200 C and Klipper's PT1000 on 10000 within IEC 751 class B; his room-temperature fit of the pull-up was 10009 ohm (https://forum.sovol3d.com/t/10515/1). torch measured a stock SV08 MAX with a K-type thermocouple under the sock (https://forum.sovol3d.com/t/extruder-temperatures/8603/4), and a 10 kOhm pull-up predicts both of his room-temperature readings within 0.7 C. The operator's two Zeros read within 0.5% of 10 kOhm at room temperature with QUERY_ADC NAME=extruder PULLUP=10000 (2026-10-31).",
+  "_not_rebased": {
+    "PCTG": "The operator's own preset, not Sovol's: its temperatures stay as set (operator, 2026-10-31). Any filament section whose name contains an entry of exclude_containing keeps its values.",
+    "clean_temperatures": "source/filament-clean-temp.json is the pack's proposed commissioning curve, never validated on hardware, and is left as it is. Rebasing it would move each clean temperature about 4 C.",
+    "macros": "Temperatures inside the macros (the 150 C probe temperature nozzle_growth.cfg references against, Sovol's 200 C clean fallback, the calibrator's 130 C) are operating points, not profile values, and are left as set.",
+    "vendor_profiles": "source/vendor-profiles/ is pinned upstream material and is never edited. The Orca roots' nozzle temperature ranges are derived from the presets at build time, so they follow the rebase."
+  },
+  "_max_temp": "hotend_pt1000.cfg's max_temp is the stock 355 rebased by the same rule, so the hottest the nozzle can be commanded to stays where it was: 355 on Sovol's curve reached 343.97 C, so 344. tests/test_hotend_sensor.py holds the two equal.",
+  "stock_curve": {
+    "points": [[25, 1268.60], [180, 1920.98], [300, 2398.52]],
+    "pullup_resistor": 11500
+  },
+  "pt1000": {"R0": 1000.0, "A": 3.9083e-3, "B": -5.775e-7},
+  "real_pullup_resistor": 10000,
+  "stock_max_temp": 355,
+  "keys": ["temperature", "first_layer_temperature"],
+  "exclude_containing": ["PCTG"]
+}
