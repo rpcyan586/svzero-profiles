@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added: the stock camera's exposure follows the room
+
+- **`camera_auto`, an optional Python extra for the stock camera under stock
+  crowsnest.** It uses only what the stock image ships. `_PREFLIGHT` starts it
+  in the background, and it corrects the stored exposure for this room's light
+  while the bed heats. `END_PRINT` starts it again on the finished part: it
+  tries three exposures, keeps the best, and writes it into `crowsnest.conf`, so
+  the next print and any restart start from it. It moves, heats and lights
+  nothing.
+- **It avoids the dark-plate trap.** Metered for "brightest without clipping",
+  a bare dark plate drives exposure to the maximum, and the next white part
+  blows out. The start phase only restores the brightness the last print's end
+  chose, by at most a factor of 2. The end phase, where a part is in frame,
+  moves at most one bracket step per print and stays under `exposure_max`.
+- Opt-in through its own include. Machines whose crowsnest camera is
+  `/dev/null` are left alone. See INSTALL.md, "Camera exposure".
+
 ### Fixed: a chamber dip mid-print stopped the exhaust loop
 
 - **The chamber loop no longer turns itself off while the bed or a chamber
