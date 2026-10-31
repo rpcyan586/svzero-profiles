@@ -24,6 +24,7 @@ Macro pack preset to maintain.
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
 | `svzero-mode-precision.cfg.off` in the pack directory | Precision mode on the 0.4, 0.3, 0.25 and 0.2 nozzles: 64 microsteps, 1.4 A, a 300 mm/s ceiling, and its own printer profile with layers from 0.04 mm. Switched by renaming the file and restarting Klipper ([docs/PRECISION.md](docs/PRECISION.md)) | Standard mode only. A job sliced for precision is refused before heating, with the file to rename |
 | `svzero_mode_switch.py` as a Moonraker component | A job sliced for the other mode switches the printer itself: refused, Klipper restarted once idle and cold, the same file started again | Switching is a rename and a restart by hand |
+| `camera_auto.py`, enabled by `camera_auto.cfg`, on a stock crowsnest camera | The stock camera's exposure follows the room: corrected in the background while the bed heats, refined on the finished part after each print, and kept in `crowsnest.conf` for restarts | The camera keeps whatever crowsnest and its own auto-exposure give it |
 | `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
 
 The macro pack changes printer behavior, not MCU firmware. None of these
@@ -264,6 +265,54 @@ module/dependencies, configuration fails before macros can run. The fallback
 works by leaving those optional includes disabled, not by disguising a broken
 installation. To remove Python, remove its include first and restart while idle.
 The native macro path then takes over.
+
+### Camera exposure: `camera_auto`
+
+For the stock camera under stock crowsnest. It uses only what the stock image
+ships: `v4l2-ctl`, `ffmpeg`, crowsnest's snapshot and NumPy in klippy-env.
+
+1. Copy `camera_auto.py` into `~/klipper/klippy/extras/` and `camera_auto.cfg`
+   into `~/printer_data/config/svzero/`.
+2. Add `[include svzero/camera_auto.cfg]` after the pack's includes and restart
+   the Klipper service while idle.
+3. Check what it measures. Open `http://<printer>:8080/?action=snapshot`: the
+   frame is upside down, as the camera is. `roi` in `camera_auto.cfg` is a crop
+   of that frame, as fractions. It is not the plate, which moves with the bed's
+   Z. The default keeps the central 80%; crop further to drop the room seen
+   through the door and lid in your view.
+
+What it does, once installed:
+
+- **At print start**, from `_PREFLIGHT`, it corrects the stored exposure for
+  the room's light, in the background, while the bed heats. The correction is
+  bounded to a factor of `start_max_step`. The very first run meters the plate
+  toward `target_median`.
+- **At print end**, it tries three exposures on the finished part. It keeps the
+  sharpest one that clips nothing and leaves the plate inside its brightness
+  band, and writes it into `crowsnest.conf`'s `v4l2ctl` line. Crowsnest applies
+  that on every start, so a restart begins there too. The original file is
+  kept once as `crowsnest.conf.camera-auto-orig`.
+
+It moves, heats and lights nothing, and runs no G-code.
+
+It also turns the camera's automatic white balance on and keeps it on, in
+`crowsnest.conf` too. A fixed white balance is where the stock camera's green
+cast comes from: under the stock LED bar no manual temperature is neutral. The
+camera's own AWB makes the dark-grey interior neutral within a couple of
+seconds. Each result line reports the interior's colour as a check, and
+`white_balance_temperature` in `camera_auto.cfg` pins a manual value if you
+prefer one.
+
+On a machine whose crowsnest camera is `/dev/null`, such as one running go2rtc,
+it reports that and does nothing.
+
+A Sovol OTA or factory reset replaces `printer.cfg`, so add the include back
+afterwards. Neither touches `camera_auto.py`, its state file or
+`crowsnest.conf`, so the camera keeps its last settings meanwhile.
+
+`CAMERA_AUTO_RESET` forgets the learned reference. To remove the extra, remove
+its include, put back `crowsnest.conf.camera-auto-orig` if you want crowsnest's
+old line, and restart while idle.
 
 ### What Python improves, and what still fails deliberately
 
