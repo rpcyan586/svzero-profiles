@@ -303,6 +303,13 @@ the same. On 1.4.x the stock exhaust section must remain disabled. Keep a backup
 of the previous file for rollback. Keep your own tuning overrides in a separate
 file included last, before `SAVE_CONFIG`, so an update does not replace them.
 
+**A Sovol OTA or factory reset undoes part of the install.** Both copy Sovol's
+stock `printer.cfg` and `saved_variables.cfg` over yours. The first drops the
+pack's include, and the second drops every learned value: the chamber loop's
+`ch_*`, the preheat's fall rate and ETA profile, and a saved nozzle-growth k.
+Add the include back. The learned values rebuild over the next prints, and a k
+you measured has to be saved again.
+
 An existing modular install can switch by replacing its firmware entry file
 with the generated file of the same name. Previously copied source files become
 unused unless you still include them explicitly. Remove those duplicate includes.
