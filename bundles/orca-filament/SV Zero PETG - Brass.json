@@ -6,7 +6,7 @@
   "instantiation": "true",
   "inherits": "fdm_filament_pet",
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero PETG - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PETG @Sovol Zero (interim)"
+    "Imported from Orca JSON (SV Zero PETG - Brass). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [Orca #15756]: nozzle temperature and flow cap from upstream Generic PETG @Sovol Zero (interim) | [PT1000]: nozzle temperatures rebased from Sovol's sensor curve (temperature 245->237, first_layer_temperature 265->257)"
   ],
   "default_filament_colour": [
     "#C8AF89"
@@ -15,7 +15,7 @@
     "0.98"
   ],
   "nozzle_temperature": [
-    "245"
+    "237"
   ],
   "slow_down_layer_time": [
     "10"
@@ -30,7 +30,7 @@
     "99.6%"
   ],
   "nozzle_temperature_initial_layer": [
-    "265"
+    "257"
   ],
   "filament_retraction_length": [
     "0.5"

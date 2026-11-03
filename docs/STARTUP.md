@@ -84,12 +84,17 @@ operator's Zero2, runs 12 and 13 below. On the 1.3.7 tare-tap path, against the
 
 | First layer | Presets | Offset |
 |---|---|---|
-| 230 °C | PLA - Brass | +0.09 mm |
-| 245 °C | PLA - Steel, PLA Silk | +0.10 mm |
-| 250 °C | TPU | +0.11 mm |
-| 260 °C | PCTG | +0.12 mm |
-| 265 °C | PETG | +0.13 mm |
-| 280 °C | ABS, PC | +0.14 mm |
+| 223 °C | PLA - Brass | +0.08 mm |
+| 237 °C | PLA - Steel, PLA Silk | +0.10 mm |
+| 242 °C | TPU | +0.11 mm |
+| 257 °C | PETG | +0.12 mm |
+| 260 °C | PCTG | +0.13 mm |
+| 271 °C | ABS, PC | +0.14 mm |
+
+These are the profiles' temperatures as rebased for the pack's PT1000 sensor
+reading (`hotend_pt1000.cfg`); each is what the nozzle reached at the old set
+point (230, 245, 250, 265 and 280 °C) on Sovol's sensor curve. PCTG is not
+rebased.
 
 k belongs to one machine's nozzle, heater block and probe, so on any other Zero
 it is an estimate. Turn it off on a machine, or use that machine's own k, with
@@ -129,8 +134,12 @@ to it:
   - The 1.6 square was barely thicker, its bead no longer reaching the
     nozzle.
 
-The published k is 1.1 µm/°C. At that rate an ABS first layer at 280 °C
-against a 150 °C reference sits about 0.14 mm closer than calibrated.
+The published k was 1.1 µm/°C, per degree on Sovol's sensor curve, on which
+every rate here was measured. The pack now reads the hotend as a PT1000, so k
+is that 1.1 rescaled to real degrees: the runs' 150 and 280 °C set points were
+146.6 and 270.9 °C at the nozzle, and 1.1 × 130 / 124.3 = 1.15 µm/°C. At that
+rate an ABS first layer at 271 °C (280 on Sovol's curve) against a 150 °C
+reference sits about 0.14 mm closer than calibrated.
 
 **How it compares.** Other hotends measure less:
 - **garethky**, a Klipper load-cell developer, on his own printer (a load cell
@@ -205,11 +214,12 @@ pack updates.
   measurement, been checked as an instrument for step 4. Until both are, the
   tare-tap's k is not applied to an eddy reference.
 - **Bounded.** An adjustment over 0.35 mm is refused with an error line, and
-  nothing is applied. The hotend's whole range, 130 to 355 °C at the highest
-  single-spot rate measured, 1.41 µm/°C, is 0.32 mm, so a larger value is a
+  nothing is applied. The hotend's whole range, 130 to 344 °C at the highest
+  single-spot rate measured, 1.41 µm/°C on Sovol's curve and 1.47 rescaled,
+  is 0.32 mm, so a larger value is a
   mistyped k or a wrong reference rather than growth. `variable_max_adjust` in `_NOZZLE_GROWTH` sets the bound.
 - **First layer only.** Later layers keep the first layer's offset; a 10 °C
-  difference between them is 11 µm at 1.1 µm/°C. A second call in the same job
+  difference between them is 11.5 µm at 1.15 µm/°C. A second call in the same job
   applies only the difference from the first.
 
 ## Sources

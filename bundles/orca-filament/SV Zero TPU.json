@@ -6,7 +6,7 @@
   "instantiation": "true",
   "inherits": "fdm_filament_tpu",
   "filament_notes": [
-    "Imported from Orca JSON (SV Zero TPU). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead)"
+    "Imported from Orca JSON (SV Zero TPU). | [8M]: toolhead-scope values from SV08 MAX (shared toolhead) | [PT1000]: nozzle temperatures rebased from Sovol's sensor curve (temperature 240->233, first_layer_temperature 250->242)"
   ],
   "default_filament_colour": [
     "#1FA7C1"
@@ -21,10 +21,10 @@
     "99.4%"
   ],
   "nozzle_temperature": [
-    "240"
+    "233"
   ],
   "nozzle_temperature_initial_layer": [
-    "250"
+    "242"
   ],
   "filament_flow_ratio": [
     "0.98"
