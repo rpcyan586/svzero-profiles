@@ -45,6 +45,12 @@
         "assets/svzero_bed_grid.png": "assets/svzero_bed_grid.png"
       },
       "readme": "docs/downloads/superslicer.txt"
+    },
+    "prusaslicer3": {
+      "files": {
+        "bundles/SVZero_PrusaSlicer3.zip": "SVZero_PrusaSlicer3.zip"
+      },
+      "readme": "docs/downloads/prusaslicer3.txt"
     }
   }
 }

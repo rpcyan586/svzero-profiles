@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Added: a PrusaSlicer 3 download (alpha)
+
+- **A fourth download, `prusaslicer3`, for PrusaSlicer 3.0.0-alpha12 and
+  later.** It is the PrusaSlicer 2 download's presets in PrusaSlicer 3's
+  format, all ten nozzles and both machine modes, with Precision as its own
+  printer as in PrusaSlicer 2. PrusaSlicer 3 does not yet list third-party
+  printers, so the bundle is a ZIP added under *Local sources* in **Preset
+  sources & updates**, not extracted.
+- Installed and sliced from the command line on alpha12 and alpha13. Against
+  PrusaSlicer 2.9.7 on the test objects, Precision included, the start G-code
+  and acceleration limits match and speeds and line widths agree within 1%,
+  except the outer wall at 0.08 mm Precision, which PrusaSlicer 3 extrudes
+  about 7% thinner for a reason not yet found. Not yet printed, the menu route
+  has not been tried by hand, and the bed preview is not included yet.
+
+### Checked: shrinkage compensation enlarges parts, in every slicer that can be asked
+
+- **The shipped shrinkage values are unchanged and correct.** A 20 mm PLA
+  cube comes out 20.060 mm in the G-code for 0.3%, and every other filament
+  within 0.001 mm of its own figure, in PrusaSlicer 3 and SuperSlicer.
+  `tools/slice-harness.py --shrinkage` now measures this, at the shipped
+  values and at an exaggerated 5%, and fails if a part comes out smaller.
+- PrusaSlicer 2.9's and OrcaSlicer's command lines apply no shrinkage at all,
+  whatever the profile says; their GUIs do (PrusaSlicer 2.9.7: 20.060 mm at
+  0.3%). Those two are covered by the slicer that reads the same setting, and
+  a new test holds every download's values to the same figure.
+
 ### Fixed: a chamber dip mid-print stopped the exhaust loop
 
 - **The chamber loop no longer turns itself off while the bed or a chamber

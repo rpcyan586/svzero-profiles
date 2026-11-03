@@ -29,12 +29,11 @@ Pinned public Orca inputs and their checksums live under
 Zero filaments under `OrcaSlicer/`, each with its own `provenance.json`.
 Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
-PrusaSlicer 3 output remains experimental and is not in the user download.
-`bundles/SVZero_PrusaSlicer3.zip` is the bundle as a local preset source, which
-is how PrusaSlicer 3.0.0-alpha12 and later load a third-party vendor until
-Prusa's preset server carries them. To try it, open **Preset sources &
-updates**, choose **Add ZIP** under *Local sources*, then add *SV Zero* or
-*SV Zero Precision* as a printer. From a shell,
+`bundles/SVZero_PrusaSlicer3.zip` is the PrusaSlicer 3 bundle as a local preset
+source, which is how PrusaSlicer 3.0.0-alpha12 and later load a third-party
+vendor until Prusa's preset server carries them, and it is the `prusaslicer3`
+download. To try it, open **Preset sources & updates**, choose **Add ZIP**
+under *Local sources*, then add *SV Zero* or *SV Zero Precision* as a printer. From a shell,
 `--preset-update-add-local bundles/SVZero_PrusaSlicer3.zip` followed by
 `--preset-update` does the same; that route is the tested one.
 
@@ -49,7 +48,7 @@ Bed preview assets live under `assets/`; installers copy them into the slicer's
 data directory and Orca generation includes them in its vendor folder. Release
 source-to-download path mappings are maintained in `tools/release-files.json`.
 After committing a clean tree, `python tools/build-release.py --output PATH`
-builds only the three slicer ZIPs and `SHA256SUMS`. Sources, builders and the
+builds only the four slicer ZIPs and `SHA256SUMS`. Sources, builders and the
 isolated-directory installer remain in the Git checkout; downloads use manual
 INI import or Orca vendor copying. See [DOWNLOADS.md](DOWNLOADS.md).
 
