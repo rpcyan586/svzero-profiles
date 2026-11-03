@@ -47,11 +47,17 @@ class ReleaseBundles(unittest.TestCase):
                 self.assertFalse(any("personal" in n for n in files))
                 self.assertEqual({n for n in files if n.endswith(".cfg")},
                                  {"optional-macros/" + n for n in
-                                  ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg", "svzero-python.cfg")})
+                                  ("svzero-1.3.7.cfg", "svzero-1.4.x.cfg", "svzero-python.cfg",
+                                   "camera_auto.cfg")})
                 self.assertEqual({n for n in files if n.endswith(".py")},
                                  {"optional-macros/" + n for n in
                                   ("chamber_preheat.py", "spool_guard.py", "moonraker.py",
-                                   "svzero_mode_switch.py")})
+                                   "svzero_mode_switch.py", "camera_auto.py")})
+                # camera_auto is opt-in, and ships as its source files.
+                self.assertEqual(files["optional-macros/camera_auto.py"],
+                                 self.files["klipper/camera_auto.py"])
+                self.assertEqual(files["optional-macros/camera_auto.cfg"],
+                                 self.files["klipper/config/camera_auto.cfg"])
                 self.assertEqual(files["optional-macros/svzero_mode_switch.py"],
                                  self.files["moonraker/svzero_mode_switch.py"])
                 self.assertIn("LICENSE", files)
