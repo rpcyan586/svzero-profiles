@@ -228,13 +228,13 @@ variants:
 
       ;  sends nothing and keeps the printer''s own.
 
-      {if notes=~/.*SVZERO_SCV=1mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=1
-
-      {elsif notes=~/.*SVZERO_SCV=3mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=3
-
-      {elsif notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
+      {if notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
 
       {elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5
+
+      {elsif notes=~/.*SVZERO_SCV=6mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=6
+
+      {elsif notes=~/.*SVZERO_SCV=7mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=7
 
       {elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}
 
@@ -477,13 +477,13 @@ variants:
 
       ;  sends nothing and keeps the printer''s own.
 
-      {if notes=~/.*SVZERO_SCV=1mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=1
-
-      {elsif notes=~/.*SVZERO_SCV=3mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=3
-
-      {elsif notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
+      {if notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
 
       {elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5
+
+      {elsif notes=~/.*SVZERO_SCV=6mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=6
+
+      {elsif notes=~/.*SVZERO_SCV=7mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=7
 
       {elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}
 

@@ -42,6 +42,7 @@ its filament cannot sustain is decoration. See docs/STATUS.md.
 """
 
 import argparse
+import bisect
 import collections
 import shutil
 import json
@@ -950,6 +951,9 @@ def derive(model, ss, keymap):
         # After 8m, so upstream's per-nozzle temperatures replace the Max's
         # single one on the six Brass/Steel presets.
         "nozzle": apply_nozzle_upstream(ss, load("filament-nozzle-upstream.json")),
+        # Last of the filament stages: every temperature above is on Sovol's
+        # sensor curve, and hotend_pt1000.cfg replaces that curve.
+        "sensor": apply_hotend_sensor(ss, load("hotend-sensor.json")),
         "modes": apply_modes(model, ss),
     }
 
@@ -1324,6 +1328,91 @@ def apply_nozzle_upstream(ss, data):
         note = ss[sec].get("filament_notes", "")
         if "[Orca #15756]" not in note:
             ss[sec]["filament_notes"] = "%s | %s" % (note, tag) if note else tag
+        n += 1
+    return n
+
+
+def klipper_linear_interpolate(samples):
+    """Klipper's LinearInterpolate (klippy/extras/adc_temperature.py), as a function.
+
+    Piecewise-linear over the sorted keys, extrapolating past either end along
+    the end segment, exactly as the printer converts its sensor table.
+    """
+    keys, slopes = [], []
+    last_key = last_value = None
+    for key, value in sorted(samples):
+        if last_key is None:
+            last_key, last_value = key, value
+            continue
+        gain = (value - last_value) / (key - last_key)
+        offset = last_value - last_key * gain
+        if slopes and slopes[-1] == (gain, offset):
+            continue
+        last_key, last_value = key, value
+        keys.append(key)
+        slopes.append((gain, offset))
+    keys.append(9999999999999.)
+    slopes.append(slopes[-1])
+
+    def interpolate(key):
+        gain, offset = slopes[bisect.bisect(keys, key)]
+        return key * gain + offset
+    return interpolate
+
+
+def stock_curve_true_temperature(data, setpoint):
+    """The nozzle temperature at which Sovol's sensor curve reports `setpoint`.
+
+    source/hotend-sensor.json's _derivation: an ideal PT1000 on the real pull-up,
+    read through Sovol's table and configured pull-up. Bisection, since the
+    reported temperature rises monotonically with the true one.
+    """
+    curve, pt = data["stock_curve"], data["pt1000"]
+    table = klipper_linear_interpolate([(r, t) for t, r in curve["points"]])
+    scale = curve["pullup_resistor"] / data["real_pullup_resistor"]
+
+    def reported(t):
+        return table(pt["R0"] * (1 + pt["A"] * t + pt["B"] * t * t) * scale)
+    lo, hi = 0.0, 500.0
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if reported(mid) < setpoint else (lo, mid)
+    return (lo + hi) / 2
+
+
+def rebased_temperature(data, setpoint):
+    """`setpoint` on Sovol's curve as a set point on Klipper's PT1000, to the degree."""
+    return math.floor(stock_curve_true_temperature(data, float(setpoint)) + 0.5)
+
+
+def apply_hotend_sensor(ss, data):
+    """Rebase the Sovol-derived nozzle temperatures onto Klipper's PT1000 curve.
+
+    klipper/config/hotend_pt1000.cfg replaces Sovol's sensor table, under which
+    the nozzle ran 5-11 C below its set point. Each filament section's own
+    nozzle and first-layer temperature becomes what the nozzle reached at it,
+    so prints do not change; source/hotend-sensor.json has the method and the
+    evidence. Sections named in exclude_containing (PCTG, the operator's own
+    preset) keep their values. Runs after every stage that sets a temperature.
+    """
+    n = 0
+    for sec, kv in ss.items():
+        if not sec.startswith("filament:"):
+            continue
+        if any(x in sec for x in data["exclude_containing"]):
+            continue
+        changed = []
+        for key in data["keys"]:
+            if key in kv:
+                new = rebased_temperature(data, kv[key])
+                changed.append("%s %s->%d" % (key, kv[key], new))
+                kv[key] = str(new)
+        if not changed:
+            continue
+        note = kv.get("filament_notes", "")
+        tag = "[PT1000]: nozzle temperatures rebased from Sovol's sensor curve (%s)" % ", ".join(changed)
+        if "[PT1000]" not in note and not sec.split(":", 1)[1].startswith("*"):
+            kv["filament_notes"] = "%s | %s" % (note, tag) if note else tag
         n += 1
     return n
 

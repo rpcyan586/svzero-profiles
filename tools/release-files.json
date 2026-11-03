@@ -6,6 +6,8 @@
     "klipper/modes/svzero-mode-precision.cfg": "optional-macros/svzero-mode-precision.cfg.off",
     "klipper/chamber_preheat.py": "optional-macros/chamber_preheat.py",
     "klipper/spool_guard.py": "optional-macros/spool_guard.py",
+    "klipper/camera_auto.py": "optional-macros/camera_auto.py",
+    "klipper/config/camera_auto.cfg": "optional-macros/camera_auto.cfg",
     "klipper/moonraker.py": "optional-macros/moonraker.py",
     "moonraker/svzero_mode_switch.py": "optional-macros/svzero_mode_switch.py",
     "docs/downloads/macros.txt": "INSTALL.md",

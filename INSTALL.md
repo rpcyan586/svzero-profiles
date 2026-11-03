@@ -19,11 +19,12 @@ Macro pack preset to maintain.
 | Install | What you gain | What happens without it |
 |---|---|---|
 | Slicer profiles only | Nozzle-scaled widths and tiers, material settings, configured supports, bed/nozzle waits and a priming skirt | Stock Sovol cleaning, calibration, mesh and end-of-print behavior. No pack chamber soak, spool check, positioned purge or controlled cooldown |
-| Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation, a bed cooldown ramp and a 5–133 Hz input-shaper test | The profiles still print using the stock path above |
+| Firmware-matched `.cfg` macro pack | Chamber exhaust regulation, a basic rear-sensor chamber wait, material-aware wiping, positioned/flow-limited purge, corrected retract bookkeeping, safer cancellation, a bed cooldown ramp and a 5–133 Hz input-shaper test | The profiles still print using the stock path above, with the nozzle 5–9 °C below their temperatures: Sovol's sensor reading runs it cold |
 | `chamber_preheat.py` + `moonraker.py`, enabled by `chamber_preheat.cfg` | Qualifies the stirred, unheated nozzle as a chamber-air observer; can use recent temperature history and predict readiness. Adds bed boost, on by default (`M191 ... BOOST=0` turns it off for one wait), and bounded early handover | `M191` waits on the rear chamber sensor using native `TEMPERATURE_WAIT`. No nozzle qualification, boost or early handover. `M191 R` above its target is refused, because waiting for it to cool needs the helper |
 | `spool_guard.py` + `moonraker.py`, enabled by `spool_guard.cfg` | Checks the active Spoolman spool's remaining mass and material before heating; supplies material information to other macros | No automatic spool validation. A missing Spoolman integration is skipped with a notice |
 | `svzero-mode-precision.cfg.off` in the pack directory | Precision mode on the 0.4, 0.3, 0.25 and 0.2 nozzles: 64 microsteps, 1.4 A, a 300 mm/s ceiling, and its own printer profile with layers from 0.04 mm. Switched by renaming the file and restarting Klipper ([docs/PRECISION.md](docs/PRECISION.md)) | Standard mode only. A job sliced for precision is refused before heating, with the file to rename |
 | `svzero_mode_switch.py` as a Moonraker component | A job sliced for the other mode switches the printer itself: refused, Klipper restarted once idle and cold, the same file started again | Switching is a rename and a restart by hand |
+| `camera_auto.py`, enabled by `camera_auto.cfg`, on a stock crowsnest camera | The stock camera's exposure follows the room: corrected in the background while the bed heats, refined on the finished part after each print, and kept in `crowsnest.conf` for restarts | The camera keeps whatever crowsnest and its own auto-exposure give it |
 | `camera_tune.py` + `moonraker.py`, enabled by `camera_tune.cfg`, plus the separately configured local camera service and lighting macros | Optional bounded exposure/lighting tuning during startup | Printing continues with existing camera settings; this is not a basic profile requirement |
 
 The macro pack changes printer behavior, not MCU firmware. None of these
@@ -186,16 +187,41 @@ not a guarantee that arbitrary start G-code is compatible: it still needs bed
 and nozzle waits and sufficient priming, especially with the pack's wipe and
 end-retract bookkeeping.
 
+### Hotend sensor: PT1000
+
+Both firmware files read the hotend with Klipper's own `sensor_type: PT1000`
+on a 10 kΩ pull-up, in place of Sovol's three-point table on 11 500 Ω, which
+ran the nozzle cold: 5.1 °C at a 200 °C set point, 7.8 at 250, 9.8 at 300.
+`hotend_pt1000.cfg` explains it and `source/hotend-sensor.json` has the method
+and the measurements.
+
+- **The pack's profiles are rebased to match.** Every Sovol-derived nozzle and
+  first-layer temperature is now what the nozzle reached at the old set point,
+  so a print reaches the temperature it did before. PCTG is not rebased.
+- **Profiles from elsewhere print hotter.** Sovol's stock filaments, or your
+  own, now print 5–11 °C hotter at the same number. Lower them by the table in
+  `hotend_pt1000.cfg` to keep their result.
+- **`max_temp` is 344**, the stock 355 rebased the same way, so the hottest
+  the nozzle can be set to has not moved.
+- **An OTA or `factory_resets.sh` copies Sovol's `printer.cfg` over yours**
+  and drops the pack's include with it. The nozzle then runs cold by that
+  table, not hot. Add the include back.
+- **To use Sovol's curve instead**, restore its three values in your own file
+  included after the pack: `sensor_type: my_thermistor_e`,
+  `pullup_resistor: 11500` and `max_temp: 355` under `[extruder]`. The pack's
+  profiles then print 5–11 °C cold.
+
 ### Nozzle growth compensation
 
 `SVZERO_NOZZLE_GROWTH`, sent by the slicer after `START_PRINT`, offsets the
 first layer for the nozzle being hotter than when the Z reference was taken.
 On 1.3.7 it ships **on**, with a coefficient k measured with the tare-tap on
-the operator's Zero2, 1.1 µm/°C. The first layer moves farther from the bed
-by k × (first-layer temperature − the 150 °C probe temperature): about
-+0.09 mm at 230 °C, +0.11 mm at 250 °C, +0.13 mm at PETG's 265 °C and
-+0.14 mm at ABS's 280 °C. Each print logs one line with k, both temperatures
-and the offset.
+the operator's Zero2: 1.1 µm/°C per degree on Sovol's sensor curve, 1.15 per
+real degree with the PT1000 reading above. The first layer moves farther from
+the bed by k × (first-layer temperature − the 150 °C probe temperature): about
++0.08 mm at Brass PLA's 223 °C, +0.11 mm at TPU's 242 °C, +0.12 mm at PETG's
+257 °C and +0.14 mm at ABS's 271 °C. Each print logs one line with k, both
+temperatures and the offset.
 
 - **Turn it off** on a machine with
   `SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0`.
@@ -265,6 +291,54 @@ works by leaving those optional includes disabled, not by disguising a broken
 installation. To remove Python, remove its include first and restart while idle.
 The native macro path then takes over.
 
+### Camera exposure: `camera_auto`
+
+For the stock camera under stock crowsnest. It uses only what the stock image
+ships: `v4l2-ctl`, `ffmpeg`, crowsnest's snapshot and NumPy in klippy-env.
+
+1. Copy `camera_auto.py` into `~/klipper/klippy/extras/` and `camera_auto.cfg`
+   into `~/printer_data/config/svzero/`.
+2. Add `[include svzero/camera_auto.cfg]` after the pack's includes and restart
+   the Klipper service while idle.
+3. Check what it measures. Open `http://<printer>:8080/?action=snapshot`: the
+   frame is upside down, as the camera is. `roi` in `camera_auto.cfg` is a crop
+   of that frame, as fractions. It is not the plate, which moves with the bed's
+   Z. The default keeps the central 80%; crop further to drop the room seen
+   through the door and lid in your view.
+
+What it does, once installed:
+
+- **At print start**, from `_PREFLIGHT`, it corrects the stored exposure for
+  the room's light, in the background, while the bed heats. The correction is
+  bounded to a factor of `start_max_step`. The very first run meters the plate
+  toward `target_median`.
+- **At print end**, it tries three exposures on the finished part. It keeps the
+  sharpest one that clips nothing and leaves the plate inside its brightness
+  band, and writes it into `crowsnest.conf`'s `v4l2ctl` line. Crowsnest applies
+  that on every start, so a restart begins there too. The original file is
+  kept once as `crowsnest.conf.camera-auto-orig`.
+
+It moves, heats and lights nothing, and runs no G-code.
+
+It also turns the camera's automatic white balance on and keeps it on, in
+`crowsnest.conf` too. A fixed white balance is where the stock camera's green
+cast comes from: under the stock LED bar no manual temperature is neutral. The
+camera's own AWB makes the dark-grey interior neutral within a couple of
+seconds. Each result line reports the interior's colour as a check, and
+`white_balance_temperature` in `camera_auto.cfg` pins a manual value if you
+prefer one.
+
+On a machine whose crowsnest camera is `/dev/null`, such as one running go2rtc,
+it reports that and does nothing.
+
+A Sovol OTA or factory reset replaces `printer.cfg`, so add the include back
+afterwards. Neither touches `camera_auto.py`, its state file or
+`crowsnest.conf`, so the camera keeps its last settings meanwhile.
+
+`CAMERA_AUTO_RESET` forgets the learned reference. To remove the extra, remove
+its include, put back `crowsnest.conf.camera-auto-orig` if you want crowsnest's
+old line, and restart while idle.
+
 ### What Python improves, and what still fails deliberately
 
 - **Adaptive preheat:** qualifies a previously hot nozzle before trusting it as
@@ -302,6 +376,13 @@ Update the generated firmware file in place; the include in `printer.cfg` stays
 the same. On 1.4.x the stock exhaust section must remain disabled. Keep a backup
 of the previous file for rollback. Keep your own tuning overrides in a separate
 file included last, before `SAVE_CONFIG`, so an update does not replace them.
+
+**A Sovol OTA or factory reset undoes part of the install.** Both copy Sovol's
+stock `printer.cfg` and `saved_variables.cfg` over yours. The first drops the
+pack's include, and the second drops every learned value: the chamber loop's
+`ch_*`, the preheat's fall rate and ETA profile, and a saved nozzle-growth k.
+Add the include back. The learned values rebuild over the next prints, and a k
+you measured has to be saved again.
 
 An existing modular install can switch by replacing its firmware entry file
 with the generated file of the same name. Previously copied source files become

@@ -44,6 +44,9 @@ Start with **profiles only** on stock Sovol firmware. Added printer macros and
 Python helpers are optional. Public startup retains `PURGE_LINE` and a priming
 skirt: stock firmware warns about the missing macro and continues; the skirt
 provides priming. Do not disable it unless another priming routine is installed.
+The profiles' temperatures are set for the macro pack's PT1000 reading of the
+hotend, so on stock firmware the nozzle runs 5–9 °C below them; the download
+README says how to correct that.
 
 Download the ZIP named for your slicer and follow its included README. Its
 installation layout can differ from the development checkout below. See the
@@ -86,7 +89,7 @@ by this project.
 | Install | Gain | Without it |
 |---|---|---|
 | Profiles only | Nozzle/material settings, temperature waits, skirt | Uses stock Sovol start/end macros |
-| Firmware-matched macro pack | Chamber control, rear-sensor soak, brush routine, positioned purge, first-layer nozzle growth compensation, cancellation and bed cooldown | Profiles still use stock behavior |
+| Firmware-matched macro pack | Chamber control, rear-sensor soak, brush routine, positioned purge, first-layer nozzle growth compensation, cancellation and bed cooldown | Profiles still use stock behavior, with the nozzle 5–9 °C below their temperatures |
 | Preheat Python helper | Nozzle-air qualification, history-assisted waiting, bed boost (on by default) and bounded early handover | Native rear-sensor wait |
 | Spoolman helper | Material and remaining-filament check before heating | Check the spool yourself |
 | Fan/camera helpers | Additional telemetry or tuning for separately configured hardware/services | Core profiles do not require them |

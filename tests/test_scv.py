@@ -38,14 +38,18 @@ class ScvTest(unittest.TestCase):
             with self.subTest(tier=tier):
                 self.assertIn(tier, SCV)
 
-    def test_standard_is_stock(self):
-        # Standard IS the stock profile, and Sovol's stock process sets every
-        # jerk to the same value. That value, not a guess, is Standard's SCV.
+    def test_fine_end_rises_to_standard_above_stock(self):
+        # Until 2026-10-27 Standard was pinned to stock's SCV. It now sits above
+        # it (operator), because a low SCV slows every faceted curve, not only
+        # square corners. What holds is the ladder from Precision to Standard,
+        # rising one step at a time, and Standard above Sovol's stock jerk.
         stock = json.loads((ROOT / "source/sovol-stock-process.json").read_text(encoding="utf-8"))
         flat = json.dumps(stock)
         jerks = {float(v) for v in re.findall(r'"[a-z_]*_jerk": ?"?([0-9.]+)', flat)}
         self.assertEqual(len(jerks), 1, jerks)
-        self.assertEqual(SCV["Standard"], jerks.pop())
+        ladder = [SCV[t] for t in ("Precision", "Fine", "Optimal", "Standard")]
+        self.assertEqual(ladder, sorted(set(ladder)))
+        self.assertGreater(SCV["Standard"], jerks.pop())
 
     def test_prusaslicer_and_superslicer_presets_name_their_tier_value(self):
         for family in ("ps-presets", "ss-presets"):

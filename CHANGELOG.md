@@ -2,6 +2,66 @@
 
 ## Unreleased
 
+### Changed: the hotend reads as a PT1000, and the profiles move with it
+
+- **Klipper's own PT1000 conversion replaces Sovol's sensor table.** Sovol's
+  three-point table on an 11 500 Ω pull-up ran the nozzle 5.1 °C cold at a
+  200 °C set point, 7.8 at 250 and 9.8 at 300. The part is a catalogue PT1000
+  on a 10 kΩ pull-up. pi.r measured it inside a Zero's block (forum t/10515),
+  torch on a stock SV08 MAX, and both of the operator's Zeros read within
+  0.5% of 10 kΩ at room temperature. `hotend_pt1000.cfg` sets
+  `sensor_type: PT1000`, `pullup_resistor: 10000` and `max_temp: 344` over
+  `printer.cfg`'s `[extruder]`.
+- **The profiles' nozzle temperatures are rebased, so prints with the macro
+  pack do not change.**
+  Each Sovol-derived temperature is what the nozzle reached at the old set
+  point, to the degree: Brass PLA 210/230 → 204/223, Steel PLA 230/245 →
+  223/237, Silk PLA 220–230/245 → 214–223/237, PETG 245–250/265 →
+  237–242/257, ABS 270/280 → 261/271, TPU 240/250 → 233/242, PC 260/280 →
+  252/271. `tools/generate.py` computes
+  them from `source/hotend-sensor.json`; none is typed.
+- **Without the macro pack, the profiles now print 6–9 °C colder than in
+  2.1.2.** Stock firmware keeps Sovol's reading, which runs the nozzle below
+  the rebased numbers: PLA - Brass set to 204 °C reaches about 199, where
+  2.1.2's 210 reached 204, and ABS set to 261 reaches about 253, where 270
+  reached 261. Install the macro pack, or raise the nozzle and first-layer
+  temperatures by that much. PCTG is unchanged. The download READMEs say so.
+- **PCTG keeps its temperatures** (operator's own preset, not Sovol's), so
+  with the macro pack it prints about 8 °C hotter than before: 260 °C at the
+  nozzle where Sovol's curve gave 252.
+- **`max_temp` 355 → 344**, the same rule, so the hottest the nozzle can be
+  set to has not moved.
+- **Nozzle growth k 1.1 → 1.15 µm/°C.** It was measured per degree on Sovol's
+  curve; the runs' 150 and 280 °C set points were 146.6 and 270.9 °C at the
+  nozzle, so the same growth is 1.1 × 130 / 124.3 per real degree. The
+  first-layer offsets are unchanged to within 0.01 mm.
+- **Profiles from elsewhere now print 5–11 °C hotter** at the same number,
+  Sovol's stock filaments included. An OTA or factory reset drops the pack's
+  include and the nozzle runs cold by the same amount, not hot. See INSTALL.md,
+  "Hotend sensor: PT1000".
+
+### Added: the stock camera's exposure follows the room
+
+- **`camera_auto`, an optional Python extra for the stock camera under stock
+  crowsnest.** It uses only what the stock image ships. `_PREFLIGHT` starts it
+  in the background, and it corrects the stored exposure for this room's light
+  while the bed heats. `END_PRINT` starts it again on the finished part: it
+  tries three exposures, keeps the best, and writes it into `crowsnest.conf`, so
+  the next print and any restart start from it. It moves, heats and lights
+  nothing.
+- **It avoids the dark-plate trap.** Metered for "brightest without clipping",
+  a bare dark plate drives exposure to the maximum, and the next white part
+  blows out. The start phase only restores the brightness the last print's end
+  chose, by at most a factor of 2. The end phase, where a part is in frame,
+  moves at most one bracket step per print and stays under `exposure_max`.
+- **The green cast goes.** `camera_auto` keeps the camera's automatic white
+  balance on and persists it. Under the stock LED bar a fixed temperature
+  cannot be neutral: on a dark-grey interior R/G stayed 0.20–0.54 across
+  2800–6500 K. AWB made the same interior neutral (R/G 1.03, B/G 0.99) within
+  1.6 s. Each phase reports the interior's colour as a check.
+- Opt-in through its own include. Machines whose crowsnest camera is
+  `/dev/null` are left alone. See INSTALL.md, "Camera exposure".
+
 ### Added: a PrusaSlicer 3 download (alpha)
 
 - **A fourth download, `prusaslicer3`, for PrusaSlicer 3.0.0-alpha12 and
@@ -39,6 +99,24 @@
   print, so it now waits until the bed target is 0, and the chamber heater's
   too where one is fitted. A print that ends with a cooldown ramp is
   unaffected: the ramp stops the loop itself.
+
+### Changed: square corner velocity raised at the fine end
+
+- **Precision 4, Fine 5, Optimal 6, Standard 7** (were 1, 3, 4 and 5).
+  Strength (5) and Draft (9) are unchanged.
+- **Why:** square corner velocity limits curves as well as corners. Klipper
+  caps the speed at every joint of a faceted curve, by SCV and the joint's
+  angle, and the acceleration doesn't enter into it. So a low value slows
+  every round feature.
+- **Measured offline, not printed.** We ran Klipper's corner formula over
+  Precision 0.4 G-code for small test pins. Outer walls the slicer sends at
+  44 mm/s averaged 9-20 mm/s at SCV 1 and 18-39 mm/s at 4; the acceleration
+  alone allows 19-42. Thanks to corgi108 for pointing at it.
+- **Standard is no longer stock's 5.** OrcaSlicer's bundled Klipper profiles
+  that set it per tier use about 7-8 on outer walls at every quality, and
+  none goes below 4.
+- **Not yet printed.** The visible effect on corners and curves still needs
+  an A/B print.
 
 ## 2.1.2
 
