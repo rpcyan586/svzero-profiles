@@ -56,6 +56,13 @@ if it is not installed under `~/opt/superslicer-*/superslicer`:
 python tools/slice-harness.py --matrix --workdir "$HOME/svzero-slice-check" --keep
 ```
 
+PrusaSlicer 3 is opt-in: `--slicers ps,ps3` also slices `bundles/ps3` with the
+flathub-beta build, 3.0.0-alpha12 or later. The harness installs the bundle into
+a fresh data directory with one extra, test-only printer config per nozzle,
+because the command line cannot choose a nozzle the way the Add Printer wizard
+does. To test a build installed beside your own, point `FLATPAK_USER_DIR` at
+that installation.
+
 The harness currently expects these Linux installations. It is not a portable
 installer for slicer binaries. See [VALIDATION.md](VALIDATION.md) for tested
 versions and the difference between slicing and a physical print.

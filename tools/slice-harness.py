@@ -34,6 +34,7 @@ from the part being good.
     ./slice-harness.py                       # 0.4 nozzle, Standard, all three
     ./slice-harness.py --nozzle 0.6 --tier Draft
     ./slice-harness.py --slicers ss          # just SuperSlicer
+    ./slice-harness.py --slicers ps,ps3      # PrusaSlicer 2.9 against 3.0 (flathub-beta)
     ./slice-harness.py --keep                # leave the G-code for inspection
 
 EXIT CODE IS THE POINT, as of 2026-09-06. A refused key or a slicer that
@@ -61,6 +62,7 @@ import json
 import math
 import os
 import re
+import shutil
 import statistics
 import struct
 import subprocess
@@ -87,7 +89,8 @@ CROSS_MAX = 4.0
 VOL_MIN, VOL_MAX = 0.10, 3.0
 # Against a slicer's OWN recorded number, where determinism makes it meaningful.
 BASELINE_TOL = 0.02
-PRUSA_BRANCH = "stable"      # 2.9.6; the beta alongside it is 3.0
+PRUSA_BRANCH = "stable"      # 2.9.x; the beta alongside it is 3.0
+PRUSA3_BRANCH = "beta"       # 3.0.0-alphaN, flathub-beta
 PRUSA_ID = "com.prusa3d.PrusaSlicer"
 ORCA_ID = "com.orcaslicer.OrcaSlicer"
 
@@ -285,6 +288,84 @@ def slice_orca(work, nozzle, tier, filament, obj):
         os.replace(made[0], out)
         return out, p.stdout + p.stderr
     return None, p.stdout + p.stderr
+
+
+_PS3_INSTALLED = set()
+
+
+def ps3_install(work):
+    """Install bundles/ps3 into a fresh PrusaSlicer 3 datadir, once per run.
+
+    Not the shipped zip byte for byte: the CLI selects a printer config by the
+    name PS3 composes from the printer model and its tools, and the shipped
+    configs carry only the 0.4 nozzle -- a user picks another in the Add
+    Printer wizard, which has no CLI. So the presets are the artefact's, and
+    vendor.yaml gains one test-only config per other nozzle each model
+    supports, named "SV Zero 0.6", "SV Zero Precision 0.25" and so on.
+    """
+    d = os.path.join(work, "ps3data")
+    if d in _PS3_INSTALLED:
+        return d, ""
+    import emit_ps3
+    import yaml
+    src = os.path.join(ROOT, "bundles", "ps3")
+    stage = os.path.join(work, "ps3-bundle")
+    for path in (d, stage):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+    shutil.copytree(src, stage)
+    vendor_path = os.path.join(stage, "SVZero", "vendor.yaml")
+    docs = list(yaml.safe_load_all(open(vendor_path, encoding="utf-8")))
+    tools = [doc for doc in docs if doc["kind"] == "tool"]
+    for model in [doc for doc in docs if doc["kind"] == "printer"]:
+        shipped = next(c for c in docs if c["kind"] == "printer_config"
+                       and c["printer"] == model["id"])
+        for tool in tools:
+            feature = tool["condition"].split("printer.", 1)[1]
+            if tool["id"] == shipped["tools"][0]["tool"] or feature not in model["features"]:
+                continue
+            docs.append(dict(shipped, id="%s-harness-%s" % (model["id"], tool["id"]),
+                             tools=[{"tool": tool["id"]}]))
+    emit_ps3.write_stream(vendor_path, docs)
+    version = next(doc for doc in docs if doc["kind"] == "vendor")["version"]
+    archive = os.path.join(work, "ps3-source.zip")
+    emit_ps3.write_local_source(stage, archive, "SVZero", version)
+    log = ""
+    for action in (["--preset-update-add-local", archive], ["--preset-update"]):
+        p = run(["flatpak", "run", "--branch=" + PRUSA3_BRANCH,
+                 "--command=slic3r-app-launcher", PRUSA_ID, "--datadir", d] + action,
+                os.path.join(work, "ps3-install.log"))
+        log += p.stdout + p.stderr
+    _PS3_INSTALLED.add(d)
+    return d, log
+
+
+def slice_ps3(work, nozzle, tier, filament, obj):
+    """PrusaSlicer 3 on bundles/ps3, selected by the names a user sees."""
+    d = os.path.join(ROOT, "bundles", "ps-presets")
+    prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - %smm (%s).ini"
+                                  % (nozzle, layer_glob(), tier)))
+    if not prnt:
+        return None, "no flattened print preset; run generate.py --emit ps-presets,ps3"
+    data, log = ps3_install(work)
+    # "SV Zero Precision 0.4n" in PS2 is the config "SV Zero Precision 0.4"
+    # here, and "SV Zero 1.0n" is "SV Zero 1": PS3 names a tool by its number.
+    m = re.fullmatch(r"(.+) ([\d.]+)n", printer_name(nozzle, tier))
+    printer = "%s %g" % (m.group(1), float(m.group(2)))
+    out = os.path.join(work, "ps3.gcode")
+    if os.path.exists(out):
+        os.remove(out)
+    p = run(["flatpak", "run", "--branch=" + PRUSA3_BRANCH, "--command=slic3r-app-launcher",
+             PRUSA_ID, "--datadir", data,
+             "--printer-profile", printer,
+             "--print-profile", os.path.basename(prnt[0])[:-4].split(" - ", 1)[1],
+             "--tool-print-profile", "no tool",
+             "--material-profile", filament,
+             "--export-gcode", "--output", out, obj],
+            os.path.join(work, "ps3.log"))
+    # The exit status says nothing: a failed export exits 0 and reports only
+    # "(38, [start_gcode])". Only the file proves a slice.
+    return (out if os.path.exists(out) else None), log + p.stdout + p.stderr
 
 
 # -------------------------------------------------------------------- analyse
@@ -567,6 +648,8 @@ def run_matrix(args, model, work, obj, want):
                 path, out = slice_ss(work, cfg, obj) if cfg else (None, "no preset for this pair")
             elif w == "ps":
                 path, out = slice_ps(work, noz, tier, fil, obj)
+            elif w == "ps3":
+                path, out = slice_ps3(work, noz, tier, fil, obj)
             else:
                 path, out = slice_orca(work, noz, tier, fil, obj)
             if path:
@@ -774,6 +857,16 @@ def main():
                                             b, acc, model, expect, rejected_keys(out))
         else:
             print("\n== PrusaSlicer: no G-code -- %s" % out)
+    if "ps3" in want:
+        path, out = slice_ps3(work, args.nozzle, args.tier, args.filament, obj)
+        if path:
+            b, acc = analyse(path, float(fil.get("filament_diameter", 1.75)))
+            refused["PrusaSlicer 3"] = rejected_keys(out)
+            results["PrusaSlicer 3"] = report("PrusaSlicer 3 %s (bundles/ps3)" % args.tier,
+                                              b, acc, model, expect, rejected_keys(out))
+        else:
+            print("\n== PrusaSlicer 3: no G-code -- %s"
+                  % "; ".join(l for l in out.splitlines() if l.startswith("(") or "rror" in l)[:300])
     if "orca" in want:
         path, out = slice_orca(work, args.nozzle, args.tier, args.filament, obj)
         if path:
@@ -812,7 +905,7 @@ def main():
         print("   (base default_speed = %.1f)" % base)
 
     if not args.keep:
-        for f in ("ps.gcode", "ss.gcode", "orca.gcode"):
+        for f in ("ps.gcode", "ss.gcode", "orca.gcode", "ps3.gcode"):
             p = os.path.join(work, f)
             if os.path.exists(p):
                 os.remove(p)
@@ -844,9 +937,10 @@ def main():
             refused[slicer] = [k for k in refused[slicer] if not expected_in_master(k)]
 
     bad = {k: v for k, v in refused.items() if v}
-    missing = [k for k in ("ss", "ps", "orca") if k in want] and [
-        n for n in ("SuperSlicer", "PrusaSlicer", "OrcaSlicer")
-        if n.lower()[:2] in [w[:2] for w in want] and n not in results]
+    # By key, not by a name prefix: "ps3" and "ps" share their first letters.
+    names = {"ss": "SuperSlicer", "ps": "PrusaSlicer", "orca": "OrcaSlicer",
+             "ps3": "PrusaSlicer 3"}
+    missing = [names[w] for w in want if w in names and names[w] not in results]
     print("\n== verdict")
     for slicer, keys in sorted(bad.items()):
         print("   FAIL  %s refused: %s" % (slicer, ", ".join(keys)))
