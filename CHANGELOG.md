@@ -12,16 +12,23 @@
   0.5% of 10 kΩ at room temperature. `hotend_pt1000.cfg` sets
   `sensor_type: PT1000`, `pullup_resistor: 10000` and `max_temp: 344` over
   `printer.cfg`'s `[extruder]`.
-- **The profiles' nozzle temperatures are rebased, so prints do not change.**
+- **The profiles' nozzle temperatures are rebased, so prints with the macro
+  pack do not change.**
   Each Sovol-derived temperature is what the nozzle reached at the old set
   point, to the degree: Brass PLA 210/230 → 204/223, Steel PLA 230/245 →
   223/237, Silk PLA 220–230/245 → 214–223/237, PETG 245–250/265 →
   237–242/257, ABS 270/280 → 261/271, TPU 240/250 → 233/242, PC 260/280 →
   252/271. `tools/generate.py` computes
   them from `source/hotend-sensor.json`; none is typed.
+- **Without the macro pack, the profiles now print 6–9 °C colder than in
+  2.1.2.** Stock firmware keeps Sovol's reading, which runs the nozzle below
+  the rebased numbers: PLA - Brass set to 204 °C reaches about 199, where
+  2.1.2's 210 reached 204, and ABS set to 261 reaches about 253, where 270
+  reached 261. Install the macro pack, or raise the nozzle and first-layer
+  temperatures by that much. PCTG is unchanged. The download READMEs say so.
 - **PCTG keeps its temperatures** (operator's own preset, not Sovol's), so
-  it now prints about 8 °C hotter than before: 260 °C at the nozzle where
-  Sovol's curve gave 252.
+  with the macro pack it prints about 8 °C hotter than before: 260 °C at the
+  nozzle where Sovol's curve gave 252.
 - **`max_temp` 355 → 344**, the same rule, so the hottest the nozzle can be
   set to has not moved.
 - **Nozzle growth k 1.1 → 1.15 µm/°C.** It was measured per degree on Sovol's

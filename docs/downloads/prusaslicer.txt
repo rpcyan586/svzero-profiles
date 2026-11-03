@@ -14,6 +14,13 @@ re-slice. Profiles alone support stock Sovol Zero 1.3.7 and 1.4.x start/end macr
 Keep the fallback skirt: the stock firmware warns about missing optional pack
 commands and continues, and the skirt provides priming without the purge macro.
 
+**Without the macro pack the nozzle runs 5–9 °C below the profile's
+number.** The temperatures are set for the pack's PT1000 reading of the
+hotend. Stock firmware keeps Sovol's reading, which runs the nozzle cold:
+PLA - Brass set to 204 °C reaches about 199, and ABS set to 261 about 253.
+Install the macro pack, or raise the nozzle and first-layer temperatures by
+that much.
+
 **Optional printer macros:** follow [INSTALL.md](INSTALL.md). Copy only the
 consolidated config for your firmware from `optional-macros/` and add one include.
 The Python enhancements are optional. You do not need to build anything or copy

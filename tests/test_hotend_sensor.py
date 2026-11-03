@@ -86,6 +86,29 @@ class HotendSensorTests(unittest.TestCase):
                 elif "nozzle_temperature" in doc:
                     self.assertIn("[PT1000]", "".join(doc.get("filament_notes", [""])))
 
+    def test_profiles_only_shortfall_is_what_the_docs_say(self):
+        model = G.load("model.json")
+        ss = G.sections_from_tree(G.load("presets.json"), model)
+        G.derive(model, ss, G.load("keymap.json"))
+
+        def nozzle(setpoint):
+            return round(G.stock_curve_true_temperature(SENSOR, float(setpoint)))
+        shortfall = [float(kv[key]) - G.stock_curve_true_temperature(SENSOR, float(kv[key]))
+                     for sec, kv in ss.items() if sec.startswith("filament:SV Zero ")
+                     for key in SENSOR["keys"] if key in kv]
+        claim = "%d–%d °C below" % (round(min(shortfall)), round(max(shortfall)))
+        pla = ss["filament:SV Zero PLA - Brass"]["temperature"]
+        abs_ = ss["filament:SV Zero ABS"]["temperature"]
+        readmes = sorted((ROOT / "docs/downloads").glob("*slicer*.txt"))
+        self.assertGreaterEqual(len(readmes), 3)
+        for path in readmes + [ROOT / "README.md", ROOT / "INSTALL.md"]:
+            text = " ".join(path.read_text(encoding="utf-8").split())
+            with self.subTest(doc=path.name):
+                self.assertIn(claim, text)
+                if path in readmes:
+                    self.assertIn("PLA - Brass set to %s °C reaches about %d" % (pla, nozzle(pla)), text)
+                    self.assertIn("ABS set to %s about %d" % (abs_, nozzle(abs_)), text)
+
 
 if __name__ == "__main__":
     unittest.main()
