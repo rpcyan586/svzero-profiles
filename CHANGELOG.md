@@ -73,9 +73,10 @@
 - Installed and sliced from the command line on alpha12 and alpha13. Against
   PrusaSlicer 2.9.7 on the test objects, Precision included, the start G-code
   and acceleration limits match and speeds and line widths agree within 1%,
-  except the outer wall at 0.08 mm Precision, which PrusaSlicer 3 extrudes
-  about 7% thinner for a reason not yet found. Not yet printed, the menu route
-  has not been tried by hand, and the bed preview is not included yet.
+  with one exception: at 0.08 mm Precision PrusaSlicer 3 extrudes the 20 mm
+  cube's outer wall about 7% thinner, for a reason not yet found. The feature
+  cube's outer wall is the same in both. Not yet printed, the menu route has
+  not been tried by hand, and the bed preview is not included yet.
 
 ### Checked: shrinkage compensation enlarges parts, in every slicer that can be asked
 
