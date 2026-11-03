@@ -1,9 +1,12 @@
-# Vendored from PrusaSlicer 3.0.0-alpha11
+# PrusaSlicer 3.0 schemas and data model
 
-`preset-schema.json` and `vendor-schema.json` are copied verbatim from
-[`prusa3d/PrusaSlicer`](https://github.com/prusa3d/PrusaSlicer) at tag
-`version_3.0.0-alpha11` (published 2026-09-01), path `specs/presets/`.
-PrusaSlicer is AGPLv3; these are its schema files, unmodified.
+## `preset-schema.json`, `vendor-schema.json`
+
+Copied verbatim from [`prusa3d/PrusaSlicer`](https://github.com/prusa3d/PrusaSlicer)
+at tag `version_3.0.0-alpha11` (published 2026-09-01), path `specs/presets/`.
+PrusaSlicer is AGPLv3; these are its schema files, unmodified. Both are
+blob-identical at `version_3.0.0-alpha12` and `version_3.0.0-alpha13`
+(checked 2026-11-02), so they are current.
 
 They are here for two reasons:
 
@@ -17,21 +20,34 @@ Refresh with:
 
     curl -sSO https://raw.githubusercontent.com/prusa3d/PrusaSlicer/<tag>/specs/presets/preset-schema.json
 
+They are looser than the loader in one place and stricter in another.
+`vendor-schema.json` makes feeder `model` optional and the loader requires it;
+it gives `printer_config` no `features`, and Prusa's own alpha13 bundle sets
+them (`xl-2t` and three more). `tools/emit_ps3.py` lists each such difference
+where it writes the key.
+
+## `config-schema.json`
+
+The application's own data model: every option, by preset kind, with its type,
+enum values, limits, default and the locations that may override it. Written
+by `slic3r-app-launcher --export-config-schema` from the flathub-beta flatpak
+`com.prusa3d.PrusaSlicer//beta`, Release 3.0.0-alpha13 (`c17dae9a40df`), on
+2026-11-03, and committed byte for byte as exported. It replaced alpha11's
+export (2026-09-05). Against alpha12's export it adds three options
+(`used_filament_compensation`, `wipe_tower_max_purge_speed`,
+`wipe_tower_deretraction_spread_ratio`), raises `layer_height`'s minimum to 0.01,
+and adds the print-mode override locations `MacroOverrides` and
+`MacroSlotOverrides` to 266 options.
+
+Refresh with:
+
+    flatpak run --branch=beta --command=slic3r-app-launcher com.prusa3d.PrusaSlicer \
+        --export-config-schema source/ps3/config-schema.json
+
 ## `ps3-known-options.json`
 
-Not a Prusa file. Extracted 2026-09-05 from PrusaSlicer's own shipped presets at
-the same tag — `resources/presets/prusa-research-fff/PrusaResearch/`, files
-`preset-print-coreone.yaml`, `preset-print-common.yaml` and
-`preset-printer-coreone.yaml`.
-
-**Empirical and partial**: it is what Prusa happen to *set* on those machines,
-not the option list. `prusa-slicer --help-fff` is what makes
-`../ps-known-options.json` authoritative for 2.9.6, and there is no equivalent
-here because PrusaSlicer 3 is not installed — and could not load a third-party
-bundle in alpha11 regardless.
-
-`emit_ps3.py` therefore unions it with the authoritative PS2 list rather than
-trusting it alone. On its own it stripped `resolution`, `raft_layers`,
-`xy_size_compensation` and `support_material_auto`, all valid options that Prusa
-simply leave at their defaults. Replace this file with a real option dump as soon
-as PrusaSlicer 3 can be installed and asked.
+Not a Prusa file. The option and override names of each preset kind, derived
+from `config-schema.json`: `items` are the names in a kind's `items`, in order,
+and `overrides` the names in its `overrides`. Regenerate it whenever
+`config-schema.json` changes; the derivation reproduces the alpha11 file
+exactly from alpha11's export.
