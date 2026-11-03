@@ -35,6 +35,7 @@ from the part being good.
     ./slice-harness.py --nozzle 0.6 --tier Draft
     ./slice-harness.py --slicers ss          # just SuperSlicer
     ./slice-harness.py --slicers ps,ps3      # PrusaSlicer 2.9 against 3.0 (flathub-beta)
+    ./slice-harness.py --shrinkage           # shrinkage polarity, every slicer and filament
     ./slice-harness.py --keep                # leave the G-code for inspection
 
 EXIT CODE IS THE POINT, as of 2026-09-06. A refused key or a slicer that
@@ -230,7 +231,27 @@ def merge_ini(paths, out_path):
     return out_path
 
 
-def slice_ps(work, nozzle, tier, filament, obj):
+def ps_notation(pct):
+    """Physical shrinkage % in PrusaSlicer's notation, through the generator's
+    own conversions -- so the polarity gate tests them, not a copy."""
+    return G.shrink_to_ps(G.orca_shrink(pct))
+
+
+def override_ini(path, values):
+    """Rewrite `key = value` lines in a merged INI, adding keys it lacks."""
+    lines = open(path, encoding="utf-8").read().splitlines()
+    seen = set()
+    for i, line in enumerate(lines):
+        key = line.split(" = ", 1)[0].strip()
+        if key in values:
+            lines[i] = "%s = %s" % (key, values[key])
+            seen.add(key)
+    lines += ["%s = %s" % (k, v) for k, v in values.items() if k not in seen]
+    open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+
+
+def slice_ps(work, nozzle, tier, filament, obj, shrink=None):
+    """`shrink`, if given, is the PHYSICAL (xy, z) shrinkage in %."""
     d = os.path.join(ROOT, "bundles", "ps-presets")
     prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - %smm (%s).ini"
                                   % (nozzle, layer_glob(), tier)))
@@ -242,7 +263,13 @@ def slice_ps(work, nozzle, tier, filament, obj):
                     os.path.join(work, "ps-config.ini"))
     if not cfg:
         return None, "a ps-presets file is missing; run generate.py --emit ps-presets"
+    if shrink is not None:
+        override_ini(cfg, {"filament_shrinkage_compensation_xy": ps_notation(shrink[0]),
+                           "filament_shrinkage_compensation_z": ps_notation(shrink[1])})
     out = os.path.join(work, "ps.gcode")
+    # A slice that fails must not find the previous run's file and pass.
+    if os.path.exists(out):
+        os.remove(out)
     # --branch matters now that 3.0 beta is installed beside 2.9.6; without it
     # flatpak picks the beta and this measures the wrong slicer.
     p = run(["flatpak", "run", "--branch=" + PRUSA_BRANCH, PRUSA_ID,
@@ -259,17 +286,26 @@ def slice_ss(work, cfg_path, obj):
     if not binary:
         return None, "SuperSlicer not installed; see docs/PIPELINE.md"
     out = os.path.join(work, "ss.gcode")
+    if os.path.exists(out):
+        os.remove(out)
     p = run([binary, "--datadir", os.path.join(work, "ssdata"),
              "--load", cfg_path, "--export-gcode", "-o", out, obj],
             os.path.join(work, "ss.log"))
     return (out if os.path.exists(out) else None), p.stdout + p.stderr
 
 
-def slice_orca(work, nozzle, tier, filament, obj):
+def slice_orca(work, nozzle, tier, filament, obj, shrink=None):
+    """`shrink`, if given, is the PHYSICAL (xy, z) shrinkage in %."""
     d = os.path.join(work, "orcadata")
     subprocess.run([sys.executable, os.path.join(HERE, "install-presets.py"), "orca", d],
                    capture_output=True, text=True)
     v = os.path.join(d, "system", "SVZero")
+    if shrink is not None:
+        fpath = os.path.join(v, "filament", "%s.json" % filament)
+        doc = json.load(open(fpath, encoding="utf-8"))
+        doc["filament_shrink"] = [G.orca_shrink(shrink[0])]
+        doc["filament_shrinkage_compensation_z"] = [G.orca_shrink(shrink[1])]
+        json.dump(doc, open(fpath, "w", encoding="utf-8"), indent=2)
     machine = printer_name(nozzle, tier, orca=True)
     proc = glob.glob(os.path.join(v, "process", "%smm %s @%s.json" % (layer_glob(), tier, machine)))
     if not proc:
@@ -340,8 +376,13 @@ def ps3_install(work):
     return d, log
 
 
-def slice_ps3(work, nozzle, tier, filament, obj):
-    """PrusaSlicer 3 on bundles/ps3, selected by the names a user sees."""
+def slice_ps3(work, nozzle, tier, filament, obj, shrink=None):
+    """PrusaSlicer 3 on bundles/ps3, selected by the names a user sees.
+
+    `shrink`, if given, is the PHYSICAL (xy, z) shrinkage in %, passed as the
+    CLI's own overrides, which alpha13 applies (--filament-shrinkage-
+    compensation-xy 5% gave a 21.052 mm wall on a 20 mm cube).
+    """
     d = os.path.join(ROOT, "bundles", "ps-presets")
     prnt = glob.glob(os.path.join(d, "print", "SV Zero %sn - %smm (%s).ini"
                                   % (nozzle, layer_glob(), tier)))
@@ -360,8 +401,11 @@ def slice_ps3(work, nozzle, tier, filament, obj):
              "--printer-profile", printer,
              "--print-profile", os.path.basename(prnt[0])[:-4].split(" - ", 1)[1],
              "--tool-print-profile", "no tool",
-             "--material-profile", filament,
-             "--export-gcode", "--output", out, obj],
+             "--material-profile", filament]
+            + ([] if shrink is None else
+               ["--filament-shrinkage-compensation-xy", ps_notation(shrink[0]),
+                "--filament-shrinkage-compensation-z", ps_notation(shrink[1])])
+            + ["--export-gcode", "--output", out, obj],
             os.path.join(work, "ps3.log"))
     # The exit status says nothing: a failed export exits 0 and reports only
     # "(38, [start_gcode])". Only the file proves a slice.
@@ -769,6 +813,217 @@ def run_matrix(args, model, work, obj, want):
     return 1 if fails else 0
 
 
+# ----------------------------------------------------------- shrinkage polarity
+#
+# The pack has shipped shrinkage the wrong way round once already: until
+# 2026-10-13 Orca and SuperSlicer got 100.8% for ABS, read as a scale factor,
+# and every part came out a further 0.8% small. A number that looks plausible
+# in either direction is exactly what review does not catch, so this measures
+# the direction on G-code, in every slicer whose command line applies it.
+#
+# What is measured is the OUTER WALL of a 20 mm cube. Its centreline is inset
+# from the surface by a fixed amount, read from the same slicer's 0% slice
+# (19.600 mm apart at 0.4 Standard, i.e. 0.2 mm per side), so
+#     outer = centreline span + (20 - centreline span at 0%)
+# and a correct compensation for s% shrinkage gives 20 x 100 / (100 - s):
+# 20.0602 mm for PLA's 0.3%, 21.0526 mm at 5%. LARGER than 20, always. Reporting
+# the centreline span itself as "the size" made a correct 0.3% read as an
+# inversion on 2026-11-03; only the outer figure is reported here.
+#
+# Not every command line can be asked:
+#   ps    PrusaSlicer 2.9.x applies the model once to an empty Print
+#         (CLI/ProcessActions.cpp), before any object exists to say which
+#         extruders are used, so the scale is always 1. Its GUI compensates
+#         (2.9.7, 20.060 mm at 0.3%).
+#   orca  OrcaSlicer 2.4.2's command line applied no XY compensation either on
+#         2026-10-13; its GUI does.
+# Those are reported as UNMEASURED, never as passing. Their shipped values are
+# covered by a slicer that reads the same notation and does apply it -- ps3 for
+# PrusaSlicer's (the PS3 bundle is the PS2 presets retyped), ss for the
+# measured-size one Orca shares -- and tests/test_shrinkage.py holds every
+# artefact's value to the one physical figure in source/filament-shrink.json.
+
+SHRINK_EXAGGERATED = 5.0   # %: an inversion here is 2 mm, unmissable
+SHRINK_TOL = 0.005         # mm: two coordinates at 0.001, with margin
+NOTATION = {"ps": "PrusaSlicer (shrinkage %)", "ps3": "PrusaSlicer (shrinkage %)",
+            "ss": "measured size %", "orca": "measured size %"}
+LAYER_Z = re.compile(r"^;\s*Z(?:_HEIGHT)?:\s*(-?[\d.]+)")
+
+
+def cube_extent(path):
+    """(outer-wall centreline span X, Y at mid height, top layer Z).
+
+    Layers come from the slicers' own ;Z: / ; Z_HEIGHT: comments, never from
+    a G1 Z, which a Z-hop also writes (see analyse()).
+    """
+    x = y = None
+    z = None
+    feature = None
+    relative = True
+    boxes = {}
+    num = re.compile(r"([XYE])(-?[\d.]+)")
+    for raw in open(path, encoding="utf-8", errors="replace"):
+        line = raw.strip()
+        m = LAYER_Z.match(line)
+        if m:
+            z = float(m.group(1))
+            continue
+        if line.startswith(";TYPE:"):
+            feature = FEATURE.get(line[6:].strip(), line[6:].strip().lower())
+            continue
+        if not line or line.startswith(";"):
+            continue
+        line = line.split(";", 1)[0].strip()
+        cmd = line.split(" ", 1)[0]
+        if cmd in ("M82", "M83"):
+            relative = cmd == "M83"
+            continue
+        if cmd not in ("G0", "G1"):
+            continue
+        w = dict(num.findall(line))
+        nx, ny = float(w.get("X", x or 0)), float(w.get("Y", y or 0))
+        extruding = "E" in w and float(w["E"]) > 0 and relative
+        if extruding and feature == "external perimeter" and z is not None and x is not None:
+            b = boxes.setdefault(z, [1e9, -1e9, 1e9, -1e9])
+            for px, py in ((x, y), (nx, ny)):
+                b[0], b[1] = min(b[0], px), max(b[1], px)
+                b[2], b[3] = min(b[2], py), max(b[3], py)
+        x, y = nx, ny
+    if not boxes:
+        return None
+    top = max(boxes)
+    mid = [b for k, b in boxes.items() if 0.25 * top <= k <= 0.75 * top] or list(boxes.values())
+    sx = sorted(b[1] - b[0] for b in mid)
+    sy = sorted(b[3] - b[2] for b in mid)
+    return sx[len(sx) // 2], sy[len(sy) // 2], top
+
+
+def physical_shrinkage(ss, filament):
+    """(xy, z) % from source/filament-shrink.json, keyed as apply_shrinkage keys it."""
+    mats = G.load("filament-shrink.json")["materials"]
+    ftype = G.flatten(ss, "filament:%s" % filament).get("filament_type")
+    m = mats.get("PLA Silk" if "Silk" in filament else ftype) or mats.get(ftype)
+    return float(m["xy"]), float(m["z"])
+
+
+def shrink_slice(w, work, filament, obj, shrink):
+    """One 0.4 Standard slice of `obj` in slicer `w`, shrinkage overridden or shipped."""
+    if w == "ps":
+        return slice_ps(work, "0.4", "Standard", filament, obj, shrink)
+    if w == "ps3":
+        return slice_ps3(work, "0.4", "Standard", filament, obj, shrink)
+    if w == "orca":
+        return slice_orca(work, "0.4", "Standard", filament, obj, shrink)
+    d = os.path.join(ROOT, "bundles", "ss-presets")
+    art = glob.glob(os.path.join(d, "print", "SV Zero 0.4n - *(Standard).ini"))
+    cfg = merge_ini([os.path.join(d, "printer", "SV Zero 0.4n.ini"), art[0],
+                     os.path.join(d, "filament", "%s.ini" % filament)],
+                    os.path.join(work, "shrink-ss.ini"))
+    if cfg and shrink is not None:
+        # SuperSlicer has no Z compensation; only XY is asked of it.
+        override_ini(cfg, {"filament_shrink": G.orca_shrink(shrink[0])})
+    return slice_ss(work, cfg, obj) if cfg else (None, "no ss-presets for 0.4 Standard")
+
+
+def run_shrinkage(model, ss, work, want):
+    """Shrinkage polarity and magnitude, per slicer and per shipped filament."""
+    subprocess.run([sys.executable, os.path.join(HERE, "make-test-object.py"),
+                    work, "--shape", "cube20"], check=True, capture_output=True)
+    obj = os.path.join(work, "svzero-cube20.stl")
+    filaments = sorted(os.path.splitext(f)[0] for f in
+                       os.listdir(os.path.join(ROOT, "bundles", "ps-presets", "filament"))
+                       if f.endswith(".ini"))
+    base_fil = "SV Zero PLA - Brass"
+    fails, measured, unmeasured = [], set(), set()
+    print("20 mm cube, 0.4 Standard. outer = wall centreline span + the 0% slice's inset;"
+          " expected 20 x 100/(100 - s)")
+    print("%-6s %-26s %8s %10s %10s %9s %9s  %s"
+          % ("slicer", "filament", "s %", "outer X", "outer Y", "expect", "top Z", "verdict"))
+    for w in want:
+        ref, out = shrink_slice(w, work, base_fil, obj, (0.0, 0.0))
+        ext0 = cube_extent(ref) if ref else None
+        if not ext0:
+            fails.append("%s: no 0%% reference slice -- %s" % (w, (out or "?").strip().splitlines()[-1:]))
+            print("%-6s %-26s %8s  no G-code" % (w, base_fil, "0"))
+            continue
+        inset = 20.0 - ext0[0]
+        if not 0.2 <= inset <= 1.2:
+            fails.append("%s: 0%% wall centreline span %.3f mm is not a 20 mm cube" % (w, ext0[0]))
+            continue
+        print("%-6s %-26s %8s %10.4f %10.4f %9.4f %9.3f  reference, inset %.3f"
+              % (w, base_fil, "0", ext0[0] + inset, ext0[1] + inset, 20.0, ext0[2], inset))
+        s = SHRINK_EXAGGERATED
+        path, out = shrink_slice(w, work, base_fil, obj, (s, s))
+        ext = cube_extent(path) if path else None
+        if not ext:
+            fails.append("%s: no G-code at %g%%" % (w, s))
+            continue
+        ox, oy = ext[0] + inset, ext[1] + inset
+        expect = 20.0 * 100.0 / (100.0 - s)
+        if abs(ox - 20.0) <= SHRINK_TOL and abs(oy - 20.0) <= SHRINK_TOL:
+            verdict = "UNMEASURED: this CLI applies no XY compensation"
+            unmeasured.add(w)
+        elif ox < 20.0 or oy < 20.0:
+            verdict = "INVERTED"
+            fails.append("%s: %g%% shrinkage SHRANK the cube to %.4f x %.4f mm" % (w, s, ox, oy))
+        elif abs(ox - expect) > SHRINK_TOL or abs(oy - expect) > SHRINK_TOL:
+            verdict = "WRONG SIZE"
+            fails.append("%s: %g%% gave %.4f x %.4f mm, expected %.4f" % (w, s, ox, oy, expect))
+        else:
+            verdict = "ok"
+            measured.add(w)
+        ztxt = ""
+        if w != "ss":   # SuperSlicer has no Z compensation
+            zexp = 20.0 * 100.0 / (100.0 - s)
+            if ext[2] > ext0[2] + 0.5:
+                ztxt = ", Z grew" if ext[2] <= zexp + SHRINK_TOL else ", Z TOO TALL"
+                if "TOO" in ztxt:
+                    fails.append("%s: %g%% Z top %.3f above %.3f" % (w, s, ext[2], zexp))
+            elif ext[2] < ext0[2] - 0.5:
+                ztxt = ", Z INVERTED"
+                fails.append("%s: %g%% Z shrank the cube, top %.3f" % (w, s, ext[2]))
+            else:
+                ztxt = ", Z not applied"
+        print("%-6s %-26s %8g %10.4f %10.4f %9.4f %9.3f  %s%s"
+              % (w, base_fil, s, ox, oy, expect, ext[2], verdict, ztxt))
+        if w not in measured:
+            continue
+        # The shipped artefact, every filament: its value read from the
+        # bundle the slicer loads, its expectation from the physical table.
+        for fil in filaments:
+            xy, _ = physical_shrinkage(ss, fil)
+            path, out = shrink_slice(w, work, fil, obj, None)
+            ext = cube_extent(path) if path else None
+            if not ext:
+                fails.append("%s %s: no G-code" % (w, fil))
+                continue
+            ox, oy = ext[0] + inset, ext[1] + inset
+            expect = 20.0 * 100.0 / (100.0 - xy)
+            ok = abs(ox - expect) <= SHRINK_TOL and abs(oy - expect) <= SHRINK_TOL
+            if not ok:
+                fails.append("%s %s: shipped %g%% gave %.4f x %.4f mm, expected %.4f"
+                             % (w, fil, xy, ox, oy, expect))
+            print("%-6s %-26s %8g %10.4f %10.4f %9.4f %9.3f  %s"
+                  % (w, fil[:26], xy, ox, oy, expect, ext[2],
+                     "ok" if ok else ("INVERTED" if ox < 20 else "WRONG SIZE")))
+    # Every notation in the run must be measured by at least one slicer, or
+    # the shipped values in it are unchecked whatever else passed.
+    for notation in sorted({NOTATION[w] for w in want if w in NOTATION}):
+        if not any(NOTATION.get(w) == notation for w in measured):
+            fails.append("no slicer in this run applies %s values from its CLI; "
+                         "add %s" % (notation, "ps3" if notation.startswith("Prusa") else "ss"))
+    print("\n== verdict")
+    for w in sorted(unmeasured):
+        print("   UNMEASURED  %s: covered by %s, same notation" % (
+            w, ", ".join(sorted(m for m in measured if NOTATION[m] == NOTATION[w])) or "NOTHING"))
+    for f in fails:
+        print("   FAIL  %s" % f)
+    if not fails:
+        print("   every measuring slicer enlarges by 100/(100 - s), at %g%% and at every"
+              " shipped value" % SHRINK_EXAGGERATED)
+    return 1 if fails else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -776,11 +1031,14 @@ def main():
     ap.add_argument("--tier", default="Standard")
     ap.add_argument("--layer", help="layer height, for a tier with several (e.g. Precision 0.08)")
     ap.add_argument("--filament", default="SV Zero PLA - Brass")
-    ap.add_argument("--slicers", default="ps,ss,orca")
+    ap.add_argument("--slicers", default=None,
+                    help="default ps,ss,orca; ps,ps3,ss,orca with --shrinkage")
     ap.add_argument("--workdir", default=WORK)
     ap.add_argument("--keep", action="store_true", help="keep the G-code and configs")
     ap.add_argument("--record", action="store_true",
                     help="rewrite source/slice-baseline.json from this run")
+    ap.add_argument("--shrinkage", action="store_true",
+                    help="measure shrinkage polarity and every shipped value on a 20 mm cube")
     ap.add_argument("--matrix", action="store_true",
                     help="cover every nozzle, tier and filament at least once")
     args = ap.parse_args()
@@ -804,7 +1062,11 @@ def main():
     print("model    layer %.2f mm, default_speed %.1f mm/s, nozzle %s"
           % (expect["layer_height"], expect["default_speed"], args.nozzle))
 
+    if args.slicers is None:
+        args.slicers = "ps,ps3,ss,orca" if args.shrinkage else "ps,ss,orca"
     want = [s.strip() for s in args.slicers.split(",") if s.strip()]
+    if args.shrinkage:
+        return run_shrinkage(model, ss, work, want)
     if args.matrix:
         return run_matrix(args, model, work, obj, want)
     results = {}

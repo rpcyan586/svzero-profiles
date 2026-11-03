@@ -70,6 +70,14 @@ because the command line cannot choose a nozzle the way the Add Printer wizard
 does. To test a build installed beside your own, point `FLATPAK_USER_DIR` at
 that installation.
 
+`--shrinkage` checks the direction and size of shrinkage compensation on a
+20 mm cube: at an exaggerated 5% and at every shipped filament's value, the
+outer wall must measure 20 × 100 / (100 − s) mm, larger than 20. Only
+PrusaSlicer 3 and SuperSlicer apply compensation from the command line; the
+PrusaSlicer 2.9 and Orca command lines apply none, so they are reported as
+unmeasured and covered by the slicer that reads the same notation.
+`tests/test_shrinkage.py` holds every artefact to that same value offline.
+
 The harness currently expects these Linux installations. It is not a portable
 installer for slicer binaries. See [VALIDATION.md](VALIDATION.md) for tested
 versions and the difference between slicing and a physical print.
