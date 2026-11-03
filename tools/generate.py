@@ -1610,6 +1610,22 @@ def emit_ps_presets(ss, out_dir):
             if old.endswith(".ini"):
                 os.remove(os.path.join(sub, old))
     written = 0
+    for kind, preset, kv in ps_preset_values(ss, kinds):
+        path = os.path.join(out_dir, kind, "%s.ini" % preset)
+        with open(path, "w", encoding="utf-8") as fh:
+            for k, v in kv.items():
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
+        written += 1
+    return written
+
+
+def ps_preset_values(ss, kinds=("print", "filament", "printer")):
+    """(kind, preset, values) for every flattened PrusaSlicer preset, as written.
+
+    The single place the PrusaSlicer translations run. emit_ps_presets writes
+    these as INI and emit_ps3 retypes the same values for PrusaSlicer 3, so the
+    two cannot drift apart.
+    """
     for name in ss:
         if ":" not in name:
             continue
@@ -1646,13 +1662,8 @@ def emit_ps_presets(ss, out_dir):
         # with neither pressure advance nor shrinkage.
         kv = collections.OrderedDict(
             (k, v) for k, v in kv.items() if k in PS_KNOWN)
-        path = os.path.join(out_dir, kind, "%s.ini" % preset)
-        with open(path, "w", encoding="utf-8") as fh:
-            for k, v in ini_writable(kv).items():
-                if k not in SS_ONLY:
-                    fh.write("%s = %s\n" % (k, ini_value(v, k)))
-        written += 1
-    return written
+        yield kind, preset, collections.OrderedDict(
+            (k, v) for k, v in ini_writable(kv).items() if k not in SS_ONLY)
 
 
 def emit_ss_presets(model, ss, out_dir):
@@ -3096,65 +3107,35 @@ def main():
         nm, npz = emit_orca_vendor(model, ss, os.path.join(ROOT, "bundles", "orca-vendor"))
         print("  wrote Orca vendor bundle: %d machines, %d processes" % (nm, npz))
 
-    if args.check and problems:
-        sys.exit(1)
-
-
     if "ps3" in emit:
         # PrusaSlicer 3.0. Separate module because it shares an option
-        # vocabulary with PS2 and essentially nothing else -- see
-        # notes/kb/prusaslicer3-profiles.md and the header of emit_ps3.py.
+        # vocabulary with PS2 and essentially nothing else -- see the header of
+        # emit_ps3.py. Its input is the flattened PrusaSlicer 2 presets, built
+        # here exactly as --emit ps-presets builds them, as INI text.
         import emit_ps3
-        ovr = load("nozzle-overrides.json")["by_nozzle_and_tier"]
-        # The per-nozzle values are exactly what forced 19 separate process
-        # presets out of PS2: extrusion widths that must not inherit across
-        # nozzles. In PS3 they are variants on tool.nozzle_diameter instead.
-        per_nozzle = {}
-        for noz, tiers in ovr.items():
-            first = next(iter(tiers.values()))
-            per_nozzle[noz.rstrip("n")] = {
-                k: v for k, v in first.items() if k != "z_hop"}
-        # The historical override table predates added nozzle sizes. Resolve
-        # their widths from the current master instead of omitting the variant.
-        for noz in model["machine"]["nozzles"]:
-            if noz not in per_nozzle:
-                flat = flatten(ss, next(name for name in ss
-                    if name.startswith("print:SV Zero %sn - " % noz)))
-                per_nozzle[noz] = {
-                    key: "%g" % (float(str(flat[key]).lstrip("!").rstrip("%"))
-                                 * float(noz) / 100)
-                    if str(flat[key]).endswith("%") else flat[key]
-                    for key in ovr["0.4n"][next(iter(ovr["0.4n"]))]
-                    if key != "z_hop"}
-        common = dict(ss.get("print:*SV Zero General*", {}))
-        common.pop("inherits", None)
-        # The printer preset's values come from the same PS2 printer section the
-        # other emitters use, so start/end G-code and the machine limits stay in
-        # one place. gcode_flavor is pinned here for the same reason it is
-        # pinned in the Orca emitters: PS3's default is `reprap`, and inheriting
-        # a default that happens to work is how the relative-E tangle started.
-        printer_vals = {}
-        for sec, kv in ss.items():
-            if sec.startswith("printer:") and "SV Zero" in sec:
-                printer_vals = {k: v for k, v in kv.items() if k != "inherits"}
-                break
-        printer_vals["gcode_flavor"] = "klipper"
-        printer_vals["printer_technology"] = "FFF"
-        printer_vals["use_relative_e_distances"] = 1
-        out = os.path.join(ROOT, "bundles", "ps3")
-        os.makedirs(out, exist_ok=True)
-        nfiles, problems, dropped = emit_ps3.emit(
-            model, out, PS_VENDOR_VERSION if "PS_VENDOR_VERSION" in globals()
-            else "1.0.0",
-            per_nozzle, common, printer_vals,
-            ["1.0.0 Initial SV Zero bundle for PrusaSlicer 3"])
-        for p in problems:
-            print("  ps3 SCHEMA: %s" % p)
-        if dropped:
-            print("  ps3: %d key(s) not in PS3's schema, dropped: %s"
-                  % (len(dropped), ", ".join(dropped)))
-        print("  wrote PrusaSlicer 3 bundle: %d file(s), %d schema problem(s)"
-              % (nfiles, len(problems)))
+        pub_pp, _ = strip_hidden(model, ss)
+        pub_pp = collections.OrderedDict(
+            (k, collections.OrderedDict(v)) for k, v in pub_pp.items())
+        inject_chamber(pub_pp, "ps")
+        presets = {"printer": {}, "print": {}, "filament": {}}
+        for kind, preset, kv in ps_preset_values(pub_pp):
+            presets[kind][preset] = {k: ini_value(v, k) for k, v in kv.items()}
+        version = open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip()
+        nfiles, ps3_problems, report = emit_ps3.emit(
+            model, os.path.join(ROOT, "bundles", "ps3"), version, presets,
+            ["%s SV Zero profile pack %s" % (version, version)],
+            os.path.join(ROOT, "bundles", "SVZero_PrusaSlicer3.zip"))
+        for category, keys in report.items():
+            if not category.startswith("PROBLEM"):
+                print("  ps3 %s: %s" % (category, ", ".join(keys)))
+        for p in ps3_problems:
+            print("  ps3 PROBLEM: %s" % p)
+        print("  wrote PrusaSlicer 3 bundle and local source zip: %d file(s), %d problem(s)"
+              % (nfiles, len(ps3_problems)))
+        problems += ps3_problems
+
+    if args.check and problems:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

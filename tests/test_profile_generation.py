@@ -185,14 +185,19 @@ class ProfileGenerationTests(unittest.TestCase):
             for process in processes:
                 self.assertEqual(float(process["travel_acceleration"]), travel(process["name"]),
                                  process["name"])
-        # PS3 has one conditional print tree rather than 38 separate presets.
-        document = yaml.safe_load((bundles / "ps3/SVZero/preset-print-svzero.yaml").read_text())
-        def check_tree(node, inherited):
-            values = inherited | node.get("values", {})
-            self.assertEqual(float(values["travel_acceleration"]), 5000)
-            for child in node.get("variants", []):
-                check_tree(child, values)
-        check_tree(document, {})
+        # PS3 has one conditional tree per print name, its nozzles as variants.
+        documents = list(yaml.safe_load_all(
+            (bundles / "ps3/SVZero/preset-print-svzero.yaml").read_text()))
+        self.assertTrue(documents)
+        for document in documents:
+            def check_tree(node, inherited):
+                values = inherited | node.get("values", {})
+                if not node.get("variants"):
+                    self.assertEqual(float(values["travel_acceleration"]),
+                                     travel(document["name"]), document["name"])
+                for child in node.get("variants", []):
+                    check_tree(child, values)
+            check_tree(document, {})
 
     def test_layer_limits_cover_every_emitted_process_in_all_slicers(self):
         model = G.load("model.json")

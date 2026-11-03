@@ -1,0 +1,6 @@
+kind: tool_print
+id: cj0dOIFo7it8uhStGT3BpQ
+variants:
+- condition: printer.base_model == "SVZERO"
+  id: jfoKWB6/uqkeCjkXV8sSyA
+  name: no tool
