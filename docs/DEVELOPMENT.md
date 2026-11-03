@@ -30,6 +30,13 @@ Zero filaments under `OrcaSlicer/`, each with its own `provenance.json`.
 Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
 PrusaSlicer 3 output remains experimental and is not in the user download.
+`bundles/SVZero_PrusaSlicer3.zip` is the bundle as a local preset source, which
+is how PrusaSlicer 3.0.0-alpha12 and later load a third-party vendor until
+Prusa's preset server carries them. To try it, open **Preset sources &
+updates**, choose **Add ZIP** under *Local sources*, then add *SV Zero* or
+*SV Zero Precision* as a printer. From a shell,
+`--preset-update-add-local bundles/SVZero_PrusaSlicer3.zip` followed by
+`--preset-update` does the same; that route is the tested one.
 
 Macro sources stay separate under `klipper/config/`. `tools/build-macros.py`
 expands each firmware's explicit include tree into one config under
