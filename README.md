@@ -27,7 +27,7 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 
 <p><img src="docs/images/stock-vs-pack.png" alt="Sovol's one stock profile against the pack's tiers on the 0.4 nozzle: speeds as run with the clamped requests in parentheses, infill flow, peak acceleration, corner velocity, X/Y microsteps and current"></p>
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
+<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at ABS's 271 C first layer than at the 150 C tap, in real degrees: eight tap pairs beside the sensor on one Zero, the published rate of 1.15 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for k 0.70 and 1.05 came out over-squished and the lift for 1.37 came out flat"></p>
 
 <p>
 <img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">

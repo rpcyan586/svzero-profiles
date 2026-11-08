@@ -34,7 +34,8 @@
 - **Nozzle growth k 1.1 → 1.15 µm/°C.** It was measured per degree on Sovol's
   curve; the runs' 150 and 280 °C set points were 146.6 and 270.9 °C at the
   nozzle, so the same growth is 1.1 × 130 / 124.3 per real degree. The
-  first-layer offsets are unchanged to within 0.01 mm.
+  first-layer offsets are unchanged to within 0.01 mm. The README's nozzle
+  growth figure is redrawn in real degrees; 2.1.2's section keeps its own.
 - **Profiles from elsewhere now print 5–11 °C hotter** at the same number,
   Sovol's stock filaments included. An OTA or factory reset drops the pack's
   include and the nozzle runs cold by the same amount, not hot. See INSTALL.md,
@@ -275,7 +276,7 @@ Sliced in all three slicers; not yet printed.
 
 ### Nozzle growth compensation, on by default on 1.3.7, off on 1.4.x
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
+<p><img src="https://raw.githubusercontent.com/rpcyan586/svzero-profiles/v2.1.2/docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
 
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the
