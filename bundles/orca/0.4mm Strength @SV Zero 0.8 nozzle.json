@@ -53,6 +53,7 @@
   "enable_support": "1",
   "support_on_build_plate_only": "1",
   "support_style": "organic",
+  "support_line_width": "0.9",
   "top_surface_pattern": "monotonic",
   "top_surface_line_width": "0.76",
   "travel_speed_z": "300",
@@ -85,5 +86,7 @@
   "support_critical_regions_only": "1",
   "seam_slope_type": "all",
   "skirt_start_angle": "-45",
+  "accel_to_decel_enable": "1",
+  "accel_to_decel_factor": "100%",
   "tree_support_branch_diameter_organic": "3"
 }

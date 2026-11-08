@@ -35,6 +35,9 @@ links to that release. Use its explicit tag URL so the README names the version 
 the next release; keep already-published tags and download files unchanged.
 
 Versions are three numbers, `MAJOR.MINOR.PATCH`, with no prerelease suffix.
-Release `2.1.2` maps to PS vendor `2.1.2` and Orca vendor `02.01.02.00`.
+Release `2.1.2` maps to PS vendor `2.1.2` and Orca vendor `02.01.02.00`; the
+generator writes Orca's from `PS_CONFIG_VERSION`.
 Advance vendor versions for each distributed update so loaders see the change.
+Orca 2.5.0 serves its `system/SVZero.opc` cache until the version rises, so an
+unchanged number keeps users on the old presets.
 The workflow has read-only repository permissions and no publishing credentials.

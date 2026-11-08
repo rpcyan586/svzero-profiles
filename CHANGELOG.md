@@ -78,17 +78,51 @@
   cube's outer wall is the same in both. Not yet printed, the menu route has
   not been tried by hand, and the bed preview is not included yet.
 
+### Changed: OrcaSlicer 2.5.0
+
+OrcaSlicer 2.5.0's command line resolves the vendor's base files, as its GUI
+does, where 2.4.2's used Orca's own defaults for anything the pack did not
+set. These changes follow from that and from what 2.5.0 adds.
+
+- **Support lines are 112.5% of the nozzle, in all four downloads**, the same
+  as sparse and solid infill and as Sovol's own 0.4 process (0.45). Unset,
+  Orca 2.5.0 took the base file's fixed 0.42 on every nozzle and refused the
+  1.0, 1.2 and 1.4 slices ("Line width too small"). PrusaSlicer and
+  SuperSlicer chose their own width before.
+- **Orca decelerates as hard as it accelerates.** `accel_to_decel_factor` is
+  100% where it was Orca's default 50%, so each acceleration change sends
+  `MINIMUM_CRUISE_RATIO=0` (2.5.0) or `ACCEL_TO_DECEL` equal to the
+  acceleration (2.4.2), which Sovol's Klipper reads the same way. Klipper
+  keeps it after the print until it restarts. PrusaSlicer and SuperSlicer
+  send neither, so their prints use `printer.cfg`'s ratio.
+- **High-precision G-code on the 0.2, 0.25 and 0.3 nozzles and every
+  Precision preset.** Orca 2.5.0 writes X, Y and Z to 4 decimals and E to 6
+  there. 2.4.2 ignores the setting.
+- **The printers open on SV Zero PLA - Brass.** Their default filament was
+  Sovol's "SOVOL ZERO PLA - Brass", which this vendor does not contain. Both
+  printer models now list the ten filaments as defaults, so adding the
+  printer ticks them; the list was empty.
+- **Orca 2.5.0 keeps a parsed copy of the vendor**, `system/SVZero.opc`, and
+  rereads the profiles only when their version rises. `install-presets.py`
+  deletes it, and the READMEs say to before reinstalling the same version.
+  The generator writes the Orca vendor version from the PrusaSlicer one.
+- `slice-harness.py` runs Orca with `--strict` where it exists, so a
+  non-critical slicing warning fails the slice, and counts a value Orca
+  replaced as refused.
+
 ### Checked: shrinkage compensation enlarges parts, in every slicer that can be asked
 
 - **The shipped shrinkage values are unchanged and correct.** A 20 mm PLA
   cube comes out 20.060 mm in the G-code for 0.3%, and every other filament
-  within 0.001 mm of its own figure, in PrusaSlicer 3 and SuperSlicer.
-  `tools/slice-harness.py --shrinkage` now measures this, at the shipped
-  values and at an exaggerated 5%, and fails if a part comes out smaller.
-- PrusaSlicer 2.9's and OrcaSlicer's command lines apply no shrinkage at all,
-  whatever the profile says; their GUIs do (PrusaSlicer 2.9.7: 20.060 mm at
-  0.3%). Those two are covered by the slicer that reads the same setting, and
-  a new test holds every download's values to the same figure.
+  within 0.001 mm of its own figure, in PrusaSlicer 3, SuperSlicer and
+  OrcaSlicer 2.5.0. `tools/slice-harness.py --shrinkage` now measures this,
+  at the shipped values and at an exaggerated 5%, and fails if a part comes
+  out smaller.
+- PrusaSlicer 2.9's command line applies no shrinkage at all, and nor did
+  OrcaSlicer's before 2.5.0, whatever the profile says; their GUIs do
+  (PrusaSlicer 2.9.7: 20.060 mm at 0.3%). PrusaSlicer 2.9 is covered by the
+  slicer that reads the same setting, and a new test holds every download's
+  values to the same figure.
 
 ### Fixed: a chamber dip mid-print stopped the exhaust loop
 

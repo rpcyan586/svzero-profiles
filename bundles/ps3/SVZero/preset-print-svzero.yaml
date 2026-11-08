@@ -94,6 +94,7 @@ variants:
     infill_extrusion_width: 0.225
     perimeter_extrusion_width: 0.2
     solid_infill_extrusion_width: 0.225
+    support_material_extrusion_width: 0.225
     top_infill_extrusion_width: 0.19
 - condition: tool.nozzle_diameter == 0.25
   id: w2O0QGdn6Vo/bq6iNneuHA
@@ -105,6 +106,7 @@ variants:
     infill_extrusion_width: 0.28125
     perimeter_extrusion_width: 0.25
     solid_infill_extrusion_width: 0.28125
+    support_material_extrusion_width: 0.28125
     top_infill_extrusion_width: 0.2375
 - condition: tool.nozzle_diameter == 0.3
   id: cGxuXRJsOK3MwXtKVfvQ8g
@@ -116,6 +118,7 @@ variants:
     infill_extrusion_width: 0.3375
     perimeter_extrusion_width: 0.3
     solid_infill_extrusion_width: 0.3375
+    support_material_extrusion_width: 0.3375
     top_infill_extrusion_width: 0.285
 - condition: tool.nozzle_diameter == 0.4
   id: I55d0Bz3lyMB+ucpGr8a4A
@@ -127,6 +130,7 @@ variants:
     infill_extrusion_width: 0.45
     perimeter_extrusion_width: 0.4
     solid_infill_extrusion_width: 0.45
+    support_material_extrusion_width: 0.45
     top_infill_extrusion_width: 0.38
 ---
 kind: print
@@ -201,6 +205,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.225
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -293,6 +298,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.28125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -409,6 +415,7 @@ variants:
     infill_extrusion_width: 0.225
     perimeter_extrusion_width: 0.2
     solid_infill_extrusion_width: 0.225
+    support_material_extrusion_width: 0.225
     top_infill_extrusion_width: 0.19
 - condition: tool.nozzle_diameter == 0.25
   id: SIOv4T7+oyIo04YGqVf/vQ
@@ -420,6 +427,7 @@ variants:
     infill_extrusion_width: 0.28125
     perimeter_extrusion_width: 0.25
     solid_infill_extrusion_width: 0.28125
+    support_material_extrusion_width: 0.28125
     top_infill_extrusion_width: 0.2375
 - condition: tool.nozzle_diameter == 0.3
   id: gPkgij1NgfmTH2WSe8VYJg
@@ -431,6 +439,7 @@ variants:
     infill_extrusion_width: 0.3375
     perimeter_extrusion_width: 0.3
     solid_infill_extrusion_width: 0.3375
+    support_material_extrusion_width: 0.3375
     top_infill_extrusion_width: 0.285
 - condition: tool.nozzle_diameter == 0.4
   id: 7UKCUe0t54LNu2b0bxP37g
@@ -442,6 +451,7 @@ variants:
     infill_extrusion_width: 0.45
     perimeter_extrusion_width: 0.4
     solid_infill_extrusion_width: 0.45
+    support_material_extrusion_width: 0.45
     top_infill_extrusion_width: 0.38
 ---
 kind: print
@@ -516,6 +526,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.3375
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -631,6 +642,7 @@ variants:
     infill_extrusion_width: 0.3375
     perimeter_extrusion_width: 0.3
     solid_infill_extrusion_width: 0.3375
+    support_material_extrusion_width: 0.3375
     top_infill_extrusion_width: 0.285
 - condition: tool.nozzle_diameter == 0.4
   id: X6dWRVrTQwV8X425mWqY+Q
@@ -642,6 +654,7 @@ variants:
     infill_extrusion_width: 0.45
     perimeter_extrusion_width: 0.4
     solid_infill_extrusion_width: 0.45
+    support_material_extrusion_width: 0.45
     top_infill_extrusion_width: 0.38
 ---
 kind: print
@@ -716,6 +729,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -808,6 +822,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.225
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -901,6 +916,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -993,6 +1009,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.5625
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -1085,6 +1102,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.28125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -1178,6 +1196,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1270,6 +1289,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1361,6 +1381,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.225
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -1453,6 +1474,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.3375
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -1545,6 +1567,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.5625
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -1636,6 +1659,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.28125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -1728,6 +1752,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.675
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -1819,6 +1844,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1912,6 +1938,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   travel_speed_z: 300.0
@@ -2002,6 +2029,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.3375
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -2094,6 +2122,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.45
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -2186,6 +2215,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.9
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -2278,6 +2308,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.675
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -2369,6 +2400,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.5625
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -2462,6 +2494,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.5625
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   travel_speed_z: 300.0
@@ -2553,6 +2586,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.5625
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -2645,6 +2679,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.575
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4
@@ -2737,6 +2772,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.35
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -2829,6 +2865,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.9
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -2920,6 +2957,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.675
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -3013,6 +3051,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.675
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   travel_speed_z: 300.0
@@ -3104,6 +3143,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.675
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -3196,6 +3236,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   top_solid_layers: 4
@@ -3288,6 +3329,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.35
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -3379,6 +3421,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.9
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -3472,6 +3515,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.9
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   travel_speed_z: 300.0
@@ -3578,6 +3622,7 @@ variants:
     perimeter_extrusion_width: 1.0
     small_perimeter_speed: 8.9
     solid_infill_extrusion_width: 1.125
+    support_material_extrusion_width: 1.125
     top_infill_extrusion_width: 0.95
     perimeter_speed: 17.7
     infill_speed: 17.7
@@ -3601,6 +3646,7 @@ variants:
     perimeter_extrusion_width: 1.4
     small_perimeter_speed: 6.4
     solid_infill_extrusion_width: 1.575
+    support_material_extrusion_width: 1.575
     top_infill_extrusion_width: 1.33
     perimeter_speed: 12.7
     infill_speed: 12.7
@@ -3681,6 +3727,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.35
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -3774,6 +3821,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.35
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   travel_speed_z: 300.0
@@ -3865,6 +3913,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 0.9
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -3956,6 +4005,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   top_solid_layers: 4
@@ -4049,6 +4099,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.125
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   travel_speed_z: 300.0
@@ -4139,6 +4190,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.575
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4
@@ -4232,6 +4284,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.575
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   travel_speed_z: 300.0
@@ -4338,6 +4391,7 @@ variants:
     perimeter_extrusion_width: 1.0
     small_perimeter_speed: 14.0
     solid_infill_extrusion_width: 1.125
+    support_material_extrusion_width: 1.125
     top_infill_extrusion_width: 0.95
     perimeter_speed: 28.1
     infill_speed: 28.1
@@ -4361,6 +4415,7 @@ variants:
     perimeter_extrusion_width: 1.2
     small_perimeter_speed: 11.4
     solid_infill_extrusion_width: 1.35
+    support_material_extrusion_width: 1.35
     top_infill_extrusion_width: 1.14
     perimeter_speed: 22.7
     infill_speed: 22.7
@@ -4442,6 +4497,7 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_extrusion_width: 1.575
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4

@@ -7,5 +7,5 @@
   "family": "SOVOL",
   "bed_model": "svzero_bed.stl",
   "bed_texture": "svzero_bed.png",
-  "default_materials": ""
+  "default_materials": "SV Zero ABS;SV Zero PC;SV Zero PCTG;SV Zero PETG - Brass;SV Zero PETG - Steel;SV Zero PLA - Brass;SV Zero PLA - Steel;SV Zero PLA Silk - Brass;SV Zero PLA Silk - Steel;SV Zero TPU"
 }

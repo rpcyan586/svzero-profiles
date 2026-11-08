@@ -564,6 +564,12 @@ def install_orca(datadir):
                 shutil.rmtree(d_, ignore_errors=True); shutil.copytree(s_, d_)
             else:
                 shutil.copy2(s_, d_)
+    # 0b. Orca 2.5.0 caches a parsed vendor as system/SVZero.opc and serves it
+    #     while the cached version is at least SVZero.json's, so a reinstall at
+    #     the same version would keep loading the old presets.
+    stale = os.path.join(sysdir0, "SVZero.opc")
+    if os.path.exists(stale):
+        os.remove(stale)
 
     # The SVZero vendor is self-contained. Do not install unrelated vendors.
 

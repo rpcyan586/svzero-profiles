@@ -1175,6 +1175,17 @@ PS_CONFIG_VERSION = "2.1.2"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
 
 
+def orca_vendor_version(version):
+    """2.1.2 -> 02.01.02.00, Orca's four two-digit parts.
+
+    Orca 2.5.0 serves a vendor from its system/<vendor>.opc cache while the
+    cached version is at least the one in the vendor JSON, so a release that
+    keeps the number is never reread. Every distributed change bumps it.
+    """
+    parts = [int(p) for p in version.split(".")]
+    return ".".join("%02d" % p for p in (parts + [0, 0, 0, 0])[:4])
+
+
 # Keys SuperSlicer has and PrusaSlicer rejects. PrusaSlicer does not merely warn:
 # it strips the key and marks the whole Vendor Config Bundle as errored.
 #
@@ -2250,6 +2261,9 @@ def widths_to_mm(doc, nozzle):
     return n
 
 
+ORCA_HIGH_PRECISION_MAX_NOZZLE = 0.3
+
+
 def emit_orca(model, ss, keymap, out_dir):
     """Orca process JSONs, translated via the keymap.
 
@@ -2349,6 +2363,11 @@ def emit_orca(model, ss, keymap, out_dir):
         # Orca-only decisions last, so they cannot be overwritten by a
         # translated value and so they appear on every process preset.
         doc.update(forced_process)
+        # Orca 2.5.0 writes XYZ to 4 decimals and E to 6 with this on. Rounding
+        # matters most where each move extrudes least: the small nozzles and
+        # every Precision tier (operator, 2026-11-08). Older Orca drops the key.
+        if float(noz) <= ORCA_HIGH_PRECISION_MAX_NOZZLE or mode_of(model, tier)[0]:
+            doc["high_precision_gcode"] = "1"
         # Organic supports read a separate Orca option from normal trees.
         # Keep Orca's 3 mm default on existing nozzles, but carry the larger
         # branches needed above 1 mm; the normal-tree key alone is ignored.
@@ -2418,7 +2437,7 @@ def emit_orca(model, ss, keymap, out_dir):
             # Ours, not Sovol's. This pointed at "SOVOL ZERO PLA - Brass" while
             # our own filament presets existed, so Orca had no reason to open on
             # one of them.
-            mach["default_filament_profile"] = ["SV Zero PLA - Brass"]
+            mach["default_filament_profile"] = [ORCA_DEFAULT_FILAMENT]
             mach["printable_area"] = ["0x0", "152.4x0", "152.4x152.4", "0x152.4"]
             mach["printable_height"] = "152.4"
             # host_type stays either way: it says which API Moonraker speaks,
@@ -2525,6 +2544,7 @@ def cooldown_lines(data):
 # a macro cannot be previewed. Everything from the conditional to the endif goes.
 
 ORCA_FILAMENT_ID = "GFL99"
+ORCA_DEFAULT_FILAMENT = "SV Zero PLA - Brass"
 ORCA_FILAMENT_STRUCTURAL = ("type", "filament_id", "setting_id", "name", "from",
                             "instantiation", "inherits")
 ORCA_FILAMENT_PLAIN = ("compatible_printers_condition", "compatible_prints_condition")
@@ -2739,6 +2759,14 @@ def emit_orca_vendor(model, ss, out_dir):
                 if old_file.endswith(".json"):
                     os.remove(os.path.join(d, old_file))
 
+    # Orca makes these visible when a user adds the printer and has no
+    # filament of ours installed yet (PresetBundle::load_installed_filaments).
+    # Sovol's base carries none for us, so the list was empty and a new user
+    # started with no SV Zero filament ticked.
+    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
+    materials = sorted(json.load(open(os.path.join(fsrc, f), encoding="utf-8"))["name"]
+                       for f in os.listdir(fsrc) if f.endswith(".json")) if os.path.isdir(fsrc) else []
+
     # the machine_model — this is the piece that was missing
     mm = collections.OrderedDict([
         ("type", "machine_model"), ("name", "SV Zero"), ("model_id", "SV-ZERO"),
@@ -2753,7 +2781,7 @@ def emit_orca_vendor(model, ss, out_dir):
         # vendor/SVZero/. Model only, no texture: see the machine preset loop.
         ("bed_model", "svzero_bed.stl" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")) else ""),
         ("bed_texture", "svzero_bed.png" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.png")) else ""),
-        ("default_materials", base.get("default_materials", "")),
+        ("default_materials", ";".join(materials)),
     ])
     json.dump(mm, open(os.path.join(vend, "machine", "SV Zero.json"), "w",
                        encoding="utf-8"), indent=2)
@@ -2781,7 +2809,6 @@ def emit_orca_vendor(model, ss, out_dir):
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
 
-    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
     leaves = [json.load(open(os.path.join(fsrc, f), encoding="utf-8"))
               for f in sorted(os.listdir(fsrc)) if f.endswith(".json")] if os.path.isdir(fsrc) else []
     leaf_temps = collections.defaultdict(list)
@@ -2897,6 +2924,10 @@ def emit_orca_vendor(model, ss, out_dir):
                 "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
                 "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
             m["machine_start_gcode"] = preamble + tail
+        # Sovol's base names its own "SOVOL ZERO PLA - Brass", which is not in
+        # this vendor, so Orca opened on no filament of ours. Same pin as the
+        # user-preset emitter above.
+        m["default_filament_profile"] = [ORCA_DEFAULT_FILAMENT]
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         # Same rule as the user-preset emitter: the vendor bundle is the thing
         # strangers install, so it must never carry an address.
@@ -2993,7 +3024,7 @@ def emit_orca_vendor(model, ss, out_dir):
         process_list.append({"name": doc["name"], "sub_path": "process/" + f})
 
     idx = collections.OrderedDict([
-        ("name", "SVZero"), ("version", "02.01.02.00"), ("force_update", "0"),
+        ("name", "SVZero"), ("version", orca_vendor_version(PS_CONFIG_VERSION)), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
         ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]
          + mode_models),

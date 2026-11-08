@@ -64,6 +64,8 @@ From a **Git checkout**:
    `bundles/orca-vendor/SVZero/` together into its configuration directory's
    `system/` directory. Enable SV Zero in printer selection and select the
    physically installed nozzle. Keep the entire vendor folder together.
+   Orca 2.5.0 and later reread the profiles only when their version rises, so
+   before reinstalling the same version, delete `system/SVZero.opc`.
 5. Select a print and filament preset, configure your own printer connection,
    and inspect the first-layer preview. Old projects can retain old settings;
    explicitly reselect the new presets and re-slice.

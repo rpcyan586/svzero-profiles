@@ -362,6 +362,8 @@
         "support_material_auto": "1",
         "support_material_buildplate_only": "1",
         "support_material_style": "organic",
+        "support_material_extrusion_width": "112.5%",
+        "_why_support_width": "Set 2026-11-08, operator's call: the same 112.5% of the nozzle as sparse and solid infill, which is Sovol's own 0.4 process (0.45 support, 0.45 infill). Unset, OrcaSlicer 2.5.0 resolves fdm_process_common's fixed 0.42 on every nozzle and refuses the 1.0, 1.2 and 1.4 slices with 'Line width too small'; PrusaSlicer and SuperSlicer picked their own automatic width.",
         "thin_perimeters": "80%",
         "top_fill_pattern": "monotonic",
         "top_infill_extrusion_width": "95%",
