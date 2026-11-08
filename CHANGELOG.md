@@ -35,7 +35,9 @@
   curve; the runs' 150 and 280 °C set points were 146.6 and 270.9 °C at the
   nozzle, so the same growth is 1.1 × 130 / 124.3 per real degree. The
   first-layer offsets are unchanged to within 0.01 mm. The README's nozzle
-  growth figure is redrawn in real degrees; 2.1.2's section keeps its own.
+  growth figure is redrawn in real degrees, and now shows Sovol stock's own
+  tap at 130 °C (127 real): with no temperature term, an ABS first layer at
+  271 °C sits 0.15–0.17 mm closer. 2.1.2's section keeps its own figure.
 - **Profiles from elsewhere now print 5–11 °C hotter** at the same number,
   Sovol's stock filaments included. An OTA or factory reset drops the pack's
   include and the nozzle runs cold by the same amount, not hot. See INSTALL.md,
