@@ -304,10 +304,12 @@ def orca_strict():
     """["--strict"] where the installed Orca has it (2.5.0), else [].
 
     Strict fails a slice on the non-critical warnings Orca otherwise only logs.
-    2.4.2 refuses the flag ("setup params error") and slices nothing.
+    2.4.2 refuses the flag ("setup params error") and slices nothing. Run in
+    the work tree, because even --help writes a result.json into the cwd.
     """
     if not _ORCA_STRICT:
-        p = subprocess.run(["flatpak", "run", ORCA_ID, "--help"],
+        os.makedirs(WORK, exist_ok=True)
+        p = subprocess.run(["flatpak", "run", ORCA_ID, "--help"], cwd=WORK,
                            capture_output=True, text=True, timeout=300)
         _ORCA_STRICT.append(["--strict"] if "--strict" in p.stdout + p.stderr else [])
     return _ORCA_STRICT[0]
