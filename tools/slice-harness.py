@@ -193,15 +193,18 @@ def run(cmd, log):
     return p
 
 
+# The last alternative is Orca 2.5.0's report of a value it could not parse
+# and replaced: the key survives, but not with our value, so it counts as refused.
 REJECT = re.compile(r'key = "([a-z0-9_]+)"|contains the following incorrect keys: ([^\n]+)'
-                    r'|Unknown option ([a-z0-9_]+)', re.I)
+                    r'|Unknown option ([a-z0-9_]+)|for ([a-z0-9_]+) is not valid, using', re.I)
 
 
 def rejected_keys(text):
     out = set()
     for m in REJECT.finditer(text):
-        if m.group(1):
-            out.add(m.group(1))
+        for one in (m.group(1), m.group(4)):
+            if one:
+                out.add(one)
         for grp in (m.group(2), m.group(3)):
             if grp:
                 out |= {k.strip().rstrip(",") for k in grp.split(",") if k.strip()}
@@ -294,6 +297,32 @@ def slice_ss(work, cfg_path, obj):
     return (out if os.path.exists(out) else None), p.stdout + p.stderr
 
 
+_ORCA_STRICT = []
+
+
+def orca_strict():
+    """["--strict"] where the installed Orca has it (2.5.0), else [].
+
+    Strict fails a slice on the non-critical warnings Orca otherwise only logs.
+    2.4.2 refuses the flag ("setup params error") and slices nothing.
+    """
+    if not _ORCA_STRICT:
+        p = subprocess.run(["flatpak", "run", ORCA_ID, "--help"],
+                           capture_output=True, text=True, timeout=300)
+        _ORCA_STRICT.append(["--strict"] if "--strict" in p.stdout + p.stderr else [])
+    return _ORCA_STRICT[0]
+
+
+def orca_warnings(path):
+    """result.json's warnings, one line each, last so a failure reports them."""
+    try:
+        doc = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return "".join("\norca %s: %s" % (w.get("class"), w.get("text") or w.get("key"))
+                   for w in doc.get("warnings", []))
+
+
 def slice_orca(work, nozzle, tier, filament, obj, shrink=None):
     """`shrink`, if given, is the PHYSICAL (xy, z) shrinkage in %."""
     d = os.path.join(work, "orcadata")
@@ -310,20 +339,23 @@ def slice_orca(work, nozzle, tier, filament, obj, shrink=None):
     proc = glob.glob(os.path.join(v, "process", "%smm %s @%s.json" % (layer_glob(), tier, machine)))
     if not proc:
         return None, "no Orca process for %s/%s; run generate.py --emit orca,orca-vendor" % (nozzle, tier)
-    for stale in glob.glob(os.path.join(work, "plate_*.gcode")):
-        os.remove(stale)
-    p = run(["flatpak", "run", ORCA_ID, "--datadir", d,
+    result = os.path.join(work, "result.json")
+    for stale in glob.glob(os.path.join(work, "plate_*.gcode")) + [result]:
+        if os.path.exists(stale):
+            os.remove(stale)
+    p = run(["flatpak", "run", ORCA_ID, "--datadir", d] + orca_strict() + [
              "--load-settings", "%s;%s" % (
                  os.path.join(v, "machine", "%s.json" % machine), proc[0]),
              "--load-filaments", os.path.join(v, "filament", "%s.json" % filament),
              "--slice", "0", "--outputdir", work, obj],
             os.path.join(work, "orca.log"))
+    text = p.stdout + p.stderr + orca_warnings(result)
     made = sorted(glob.glob(os.path.join(work, "plate_*.gcode")))
     if made:
         out = os.path.join(work, "orca.gcode")
         os.replace(made[0], out)
-        return out, p.stdout + p.stderr
-    return None, p.stdout + p.stderr
+        return out, text
+    return None, text
 
 
 _PS3_INSTALLED = set()
