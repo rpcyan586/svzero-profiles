@@ -113,10 +113,11 @@ ORCA_START_TAIL = "\n".join([
     # The public profile must provide that wait even without our replacement.
     "M190 S[bed_temperature_initial_layer_single]",
     "START_PRINT",
-    # The tier's X/Y current, from the print preset's Notes, generated from
-    # source/model.json by tools/generate.py (xy_current_block). After
+    # The tier's X/Y and Z currents, from the print preset's Notes, generated
+    # from source/model.json by tools/generate.py (current_block). After
     # START_PRINT, so homing and probing keep printer.cfg's current.
     "@@XY_CURRENT@@",
+    "@@Z_CURRENT@@",
     # Before any move or heat after START_PRINT, with the same placeholder as
     # the M104 below. PrusaSlicer and SuperSlicer carry the same line in
     # source/presets.json; tests/test_nozzle_growth.py holds all of them to it.

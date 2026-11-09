@@ -22,7 +22,8 @@ values:
   fan_below_layer_time: 30
   full_fan_speed_layer: 3
   min_print_speed: 10.0
-  bridge_fan_speed: 100
+  bridge_fan_speed: 30
+  fan_always_on: false
   chamber_temperature: 60
   chamber_minimal_temperature: 45
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -58,7 +59,8 @@ values:
   fan_below_layer_time: 40
   full_fan_speed_layer: 3
   min_print_speed: 10.0
-  bridge_fan_speed: 100
+  bridge_fan_speed: 20
+  fan_always_on: false
   chamber_temperature: 60
   chamber_minimal_temperature: 45
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -92,7 +94,8 @@ values:
   slowdown_below_layer_time: 10
   full_fan_speed_layer: 3
   min_print_speed: 10.0
-  bridge_fan_speed: 100
+  bridge_fan_speed: 70
+  fan_always_on: true
   extrusion_multiplier: 0.98
   chamber_temperature: 40
   chamber_minimal_temperature: 30
@@ -132,7 +135,8 @@ values:
   fan_below_layer_time: 50
   full_fan_speed_layer: 3
   min_print_speed: 10.0
-  bridge_fan_speed: 100
+  bridge_fan_speed: 70
+  fan_always_on: true
   chamber_temperature: 50
   chamber_minimal_temperature: 30
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -171,7 +175,8 @@ values:
   fan_below_layer_time: 50
   full_fan_speed_layer: 3
   min_print_speed: 10.0
-  bridge_fan_speed: 100
+  bridge_fan_speed: 70
+  fan_always_on: true
   chamber_temperature: 50
   chamber_minimal_temperature: 30
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -211,6 +216,7 @@ values:
   full_fan_speed_layer: 3
   min_print_speed: 10.0
   bridge_fan_speed: 100
+  fan_always_on: true
   chamber_temperature: 33
   chamber_minimal_temperature: 20
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -248,6 +254,7 @@ values:
   full_fan_speed_layer: 3
   min_print_speed: 10.0
   bridge_fan_speed: 100
+  fan_always_on: true
   chamber_temperature: 33
   chamber_minimal_temperature: 20
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -285,6 +292,7 @@ values:
   full_fan_speed_layer: 3
   min_print_speed: 10.0
   bridge_fan_speed: 100
+  fan_always_on: true
   chamber_temperature: 33
   chamber_minimal_temperature: 20
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -323,6 +331,7 @@ values:
   full_fan_speed_layer: 3
   min_print_speed: 10.0
   bridge_fan_speed: 100
+  fan_always_on: true
   chamber_temperature: 33
   chamber_minimal_temperature: 20
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed
@@ -360,6 +369,7 @@ values:
   full_fan_speed_layer: 3
   min_print_speed: 10.0
   bridge_fan_speed: 100
+  fan_always_on: true
   chamber_temperature: 35
   chamber_minimal_temperature: 20
   start_filament_gcode: '; Material-specific Z offset: + means farther from bed

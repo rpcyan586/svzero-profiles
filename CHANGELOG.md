@@ -108,6 +108,20 @@ set. These changes follow from that and from what 2.5.0 adds.
   slicers do. Sovol's base gave it two skirt layers and no bridge speed on a
   fully overhanging wall. Retraction on layer change is pinned to the pack's
   value rather than Sovol's.
+- **Overhang and bridge cooling follow the material, in every slicer.**
+  Overhangs and bridges get the material's overhang fan speed: ABS 30%, PC
+  20%, PETG and PCTG 70%, PLA and TPU 100%. Orca already did; PrusaSlicer,
+  which prints detected overhangs as bridges, gave ABS 100% on both, so each
+  material's bridge fan speed now equals it. Orca's per-material trigger
+  (25% unsupported for ABS and PC, 50% for PLA and TPU, 95% for PETG and
+  PCTG) is now the pack's own, not Sovol's.
+- **The part fan may stop on slow layers for ABS and PC.** "Keep fan always
+  on" (`fan_always_on`, Orca's `reduce_fan_stop_start_freq`) is off for ABS
+  and PC and on for the rest, in all four. Sovol's Orca bases had it on for
+  every material; PrusaSlicer's own tooltip calls it harmful for ABS.
+- **By-object clearances are Sovol's, in all four:** 65 mm around the nozzle
+  and 36 mm up to the gantry, the values every Sovol Klipper printer in
+  OrcaSlicer inherits. PrusaSlicer and SuperSlicer used their 20 mm defaults.
 - **Inward wipe on Fine and Precision** (Orca 2.5.0): the wipe after an outer
   wall ends over the inner wall instead of on the outer surface, by half the
   outer wall's width.
@@ -125,6 +139,21 @@ set. These changes follow from that and from what 2.5.0 adds.
 - `slice-harness.py` runs Orca with `--strict` where it exists, so a
   non-critical slicing warning fails the slice, and counts a value Orca
   replaced as refused.
+
+### Changed: stepper currents per tier, Z included
+
+- **Z current is set per print tier**, like X/Y's: 1.0 A on Fine to
+  Strength, 1.2 A on Draft, 0.7 A on Precision (operator, 2026-11-08). Stock
+  asks 1.5 A, which the Z driver can't deliver: on its 0.150 Ω sense
+  resistor a TMC2209 gives at most 1.331 A, and that is what both stock
+  firmwares have run. The new `SVZERO_Z_CURRENT` only lowers it, after
+  `START_PRINT`, so Z homing, the tare-tap and the mesh keep `printer.cfg`'s
+  current; `END_PRINT` and `CANCEL_PRINT` restore it.
+- **Draft states its X/Y current**, stock's 3.5 A, instead of sending none.
+- **Precision's X/Y current is 1.8 A**, was 1.4 (45% of the motors' 4.0 A
+  rating).
+- Not yet measured: that these currents hold each tier's accelerations and
+  Z moves without lost steps.
 
 ### Checked: shrinkage compensation enlarges parts, in every slicer that can be asked
 

@@ -724,70 +724,105 @@ def scv_block(values):
     ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<SCV"])
 
 
+# Driver current per print tier, carried like the SCV (2026-10-14; Z added
+# 2026-11-08). The print preset's Notes name it, a start G-code block after
+# START_PRINT hands it to the pack's SVZERO_<AXIS>_CURRENT, and END_PRINT and
+# CANCEL_PRINT restore the configured run_current. XY is stepper_x and
+# stepper_y together; Z is stepper_z. See model.json _xy_current_note and
+# _z_current_note.
+CURRENT_AXES = (("XY", "xy_current", "X/Y"), ("Z", "z_current", "Z"))
+
+
+def tier_current(model, axis):
+    """{tier: driver current in A} for every tier that sets one on this axis."""
+    key = dict((a, k) for a, k, _ in CURRENT_AXES)[axis]
+    return {t: v[key] for t, v in model["tiers"].items()
+            if isinstance(v, dict) and v.get(key) is not None}
+
+
 def tier_xy_current(model):
-    """{tier: X/Y driver current in A} for every tier that lowers it (2026-10-14)."""
-    return {t: v["xy_current"] for t, v in model["tiers"].items()
-            if isinstance(v, dict) and v.get("xy_current") is not None}
+    return tier_current(model, "XY")
+
+
+def current_marker(axis, v):
+    return "SVZERO_%s_CURRENT=%gA" % (axis, v)
 
 
 def xy_current_marker(v):
-    return "SVZERO_XY_CURRENT=%gA" % v
+    return current_marker("XY", v)
 
 
-def xy_current_block(values, newline):
-    """The start G-code block that hands a tier's X/Y current to the pack.
+def current_block(axis, values, newline):
+    """The start G-code block that hands a tier's current on one axis to the pack.
 
     Same carrier as the SCV, the print preset's Notes, which OrcaSlicer also
     resolves in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). The `A`
     suffix keeps =2.4A from matching =12.4A. `newline` is the escaped one for
     the SuperSlicer source and a real one for Orca JSON.
     """
+    label = dict((a, l) for a, _, l in CURRENT_AXES)[axis]
     branches = []
     for i, v in enumerate(sorted(set(values))):
-        pat = re.escape(xy_current_marker(v)).replace("\\.", "[.]")
-        branches.append("{%s notes=~/.*%s.*/}SVZERO_XY_CURRENT CURRENT=%g"
-                        % ("if" if i == 0 else "elsif", pat, v))
+        pat = re.escape(current_marker(axis, v)).replace("\\.", "[.]")
+        branches.append("{%s notes=~/.*%s.*/}SVZERO_%s_CURRENT CURRENT=%g"
+                        % ("if" if i == 0 else "elsif", pat, axis, v))
     return newline.join([
-        ";>>>XY_CURRENT generated from source/model.json tiers -- do not hand-edit",
-        ";  X/Y stepper current is a print-tier setting. The print preset's Notes",
-        ";  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the pack after",
+        ";>>>%s_CURRENT generated from source/model.json tiers -- do not hand-edit" % axis,
+        ";  %s stepper current is a print-tier setting. The print preset's Notes" % label,
+        ";  carry it as SVZERO_%s_CURRENT=<A>A and this hands it to the pack after" % axis,
         ";  START_PRINT, so homing and probing keep printer.cfg's current. The pack",
         ";  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg's.",
-        ";  A preset without the marker (Draft) keeps the printer's own. Without",
-        ";  the pack it is an unknown command, which Klipper reports and steps over.",
-    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<XY_CURRENT"])
+        ";  A preset without the marker keeps the printer's own. Without the pack",
+        ";  it is an unknown command, which Klipper reports and steps over.",
+    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<%s_CURRENT" % axis])
 
 
-def apply_xy_current(model, ss):
-    """X/Y driver current, in every PrusaSlicer/SuperSlicer start G-code.
+def xy_current_block(values, newline):
+    return current_block("XY", values, newline)
 
-    apply_scv writes the marker into each tier's Notes, beside its SCV; this puts
-    the block that reads it right after the SCV block. Orca's start G-code gets
-    the same block through @@XY_CURRENT@@ in start_gcode.py. See model.json
-    _xy_current_note.
+
+def orca_current_blocks(model):
+    """@@XY_CURRENT@@ and @@Z_CURRENT@@ for the Orca start G-code."""
+    return {"@@%s_CURRENT@@" % axis: current_block(axis, tier_current(model, axis).values(), "\n")
+            for axis, _, _ in CURRENT_AXES}
+
+
+def apply_currents(model, ss):
+    """Driver currents, in every PrusaSlicer/SuperSlicer start G-code.
+
+    apply_scv writes the markers into each tier's Notes, beside its SCV; this
+    puts the XY block right after the SCV block and the Z block after that.
+    Orca's start G-code gets the same blocks through @@XY_CURRENT@@ and
+    @@Z_CURRENT@@ in start_gcode.py.
     """
-    cur = tier_xy_current(model)
-    if not cur:
-        return 0
-    lost = sorted(set(cur) - set(tier_scv(model)))
-    if lost:
-        raise SystemExit("tiers with an X/Y current but no SCV, so no Notes to carry it: %s" % lost)
-    block = xy_current_block(cur.values(), "\\n")
     changed = 0
-    for name, sec in ss.items():
-        if not name.startswith("printer:"):
+    after = ";<<<SCV"
+    for axis, _, _ in CURRENT_AXES:
+        cur = tier_current(model, axis)
+        if not cur:
             continue
-        g = sec.get("start_gcode")
-        if not g:
-            continue
-        if ";>>>XY_CURRENT" in g:
-            new = re.sub(r";>>>XY_CURRENT.*?;<<<XY_CURRENT", lambda m: block, g)
-        elif ";<<<SCV" in g:
-            new = g.replace(";<<<SCV", ";<<<SCV\\n" + block, 1)
-        else:
-            raise SystemExit("%s: no SCV block to follow with the X/Y current block" % name)
-        if new != g:
-            sec["start_gcode"] = new; changed += 1
+        lost = sorted(set(cur) - set(tier_scv(model)))
+        if lost:
+            raise SystemExit("tiers with a %s current but no SCV, so no Notes to carry it: %s"
+                             % (axis, lost))
+        block = current_block(axis, cur.values(), "\\n")
+        mark = ";>>>%s_CURRENT" % axis
+        for name, sec in ss.items():
+            if not name.startswith("printer:"):
+                continue
+            g = sec.get("start_gcode")
+            if not g:
+                continue
+            if mark in g:
+                new = re.sub(r";>>>%s_CURRENT.*?;<<<%s_CURRENT" % (axis, axis), lambda m: block, g)
+            elif after in g:
+                new = g.replace(after, after + "\\n" + block, 1)
+            else:
+                raise SystemExit("%s: no %s block to follow with the %s current block"
+                                 % (name, after, axis))
+            if new != g:
+                sec["start_gcode"] = new; changed += 1
+        after = ";<<<%s_CURRENT" % axis
     return changed
 
 
@@ -804,21 +839,24 @@ def apply_scv(model, ss):
     if not scv:
         return 0
     changed = 0
-    cur = tier_xy_current(model)
     for tier, v in scv.items():
         sec = ss.get("print:*SV Zero - %s*" % tier)
         if sec is None:
             continue
         # One line: the start G-code matches it with .*, which a newline would stop.
-        if tier in cur:
-            note = ("Square corner velocity for this tier: %g mm/s (%s). X/Y stepper current: "
-                    "%g A (%s). The start G-code sends both to Klipper at print start; edit "
-                    "these values, not the G-code."
-                    % (v, scv_marker(v), cur[tier], xy_current_marker(cur[tier])))
+        parts = ["Square corner velocity for this tier: %g mm/s (%s)." % (v, scv_marker(v))]
+        for axis, _, label in CURRENT_AXES:
+            cur = tier_current(model, axis)
+            if tier in cur:
+                parts.append("%s stepper current: %g A (%s)."
+                             % (label, cur[tier], current_marker(axis, cur[tier])))
+        if len(parts) > 1:
+            parts.append("The start G-code sends these to Klipper at print start; edit "
+                         "these values, not the G-code.")
         else:
-            note = ("Square corner velocity for this tier: %g mm/s (%s). The start G-code "
-                    "sends it to Klipper at print start; edit this value, not the G-code."
-                    % (v, scv_marker(v)))
+            parts.append("The start G-code sends it to Klipper at print start; edit this "
+                         "value, not the G-code.")
+        note = " ".join(parts)
         if sec.get("notes") != note:
             sec["notes"] = note; changed += 1
     block = scv_block(scv.values())
@@ -942,7 +980,7 @@ def derive(model, ss, keymap):
         "speedbenchy": emit_speedbenchy_tier(model, ss, keymap),
         "speed": apply_speed_model(model, ss),
         "scv": apply_scv(model, ss),
-        "xy_current": apply_xy_current(model, ss),
+        "currents": apply_currents(model, ss),
         "accel": apply_accel_model(model, ss),
         "flow": apply_flow_model(model, ss),
         "small": apply_small_nozzle_rules(model, ss),
@@ -2675,6 +2713,9 @@ def emit_orca_filament(model, ss, keymap, out_dir):
             doc["filament_shrinkage_compensation_z"] = kv[SHRINK_Z]
         doc.update(forced)
         doc.pop("_why", None)
+        for k, by_type in fs.get("_by_type", {}).items():
+            if not k.startswith("_") and ftype in by_type:
+                doc[k] = by_type[ftype]
         # The PLA-only chamber override that used to sit here is GONE. It existed
         # because activate_chamber_temp_control was forced off for everything,
         # which left PLA as the single regulated material and every other one on
@@ -2894,6 +2935,12 @@ def emit_orca_vendor(model, ss, out_dir):
         rlc = flatten(ss, "printer:SV Zero %sn" % noz).get("retract_layer_change")
         if rlc is not None:
             m["retract_when_changing_layer"] = [str(rlc)]
+        # By-object clearances, the same split. The lid height stays Sovol's.
+        printer = flatten(ss, "printer:SV Zero %sn" % noz)
+        for ps_key, orca_key in (("extruder_clearance_radius", "extruder_clearance_radius"),
+                                 ("extruder_clearance_height", "extruder_clearance_height_to_rod")):
+            if printer.get(ps_key) is not None:
+                m[orca_key] = str(printer[ps_key])
         # Repeat this on each concrete preset as well as the inherited root.
         # Explicit --load-settings slicing does not resolve the vendor root,
         # and the one-filament constraint must survive that supported path.
@@ -2924,8 +2971,9 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n" + after.split(ORCA_PURGE_END, 1)[1].lstrip("\n")
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
-                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+            for slot, block in orca_current_blocks(model).items():
+                preamble = preamble.replace(slot, block)
             m["machine_start_gcode"] = preamble + tail
         elif g.startswith(ORCA_START_HEADER.split("\n")[0]):
             # Re-generating our own output. Find the PURGE_LINE command and
@@ -2939,8 +2987,9 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n"
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
-                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+            for slot, block in orca_current_blocks(model).items():
+                preamble = preamble.replace(slot, block)
             m["machine_start_gcode"] = preamble + tail
         # Sovol's base names its own "SOVOL ZERO PLA - Brass", which is not in
         # this vendor, so Orca opened on no filament of ours. Same pin as the

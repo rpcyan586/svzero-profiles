@@ -9,7 +9,7 @@
   "tree_support_branch_diameter": "2.4",
   "initial_layer_infill_speed": "4.9",
   "travel_speed": "1000",
-  "notes": "Square corner velocity for this tier: 9 mm/s (SVZERO_SCV=9mm). The start G-code sends it to Klipper at print start; edit this value, not the G-code.",
+  "notes": "Square corner velocity for this tier: 9 mm/s (SVZERO_SCV=9mm). X/Y stepper current: 3.5 A (SVZERO_XY_CURRENT=3.5A). Z stepper current: 1.2 A (SVZERO_Z_CURRENT=1.2A). The start G-code sends these to Klipper at print start; edit these values, not the G-code.",
   "default_acceleration": "40000",
   "inner_wall_acceleration": "13800",
   "outer_wall_acceleration": "11500.0",

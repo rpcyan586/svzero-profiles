@@ -60,6 +60,8 @@ values:
   max_print_height: 152.4
   parking_pos_retraction: 92.0
   remaining_times: true
+  extruder_clearance_radius: 65.0
+  extruder_clearance_height: 36.0
   silent_mode: false
   single_extruder_multi_material: false
   thumbnails: 32x32,300x300
@@ -250,13 +252,37 @@ variants:
 
       ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
 
-      ;  A preset without the marker (Draft) keeps the printer''s own. Without
+      ;  A preset without the marker keeps the printer''s own. Without the pack
 
-      ;  the pack it is an unknown command, which Klipper reports and steps over.
+      ;  it is an unknown command, which Klipper reports and steps over.
 
-      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4{endif}
+      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4
+
+      {elsif notes=~/.*SVZERO_XY_CURRENT=3[.]5A.*/}SVZERO_XY_CURRENT CURRENT=3.5{endif}
 
       ;<<<XY_CURRENT
+
+      ;>>>Z_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  Z stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_Z_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_Z_CURRENT=0[.]7A.*/}SVZERO_Z_CURRENT CURRENT=0.7
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1A.*/}SVZERO_Z_CURRENT CURRENT=1
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1[.]2A.*/}SVZERO_Z_CURRENT CURRENT=1.2{endif}
+
+      ;<<<Z_CURRENT
 
       ;  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first
 
@@ -499,13 +525,37 @@ variants:
 
       ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
 
-      ;  A preset without the marker (Draft) keeps the printer''s own. Without
+      ;  A preset without the marker keeps the printer''s own. Without the pack
 
-      ;  the pack it is an unknown command, which Klipper reports and steps over.
+      ;  it is an unknown command, which Klipper reports and steps over.
 
-      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4{endif}
+      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4
+
+      {elsif notes=~/.*SVZERO_XY_CURRENT=3[.]5A.*/}SVZERO_XY_CURRENT CURRENT=3.5{endif}
 
       ;<<<XY_CURRENT
+
+      ;>>>Z_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  Z stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_Z_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_Z_CURRENT=0[.]7A.*/}SVZERO_Z_CURRENT CURRENT=0.7
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1A.*/}SVZERO_Z_CURRENT CURRENT=1
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1[.]2A.*/}SVZERO_Z_CURRENT CURRENT=1.2{endif}
+
+      ;<<<Z_CURRENT
 
       ;  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first
 
