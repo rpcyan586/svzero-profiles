@@ -235,6 +235,7 @@ def check(path):
                                          idle_timeout=Mock(timeout=1800.0),
                                          # END_PRINT and CANCEL_PRINT restore it.
                                          printer=Mock(square_corner_velocity=5.0,
+                                                      minimum_cruise_ratio=0.5,
                                                       max_accel=40000.0,
                                                       max_velocity=1200.0),
                                          # SVZERO_XY_CURRENT lowers it; END_PRINT and
@@ -1773,11 +1774,14 @@ def check(path):
             ("gcode_macro _COOLDOWN_TICK", "assist-release-zeroes-exhaust"):
                 ["fan assist off", "SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0"],
             ("gcode_macro END_PRINT", "cooldown-installed"): ["_COOLDOWN_START", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                              "SET_VELOCITY_LIMIT MINIMUM_CRUISE_RATIO=0.5",
                                                               "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5",
                                                               "SET_TMC_CURRENT STEPPER=stepper_y CURRENT=3.5"],
             ("gcode_macro END_PRINT", "cooldown-absent"): ["TURN_OFF_HEATERS", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                           "SET_VELOCITY_LIMIT MINIMUM_CRUISE_RATIO=0.5",
                                                            "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5"],
             ("gcode_macro CANCEL_PRINT", "cooldown-installed"): ["COOLDOWN_ABORT", "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5.0",
+                                                                 "SET_VELOCITY_LIMIT MINIMUM_CRUISE_RATIO=0.5",
                                                                  "SET_TMC_CURRENT STEPPER=stepper_x CURRENT=3.5",
                                                                  "SET_TMC_CURRENT STEPPER=stepper_y CURRENT=3.5"],
             ("gcode_macro SVZERO_XY_CURRENT", "lower"): ["SET_TMC_CURRENT STEPPER=stepper_x CURRENT=2.4",
