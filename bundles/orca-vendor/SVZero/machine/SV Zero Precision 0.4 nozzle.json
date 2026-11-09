@@ -115,6 +115,9 @@
   "max_layer_height": [
     "0.32"
   ],
+  "retract_when_changing_layer": [
+    "1"
+  ],
   "single_extruder_multi_material": "0",
   "use_relative_e_distances": "1",
   "host_type": "octoprint"

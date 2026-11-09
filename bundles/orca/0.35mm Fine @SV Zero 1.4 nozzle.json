@@ -53,6 +53,16 @@
   "support_on_build_plate_only": "1",
   "support_style": "organic",
   "support_line_width": "1.575",
+  "support_threshold_angle": "44",
+  "support_top_z_distance": "0.2",
+  "support_object_xy_distance": "0.7",
+  "support_interface_top_layers": "3",
+  "support_interface_spacing": "0",
+  "support_base_pattern": "rectilinear",
+  "support_base_pattern_spacing": "2.5",
+  "support_speed": "11.4",
+  "skirt_height": "1",
+  "detect_overhang_wall": "1",
   "top_surface_pattern": "monotonic",
   "top_surface_line_width": "1.33",
   "top_shell_layers": "4",
@@ -88,5 +98,6 @@
   "skirt_start_angle": "-45",
   "accel_to_decel_enable": "1",
   "accel_to_decel_factor": "100%",
+  "wipe_inward": "1",
   "tree_support_branch_diameter_organic": "4.2"
 }

@@ -92,9 +92,25 @@ set. These changes follow from that and from what 2.5.0 adds.
 - **Orca decelerates as hard as it accelerates.** `accel_to_decel_factor` is
   100% where it was Orca's default 50%, so each acceleration change sends
   `MINIMUM_CRUISE_RATIO=0` (2.5.0) or `ACCEL_TO_DECEL` equal to the
-  acceleration (2.4.2), which Sovol's Klipper reads the same way. Klipper
-  keeps it after the print until it restarts. PrusaSlicer and SuperSlicer
-  send neither, so their prints use `printer.cfg`'s ratio.
+  acceleration (2.4.2), which Sovol's Klipper reads the same way. PrusaSlicer
+  and SuperSlicer send neither, so their prints use `printer.cfg`'s ratio.
+  END_PRINT and CANCEL_PRINT now restore that ratio with the square corner
+  velocity, so the next job doesn't inherit Orca's.
+- **Support settings are stated, in all four downloads.** Orca had been
+  printing Sovol's base values in its GUI all along (top gap 0.15 mm, XY gap
+  0.5 mm, two interface layers, 40 mm/s). Now every slicer gets top gap 0.2 mm,
+  XY gap 50% of the outer wall width, three solid interface layers, a
+  rectilinear base at 2.5 mm and 60% of the default speed.
+- **Overhangs up to 45° from vertical print without support.** The threshold
+  is 44 in all four: each slicer measures it from the horizontal and adds 1°.
+  PrusaSlicer and SuperSlicer chose automatically before; Orca used 40.
+- **Orca prints one skirt layer and detects overhanging walls**, as the other
+  slicers do. Sovol's base gave it two skirt layers and no bridge speed on a
+  fully overhanging wall. Retraction on layer change is pinned to the pack's
+  value rather than Sovol's.
+- **Inward wipe on Fine and Precision** (Orca 2.5.0): the wipe after an outer
+  wall ends over the inner wall instead of on the outer surface, by half the
+  outer wall's width.
 - **High-precision G-code on the 0.2, 0.25 and 0.3 nozzles and every
   Precision preset.** Orca 2.5.0 writes X, Y and Z to 4 decimals and E to 6
   there. 2.4.2 ignores the setting.

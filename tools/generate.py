@@ -2221,6 +2221,9 @@ def orca_absolutise(doc, flat, nozzle):
             doc[k] = computed_motion(pct / 100.0 * speed)
         elif k == "bridge_flow":
             doc[k] = "%g" % (pct / 100.0)
+        elif k == "support_object_xy_distance" and doc.get("outer_wall_line_width"):
+            # PrusaSlicer's percentage is of the external perimeter width.
+            doc[k] = "%g" % round(pct / 100.0 * float(doc["outer_wall_line_width"]), 4)
         else:
             continue
         n += 1
@@ -2262,6 +2265,7 @@ def widths_to_mm(doc, nozzle):
 
 
 ORCA_HIGH_PRECISION_MAX_NOZZLE = 0.3
+ORCA_WIPE_INWARD_TIERS = ("Fine",)
 
 
 def emit_orca(model, ss, keymap, out_dir):
@@ -2368,6 +2372,12 @@ def emit_orca(model, ss, keymap, out_dir):
         # every Precision tier (operator, 2026-11-08). Older Orca drops the key.
         if float(noz) <= ORCA_HIGH_PRECISION_MAX_NOZZLE or mode_of(model, tier)[0]:
             doc["high_precision_gcode"] = "1"
+        # Orca 2.5.0 can end the outer-wall wipe over the inner wall instead of
+        # on the fresh outer surface. Its marks show most below 0.1 mm layers,
+        # so Fine and every Precision tier (operator, 2026-11-08); distance is
+        # Orca's default, half the outer wall. Older Orca drops the key.
+        if tier in ORCA_WIPE_INWARD_TIERS or mode_of(model, tier)[0]:
+            doc["wipe_inward"] = "1"
         # Organic supports read a separate Orca option from normal trees.
         # Keep Orca's 3 mm default on existing nozzles, but carry the larger
         # branches needed above 1 mm; the normal-tree key alone is ignored.
@@ -2425,6 +2435,9 @@ def emit_orca(model, ss, keymap, out_dir):
             # profile is built around; this only stops it depending on an unset
             # default lining up with our layer G-code by luck.
             mach["use_relative_e_distances"] = "1"
+            rlc = flatten(ss, "printer:SV Zero %sn" % noz).get("retract_layer_change")
+            if rlc is not None:
+                mach["retract_when_changing_layer"] = [str(rlc)]
             # Must match the emitted process filename exactly. "%s" % 0.2 gives
             # "0.2" while the file is "0.20mm" — a dangling reference, and Orca
             # treats a machine preset pointing at a non-existent process as
@@ -2876,6 +2889,11 @@ def emit_orca_vendor(model, ss, out_dir):
         lift = ss.get("printer:SV Zero %sn" % noz, {}).get("retract_lift")
         if lift:
             m["z_hop"] = [str(lift)]
+        # Same split for retract-on-layer-change. Unpinned, Orca took Sovol's
+        # fdm_machine_common value, which matched only by chance.
+        rlc = flatten(ss, "printer:SV Zero %sn" % noz).get("retract_layer_change")
+        if rlc is not None:
+            m["retract_when_changing_layer"] = [str(rlc)]
         # Repeat this on each concrete preset as well as the inherited root.
         # Explicit --load-settings slicing does not resolve the vendor root,
         # and the one-filament constraint must survive that supported path.

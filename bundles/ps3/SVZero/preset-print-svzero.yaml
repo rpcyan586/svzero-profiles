@@ -66,6 +66,16 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 66.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_solid_layers: 4
   travel_speed_z: 300.0
@@ -206,6 +216,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.225
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -299,6 +319,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.28125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -386,6 +416,16 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 44.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_solid_layers: 4
   travel_speed_z: 300.0
@@ -527,6 +567,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.3375
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -613,6 +663,16 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 33.4
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_solid_layers: 4
   travel_speed_z: 300.0
@@ -730,6 +790,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 140.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -823,6 +893,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.225
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -917,6 +997,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 26.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1010,6 +1100,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.5625
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 89.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -1103,6 +1203,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.28125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -1197,6 +1307,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 22.2
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1290,6 +1410,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 130.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1382,6 +1512,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.225
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.19
   top_solid_layers: 4
@@ -1475,6 +1615,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.3375
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 163.3
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -1568,6 +1718,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.5625
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 89.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -1660,6 +1820,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.28125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 176.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.2375
   top_solid_layers: 4
@@ -1753,6 +1923,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.675
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 46.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -1845,6 +2025,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 140.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -1939,6 +2129,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 98.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   travel_speed_z: 300.0
@@ -2030,6 +2230,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.3375
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 169.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.285
   top_solid_layers: 4
@@ -2123,6 +2333,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.45
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 190.8
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.38
   top_solid_layers: 4
@@ -2216,6 +2436,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.9
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 28.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -2309,6 +2539,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.675
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 52.3
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -2401,6 +2641,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.5625
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 89.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -2495,6 +2745,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.5625
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 62.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   travel_speed_z: 300.0
@@ -2587,6 +2847,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.5625
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 118.1
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.475
   top_solid_layers: 4
@@ -2680,6 +2950,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.575
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 11.4
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4
@@ -2773,6 +3053,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.35
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 15.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -2866,6 +3156,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.9
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 32.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -2958,6 +3258,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.675
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 62.2
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -3052,6 +3362,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.675
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 43.6
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   travel_speed_z: 300.0
@@ -3144,6 +3464,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.675
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 80.2
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.57
   top_solid_layers: 4
@@ -3237,6 +3567,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 14.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   top_solid_layers: 4
@@ -3330,6 +3670,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.35
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 16.3
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -3422,6 +3772,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.9
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 35.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -3516,6 +3876,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.9
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 24.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   travel_speed_z: 300.0
@@ -3595,6 +3965,15 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_solid_layers: 4
   travel_speed_z: 300.0
@@ -3623,6 +4002,7 @@ variants:
     small_perimeter_speed: 8.9
     solid_infill_extrusion_width: 1.125
     support_material_extrusion_width: 1.125
+    support_material_speed: 15.7
     top_infill_extrusion_width: 0.95
     perimeter_speed: 17.7
     infill_speed: 17.7
@@ -3647,6 +4027,7 @@ variants:
     small_perimeter_speed: 6.4
     solid_infill_extrusion_width: 1.575
     support_material_extrusion_width: 1.575
+    support_material_speed: 11.2
     top_infill_extrusion_width: 1.33
     perimeter_speed: 12.7
     infill_speed: 12.7
@@ -3728,6 +4109,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.35
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 18.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   top_solid_layers: 4
@@ -3822,6 +4213,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.35
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 13.1
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.14
   travel_speed_z: 300.0
@@ -3914,6 +4315,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 0.9
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 40.9
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.76
   top_solid_layers: 4
@@ -4006,6 +4417,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 18.7
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   top_solid_layers: 4
@@ -4100,6 +4521,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.125
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 13.1
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 0.95
   travel_speed_z: 300.0
@@ -4191,6 +4622,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.575
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 11.4
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4
@@ -4285,6 +4726,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.575
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 8.0
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   travel_speed_z: 300.0
@@ -4364,6 +4815,15 @@ values:
   support_material: everywhere
   support_material_buildplate_only: true
   support_material_style: organic
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_solid_layers: 4
   travel_speed_z: 300.0
@@ -4392,6 +4852,7 @@ variants:
     small_perimeter_speed: 14.0
     solid_infill_extrusion_width: 1.125
     support_material_extrusion_width: 1.125
+    support_material_speed: 24.8
     top_infill_extrusion_width: 0.95
     perimeter_speed: 28.1
     infill_speed: 28.1
@@ -4416,6 +4877,7 @@ variants:
     small_perimeter_speed: 11.4
     solid_infill_extrusion_width: 1.35
     support_material_extrusion_width: 1.35
+    support_material_speed: 20.0
     top_infill_extrusion_width: 1.14
     perimeter_speed: 22.7
     infill_speed: 22.7
@@ -4498,6 +4960,16 @@ values:
   support_material_buildplate_only: true
   support_material_style: organic
   support_material_extrusion_width: 1.575
+  support_material_threshold: 44
+  support_material_contact_distance: 0.2
+  support_material_xy_spacing: 50%
+  support_material_interface_layers: 3
+  support_material_interface_spacing: 0.0
+  support_material_pattern: rectilinear
+  support_material_spacing: 2.5
+  support_material_speed: 13.3
+  skirt_height: 1
+  overhangs: true
   top_fill_pattern: monotonic
   top_infill_extrusion_width: 1.33
   top_solid_layers: 4
