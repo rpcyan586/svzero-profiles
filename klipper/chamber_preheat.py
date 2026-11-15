@@ -934,7 +934,7 @@ class ChamberPreheat:
         # between the last one's. It is cheap, and the only motion it adds is a
         # few millimetres of radial hop at the hub.
         self.gcode.run_script_from_command(
-            "_CHAMBER_ORBIT_BEGIN\nCHAMBER_ORBIT_CYCLE")
+            "_CHAMBER_ORBIT_BEGIN\n_CHAMBER_ORBIT_CYCLE")
         now = self.reactor.monotonic()
         deadline = eventtime + seconds
         return now if now >= deadline else self.reactor.pause(deadline)
@@ -1310,6 +1310,15 @@ class ChamberPreheat:
         )
         if initial_boost > max_boost:
             raise gcmd.error("INITIAL_BOOST must not exceed MAX_BOOST")
+        # The orbit is an optional extra with two switches: the flag here and
+        # the include of chamber_orbit.cfg. The flag alone used to start the
+        # wait and then send an unknown command every cycle; refuse it before
+        # anything moves instead.
+        if self.orbit and self.printer.lookup_object(
+                "gcode_macro _CHAMBER_ORBIT_BEGIN", None) is None:
+            raise gcmd.error("[chamber_preheat] orbit: True needs "
+                             "chamber_orbit.cfg included, which defines the "
+                             "_CHAMBER_ORBIT_ macros")
 
         nozzle = self.heaters.lookup_heater("extruder")
         bed = self.heaters.lookup_heater("heater_bed")

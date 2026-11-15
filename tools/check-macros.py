@@ -281,7 +281,7 @@ def check(path):
                 ("cold-contact", Mock(HEAT="0"), "HEAT=0", {}, {}),
                 ("dry", Mock(DRY="1"), "DRY=1", {}, {}),
             ]
-        elif s == "gcode_macro CHAMBER_ORBIT_SWEEP":
+        elif s == "gcode_macro _CHAMBER_ORBIT_SWEEP":
             scenarios = [("default", Mock(CYCLES="1"), "CYCLES=1", {}, {})]
         elif s == "gcode_macro _BRUSH_MARK_DONE":
             # Both branches. The shipped default for t_start is -1.0, so
@@ -434,7 +434,7 @@ def check(path):
                 ("eddy-off-tap-ref", None, "TEMP=280", {}, {},
                  growth(k=0.0008, eddy=False, **tap150)),
             ]
-        elif s == "gcode_macro ORBIT_WHINE_SWEEP":
+        elif s == "gcode_macro _ORBIT_WHINE_SWEEP":
             scenarios = [
                 ("default", params, "", {}, {}),
                 # 300 mm/s at r=20 needs 4500 mm/s2, just inside the 5000 limit;
@@ -1602,10 +1602,10 @@ def check(path):
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "eddy-off-tap-ref"): growth_eddy_off,
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
-            ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
+            ("gcode_macro _CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
             # M400 before each announcement, or the console races the motion.
-            ("gcode_macro ORBIT_WHINE_SWEEP", "default"): "M400",
-            ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
+            ("gcode_macro _ORBIT_WHINE_SWEEP", "default"): "M400",
+            ("gcode_macro _ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
             # Every arc in ONE script: that is what makes the lookahead blend
             # them instead of stopping at each junction.
             ("gcode_macro _CHAMBER_ORBIT_CYCLE", "full"): "G2 X42.0 Y100.0 I-58.0 J0 F141",
@@ -1874,7 +1874,7 @@ def check(path):
                   ("gcode_macro SET_VELOCITY_LIMIT", "scv-only"): "clamped",
                   ("gcode_macro M204", "under"): "clamped",
                   # A step that cannot be held must emit no arc at all.
-                  ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
+                  ("gcode_macro _ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "inactive"): "G3 ",
                   # The clamp must bite: axis_maximum is 200 in the fixture, so
