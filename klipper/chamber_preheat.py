@@ -515,7 +515,9 @@ class ChamberPreheat:
         # Defaults here MUST match chamber_preheat.cfg. A code default that
         # silently disagrees with the shipped config gives anyone who installs
         # the extra without the full file different behaviour from the one
-        # documented; scripts/test-exhaust-adaptive.py pins the pair.
+        # documented; tests/test_exhaust_adaptive.py pins the pair. It found
+        # three that disagree (2026-11-15) and carries them as an expected
+        # failure until they are aligned.
         #
         # A slope worth scheduling against, distinct from minimum_rate, which
         # only asks whether an ETA can be displayed at all. This is not the
