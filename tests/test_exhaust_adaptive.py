@@ -315,12 +315,6 @@ class AdaptivePolicyTest(unittest.TestCase):
         # Success is announced at execution time, not while rendering.
         self.assertNotIn('action_respond_info("Cancel Print Success', macro)
 
-    # KNOWN DRIFT, 2026-11-15: three code defaults in chamber_preheat.py differ
-    # from chamber_preheat.cfg, which is what ships: settle_dwell 60 vs 30,
-    # max_bed_boost 1000 vs 25, max_bed_temp 100 vs 120. Printers run the cfg;
-    # tests that build the module from code defaults run the other machine.
-    # Remove expectedFailure once the defaults agree.
-    @unittest.expectedFailure
     def test_shipped_config_and_code_defaults_agree(self):
         # The extra's getfloat defaults and chamber_preheat.cfg drifted apart
         # (boost_fraction 0.5 vs 1.0, boost_min_rate 0.10 vs 0.02), so the unit
