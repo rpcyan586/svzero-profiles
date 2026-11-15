@@ -381,6 +381,12 @@ def check(path):
                 ("growth-absent", params, "", {}, {},
                  {"probe_pressure": Mock(last_z_result=0.0),
                   "gcode_macro _NOZZLE_GROWTH": None}),
+                # 1.4.6+: Sovol's _global_var carries has_z_offset_calibrated,
+                # and its BED_MESH_CALIBRATE re-homes X and Y unless it is True.
+                ("mesh-flag-1.4.7", params, "", {}, {},
+                 {"probe_pressure": None,
+                  "gcode_macro _global_var": Mock(dict(printer["gcode_macro _global_var"],
+                                                       has_z_offset_calibrated=False))}),
             ]
         elif s == "gcode_macro SVZERO_NOZZLE_GROWTH":
             # Every branch: off, applied, each reason for applying nothing, the
@@ -1568,6 +1574,10 @@ def check(path):
                  "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=-1.0",
                  "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_source VALUE='\"eddy_off\"'"],
             ("gcode_macro START_PRINT", "growth-absent"): "METHOD=force_overlay",
+            # True before G28 Z, False after the mesh, as Sovol's START_PRINT.
+            ("gcode_macro START_PRINT", "mesh-flag-1.4.7"):
+                ["SET_GCODE_VARIABLE MACRO=_global_var VARIABLE=has_z_offset_calibrated VALUE=True",
+                 "SET_GCODE_VARIABLE MACRO=_global_var VARIABLE=has_z_offset_calibrated VALUE=False"],
             # Computed from the k this file publishes, which is set in one place.
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "published"):
                 ["SET_GCODE_OFFSET Z_ADJUST=%s MOVE=1" % round(growth_k * 130.0, 4),
@@ -1883,8 +1893,9 @@ def check(path):
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
                   # On a machine with no tare-tap, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
-                  ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE"],
-                  ("gcode_macro START_PRINT", "tare-tap"): "CAMERA_TUNE",
+                  ("gcode_macro START_PRINT", "tare-tap"): ["CAMERA_TUNE", "has_z_offset_calibrated"],
+                  # 1.4.1-1.4.2 eddy firmware has no flag: nothing to set.
+                  ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE", "has_z_offset_calibrated"],
                   # Eddy paths never force the overlay and never take probe_temp,
                   # or any temperature, as a reference: calibrated or not, off.
                   ("gcode_macro START_PRINT", "growth-eddy-off-calibrated"):

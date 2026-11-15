@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed: on 1.4.6 and later, every print re-homed X and Y before the mesh
+
+- **Sovol's `BED_MESH_CALIBRATE` on 1.4.6 and 1.4.7 homes X and Y again and
+  forces a contact calibration unless its `has_z_offset_calibrated` flag is
+  set.** Sovol's own `START_PRINT` sets it around the mesh; the pack's did not.
+  So on 1.4.6+ every pack print homed X and Y a second time after `G28 Z`, then
+  calibrated with the nozzle cooled to 130 °C: the calibration the pack skips
+  on purpose when eddy data exists. A user's ABS job stopped on that second
+  home with `No trigger on y after full movement`.
+- **`START_PRINT` now sets the flag around the mesh**, as Sovol's does, and only
+  where the variable exists. 1.3.7, 1.4.1 and 1.4.2 have no such flag and are
+  unchanged.
+- **Confirmed without motion** on a 1.4.7 Zero: its loaded wrapper matches
+  Sovol's shipped one, and the flag reads False at runtime. Not yet run in a
+  print on 1.4.x.
+
 ### Fixed: the orbiting stir's hooks, and the stir is back as a Git-only extra
 
 - **`orbit: True` called a macro that no longer existed.** `chamber_preheat.py`
