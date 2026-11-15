@@ -376,6 +376,28 @@ afterwards. Neither touches `camera_auto.py`, its state file or
 its include, put back `crowsnest.conf.camera-auto-orig` if you want crowsnest's
 old line, and restart while idle.
 
+### Orbiting stir: `chamber_orbit.cfg` (shelved)
+
+Git only: it is in neither the bundles nor the downloads. During `M191`'s wait
+it sweeps the toolhead in a spiral over the plate instead of parking it, so the
+part fan does not chill one spot that the nozzle then reads as the chamber. It
+is shelved on the Zero, where a 152 mm plate gives it little to gain, and kept
+for larger machines.
+
+It needs the adaptive preheat above, then two switches, in `printer.cfg` after
+the pack's includes:
+
+```ini
+[include svzero/chamber_orbit.cfg]
+
+[chamber_preheat]
+orbit: True
+```
+
+Copy `klipper/config/chamber_orbit.cfg` into `svzero/` first. With the flag and
+no include, `M191` refuses before anything moves. The file's own comments give
+the geometry and the parameters a larger plate would change.
+
 ### What Python improves, and what still fails deliberately
 
 - **Adaptive preheat:** qualifies a previously hot nozzle before trusting it as

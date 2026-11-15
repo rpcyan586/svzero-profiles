@@ -1633,5 +1633,37 @@ class LearnedBedFallTest(unittest.TestCase):
         self.assertIsNone(self._saved(gcode, "ch_bed_fall_rate"))
 
 
+class OrbitHookTest(unittest.TestCase):
+    """The orbit is optional: `orbit: True` here plus the chamber_orbit.cfg extra.
+
+    The hooks called CHAMBER_ORBIT_CYCLE for a month after the macro became
+    _CHAMBER_ORBIT_CYCLE, which nothing caught because the flag is off by
+    default and no test compared the two files.
+    """
+
+    def test_every_orbit_command_sent_is_defined(self):
+        source = (KLIPPER / "chamber_preheat.py").read_text()
+        sent = set()
+        for script in re.findall(r'run_script_from_command\(\s*"([^"]*ORBIT[^"]*)"', source):
+            sent.update(line.split()[0] for line in script.split("\\n") if line.strip())
+        extra = (KLIPPER / "config" / "chamber_orbit.cfg").read_text()
+        defined = set(re.findall(r"^\[gcode_macro (\S+)\]", extra, re.M))
+        self.assertEqual(sent, {"_CHAMBER_ORBIT_BEGIN", "_CHAMBER_ORBIT_CYCLE",
+                                "_CHAMBER_ORBIT_END"})
+        self.assertLessEqual(sent, defined)
+
+    def test_flag_without_the_extra_is_refused_before_motion(self):
+        ctl, unused_reactor, unused_bed, gcode, unused_fan = controller(
+            lambda now: 26.0, config_values={"orbit": True})
+
+        # Fail at the first script rather than spin: unguarded, the wait loops
+        # on orbit cycles that never advance the fake reactor's clock.
+        def ran(script):
+            raise AssertionError("ran %r before refusing" % script)
+        gcode.run_script_from_command = ran
+        with self.assertRaisesRegex(RuntimeError, "chamber_orbit.cfg"):
+            ctl.cmd_CHAMBER_PREHEAT_WAIT(FakeGcmd(MINIMUM=29.0, BED_TARGET=100.0))
+
+
 if __name__ == "__main__":
     unittest.main()

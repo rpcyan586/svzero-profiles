@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed: the orbiting stir's hooks, and the stir is back as a Git-only extra
+
+- **`orbit: True` called a macro that no longer existed.** `chamber_preheat.py`
+  sent `CHAMBER_ORBIT_CYCLE` each cycle after the macro had become
+  `_CHAMBER_ORBIT_CYCLE`, so a wait with the orbit on would start the sweep
+  and then answer every cycle with an unknown command. The flag is off by
+  default.
+- **The flag without the macros is refused** at the start of `M191`'s wait,
+  before anything moves.
+- **`chamber_orbit.cfg` is back in Git as a shelved extra**, outside the
+  bundles and downloads. It left the repository in the 2.1.0 cycle and is
+  kept for plates larger than the Zero's; INSTALL.md says how to switch it
+  on.
+- **The macro checker's orbit scenarios run again.** They were keyed to the
+  macro names from before the underscore rename, so they never matched. A test
+  now fails if the Python sends an orbit command the extra does not define.
+
 ### Changed: the hotend reads as a PT1000, and the profiles move with it
 
 - **Klipper's own PT1000 conversion replaces Sovol's sensor table.** Sovol's
