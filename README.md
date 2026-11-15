@@ -13,7 +13,8 @@
 Each ZIP includes its installation guide and the optional printer macro pack.
 
 Profiles for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
-Sovol Zero, and for the PrusaSlicer 3 alpha. One source generates them all.
+Sovol Zero, and an alpha bundle for PrusaSlicer 3 in Git, not yet a download.
+One source generates them all.
 
 Automated checks and slicing have passed;
 physical testing of the latest stock-firmware fallback is still pending.

@@ -36,9 +36,10 @@ class ReleaseBundles(unittest.TestCase):
         cls.products = B.products(cls.files, cls.manifest)
         cls.version = cls.files["VERSION"].decode().strip()
 
-    def test_only_four_slicer_downloads_without_development_inputs(self):
+    def test_only_three_slicer_downloads_without_development_inputs(self):
+        # PrusaSlicer 3's bundle is in Git, not yet a download (operator, 2026-11-15).
         self.assertEqual(set(self.products),
-                         {"orcaslicer", "prusaslicer", "superslicer", "prusaslicer3"})
+                         {"orcaslicer", "prusaslicer", "superslicer"})
         with self.assertRaisesRegex(ValueError, "source is available from Git"):
             B.products(self.files, self.manifest, ["source"])
         for kind, files in self.products.items():

@@ -98,10 +98,10 @@
 - Opt-in through its own include. Machines whose crowsnest camera is
   `/dev/null` are left alone. See INSTALL.md, "Camera exposure".
 
-### Added: a PrusaSlicer 3 download (alpha)
+### Added: a PrusaSlicer 3 bundle in Git (alpha), not yet a download
 
-- **A fourth download, `prusaslicer3`, for PrusaSlicer 3.0.0-alpha12 and
-  later.** It is the PrusaSlicer 2 download's presets in PrusaSlicer 3's
+- **`bundles/SVZero_PrusaSlicer3.zip`, for PrusaSlicer 3.0.0-alpha12 and
+  later, from a Git checkout.** It is not one of this release's downloads. It is the PrusaSlicer 2 download's presets in PrusaSlicer 3's
   format, all ten nozzles and both machine modes, with Precision as its own
   printer as in PrusaSlicer 2. PrusaSlicer 3 does not yet list third-party
   printers, so the bundle is a ZIP added under *Local sources* in **Preset
@@ -120,7 +120,8 @@ OrcaSlicer 2.5.0's command line resolves the vendor's base files, as its GUI
 does, where 2.4.2's used Orca's own defaults for anything the pack did not
 set. These changes follow from that and from what 2.5.0 adds.
 
-- **Support lines are 112.5% of the nozzle, in all four downloads**, the same
+- **Support lines are 112.5% of the nozzle, in all three downloads and the
+  PrusaSlicer 3 bundle**, the same
   as sparse and solid infill and as Sovol's own 0.4 process (0.45). Unset,
   Orca 2.5.0 took the base file's fixed 0.42 on every nozzle and refused the
   1.0, 1.2 and 1.4 slices ("Line width too small"). PrusaSlicer and
@@ -132,7 +133,8 @@ set. These changes follow from that and from what 2.5.0 adds.
   and SuperSlicer send neither, so their prints use `printer.cfg`'s ratio.
   END_PRINT and CANCEL_PRINT now restore that ratio with the square corner
   velocity, so the next job doesn't inherit Orca's.
-- **Support settings are stated, in all four downloads.** Orca had been
+- **Support settings are stated, in all three downloads and the PrusaSlicer 3
+  bundle.** Orca had been
   printing Sovol's base values in its GUI all along (top gap 0.15 mm, XY gap
   0.5 mm, two interface layers, 40 mm/s). Now every slicer gets top gap 0.2 mm,
   XY gap 50% of the outer wall width, three solid interface layers, a

@@ -1,7 +1,7 @@
 # Slicer downloads
 
-Release `2.1.0` provides **three ZIPs**, one per slicer; releases after
-`2.1.2` add a fourth, for PrusaSlicer 3. Each contains
+Each release provides **three ZIPs**, one per slicer. PrusaSlicer 3 has no
+download yet: its alpha bundle is in Git (see below). Each contains
 ready-to-install profiles, the optional consolidated macro pack, instructions and
 licence notices. Development sources and build tools stay in Git.
 Published `2.0.2-beta.1` ZIPs retain their older layout; follow the README inside
@@ -12,11 +12,9 @@ your download. The layout below applies from `2.0.3-beta.1` onward.
 | `orcaslicer` | `profiles/SVZero.json` and `profiles/SVZero/` into Orca's `system/` directory; `vendor/SVZero/` beside `system/` | Bed preview under `vendor/SVZero/`, where Orca looks for it |
 | `prusaslicer` | Import `SVZero_PrusaSlicer.ini` | Bed previews under `assets/` |
 | `superslicer` | Import `SVZero_SuperSlicer.ini` | Bed previews under `assets/` |
-| `prusaslicer3` | Add `SVZero_PrusaSlicer3.zip`, unextracted, as a local preset source | No bed preview yet |
 
 PrusaSlicer and SuperSlicer each use a single INI; individual presets are not
-repeated in their downloads. PrusaSlicer 3 installs one ZIP as a whole, which is
-how its alphas load a third-party vendor. Orca's separate JSON files are required by its
+repeated in their downloads. Orca's separate JSON files are required by its
 vendor format and must stay together. Its bed assets also sit under
 `vendor/SVZero/`, the only place Orca reads a vendor's bed preview from.
 
@@ -35,8 +33,9 @@ changes relative to the record; they do not authenticate a download's origin.
 ## Source and development
 
 Clone [the repository](https://github.com/rpcyan586/svzero-profiles) for the
-individual macro sources, profile generators, tests and isolated-directory
-installer. No separate source ZIP is built.
+individual macro sources, profile generators, tests, isolated-directory
+installer and the PrusaSlicer 3 alpha bundle, `bundles/SVZero_PrusaSlicer3.zip`
+([DEVELOPMENT.md](DEVELOPMENT.md)). No separate source ZIP is built.
 
 Both `tools/build-macros.py` and `tools/build-release.py` remain in Git. Build
 from a clean committed checkout following [DEVELOPMENT.md](DEVELOPMENT.md);

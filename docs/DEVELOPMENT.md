@@ -31,8 +31,8 @@ Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
 `bundles/SVZero_PrusaSlicer3.zip` is the PrusaSlicer 3 bundle as a local preset
 source, which is how PrusaSlicer 3.0.0-alpha12 and later load a third-party
-vendor until Prusa's preset server carries them, and it is the `prusaslicer3`
-download. To try it, open **Preset sources & updates**, choose **Add ZIP**
+vendor until Prusa's preset server carries them. It is in Git only for now, not
+a release download. To try it, open **Preset sources & updates**, choose **Add ZIP**
 under *Local sources*, then add *SV Zero* or *SV Zero Precision* as a printer. From a shell,
 `--preset-update-add-local bundles/SVZero_PrusaSlicer3.zip` followed by
 `--preset-update` does the same; that route is the tested one.
