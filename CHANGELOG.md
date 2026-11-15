@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Fixed: on 1.4.6 and later, every print re-homed X and Y before the mesh
+
+- **Sovol's `BED_MESH_CALIBRATE` on 1.4.6 and 1.4.7 homes X and Y again and
+  forces a contact calibration unless its `has_z_offset_calibrated` flag is
+  set.** Sovol's own `START_PRINT` sets it around the mesh; the pack's did not.
+  So on 1.4.6+ every pack print homed X and Y a second time after `G28 Z`, then
+  calibrated with the nozzle cooled to 130 °C: the calibration the pack skips
+  on purpose when eddy data exists. A user's ABS job stopped on that second
+  home with `No trigger on y after full movement`.
+- **`START_PRINT` now sets the flag around the mesh**, as Sovol's does, and only
+  where the variable exists. 1.3.7, 1.4.1 and 1.4.2 have no such flag and are
+  unchanged.
+- **Confirmed without motion** on a 1.4.7 Zero: its loaded wrapper matches
+  Sovol's shipped one, and the flag reads False at runtime. Not yet run in a
+  print on 1.4.x.
+
+### Fixed: the orbiting stir's hooks, and the stir is back as a Git-only extra
+
+- **`orbit: True` called a macro that no longer existed.** `chamber_preheat.py`
+  sent `CHAMBER_ORBIT_CYCLE` each cycle after the macro had become
+  `_CHAMBER_ORBIT_CYCLE`, so a wait with the orbit on would start the sweep
+  and then answer every cycle with an unknown command. The flag is off by
+  default.
+- **The flag without the macros is refused** at the start of `M191`'s wait,
+  before anything moves.
+- **`chamber_orbit.cfg` is back in Git as a shelved extra**, outside the
+  bundles and downloads. It left the repository in the 2.1.0 cycle and is
+  kept for plates larger than the Zero's; INSTALL.md says how to switch it
+  on.
+- **The macro checker's orbit scenarios run again.** They were keyed to the
+  macro names from before the underscore rename, so they never matched. A test
+  now fails if the Python sends an orbit command the extra does not define.
+
 ### Changed: the hotend reads as a PT1000, and the profiles move with it
 
 - **Klipper's own PT1000 conversion replaces Sovol's sensor table.** Sovol's
@@ -34,7 +67,10 @@
 - **Nozzle growth k 1.1 → 1.15 µm/°C.** It was measured per degree on Sovol's
   curve; the runs' 150 and 280 °C set points were 146.6 and 270.9 °C at the
   nozzle, so the same growth is 1.1 × 130 / 124.3 per real degree. The
-  first-layer offsets are unchanged to within 0.01 mm.
+  first-layer offsets are unchanged to within 0.01 mm. The README's nozzle
+  growth figure is redrawn in real degrees, and now shows Sovol stock's own
+  tap at 130 °C (127 real): with no temperature term, an ABS first layer at
+  271 °C sits 0.15–0.17 mm closer. 2.1.2's section keeps its own figure.
 - **Profiles from elsewhere now print 5–11 °C hotter** at the same number,
   Sovol's stock filaments included. An OTA or factory reset drops the pack's
   include and the nozzle runs cold by the same amount, not hot. See INSTALL.md,
@@ -180,6 +216,16 @@ set. These changes follow from that and from what 2.5.0 adds.
   too where one is fitted. A print that ends with a cooldown ramp is
   unaffected: the ramp stops the loop itself.
 
+### Fixed: the preheat helper's defaults match the config it ships with
+
+- **`chamber_preheat.py` now defaults to what `chamber_preheat.cfg` sets**:
+  `settle_dwell` 30, `max_bed_boost` 25 and `max_bed_temp` 120. Its own
+  defaults had stayed at 60, 1000 and 100, against the rule in its own
+  comment that the two must match. The pack's `svzero-python.cfg` carries all
+  three values, so prints with the pack installed are unchanged.
+- **`tests/test_exhaust_adaptive.py` pins them**, with the rest of the
+  exhaust's adaptive-floor model, ported from the maintainer's own tests.
+
 ### Changed: square corner velocity raised at the fine end
 
 - **Precision 4, Fine 5, Optimal 6, Standard 7** (were 1, 3, 4 and 5).
@@ -197,6 +243,22 @@ set. These changes follow from that and from what 2.5.0 adds.
   none goes below 4.
 - **Not yet printed.** The visible effect on corners and curves still needs
   an A/B print.
+
+### Changed: the install guides say where Orca's files go and what each part needs
+
+- **Orca's configuration directory is named.** The guides said to copy into
+  "Orca's configuration directory" without saying where that is. They now give
+  **Help → Show Configuration Folder** and the path on each system:
+  `%APPDATA%\OrcaSlicer` on Windows, which File Explorer hides.
+- **What each part needs, in one table.** Precision mode needs the macro pack
+  and the mode file beside it; automatic switching needs precision mode
+  installed as well; neither needs Python.
+- **`SVZERO_MODE` is the check.** Its reply says whether the pack is loaded,
+  which mode is active and whether automatic switching is on. A
+  precision-sliced job without the macro pack prints on the stock 16-microstep
+  configuration with nothing refusing it, so a good print is not that check.
+- **The Git INSTALL.md pointed at `optional-macros/`**, which exists only in the
+  downloads. It now names `klipper/modes/` and `moonraker/`.
 
 ## 2.1.2
 
@@ -382,7 +444,7 @@ Sliced in all three slicers; not yet printed.
 
 ### Nozzle growth compensation, on by default on 1.3.7, off on 1.4.x
 
-<p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
+<p><img src="https://raw.githubusercontent.com/rpcyan586/svzero-profiles/v2.1.2/docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at 280 C than at the 150 C tap: eight tap pairs beside the sensor on one Zero, the published rate of 1.1 um per degree against Sovol stock, which has a fixed offset and no temperature term, the first-layer lift for each material, and four printed single-layer squares, where the lifts for 0.67 and 1.0 came out over-squished and the lift for 1.3 came out flat"></p>
 
 A hotter nozzle reaches further down, and every print's Z reference is taken
 at one nozzle temperature while the first layer prints at another. On the

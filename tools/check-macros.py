@@ -284,7 +284,7 @@ def check(path):
                 ("cold-contact", Mock(HEAT="0"), "HEAT=0", {}, {}),
                 ("dry", Mock(DRY="1"), "DRY=1", {}, {}),
             ]
-        elif s == "gcode_macro CHAMBER_ORBIT_SWEEP":
+        elif s == "gcode_macro _CHAMBER_ORBIT_SWEEP":
             scenarios = [("default", Mock(CYCLES="1"), "CYCLES=1", {}, {})]
         elif s == "gcode_macro _BRUSH_MARK_DONE":
             # Both branches. The shipped default for t_start is -1.0, so
@@ -384,6 +384,12 @@ def check(path):
                 ("growth-absent", params, "", {}, {},
                  {"probe_pressure": Mock(last_z_result=0.0),
                   "gcode_macro _NOZZLE_GROWTH": None}),
+                # 1.4.6+: Sovol's _global_var carries has_z_offset_calibrated,
+                # and its BED_MESH_CALIBRATE re-homes X and Y unless it is True.
+                ("mesh-flag-1.4.7", params, "", {}, {},
+                 {"probe_pressure": None,
+                  "gcode_macro _global_var": Mock(dict(printer["gcode_macro _global_var"],
+                                                       has_z_offset_calibrated=False))}),
             ]
         elif s == "gcode_macro SVZERO_NOZZLE_GROWTH":
             # Every branch: off, applied, each reason for applying nothing, the
@@ -437,7 +443,7 @@ def check(path):
                 ("eddy-off-tap-ref", None, "TEMP=280", {}, {},
                  growth(k=0.0008, eddy=False, **tap150)),
             ]
-        elif s == "gcode_macro ORBIT_WHINE_SWEEP":
+        elif s == "gcode_macro _ORBIT_WHINE_SWEEP":
             scenarios = [
                 ("default", params, "", {}, {}),
                 # 300 mm/s at r=20 needs 4500 mm/s2, just inside the 5000 limit;
@@ -1580,6 +1586,10 @@ def check(path):
                  "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_temp VALUE=-1.0",
                  "SET_GCODE_VARIABLE MACRO=_NOZZLE_GROWTH VARIABLE=ref_source VALUE='\"eddy_off\"'"],
             ("gcode_macro START_PRINT", "growth-absent"): "METHOD=force_overlay",
+            # True before G28 Z, False after the mesh, as Sovol's START_PRINT.
+            ("gcode_macro START_PRINT", "mesh-flag-1.4.7"):
+                ["SET_GCODE_VARIABLE MACRO=_global_var VARIABLE=has_z_offset_calibrated VALUE=True",
+                 "SET_GCODE_VARIABLE MACRO=_global_var VARIABLE=has_z_offset_calibrated VALUE=False"],
             # Computed from the k this file publishes, which is set in one place.
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "published"):
                 ["SET_GCODE_OFFSET Z_ADJUST=%s MOVE=1" % round(growth_k * 130.0, 4),
@@ -1614,10 +1624,10 @@ def check(path):
             ("gcode_macro SVZERO_NOZZLE_GROWTH", "eddy-off-tap-ref"): growth_eddy_off,
             # Arcs, not straight-line approximations, and a full circle has no
             # endpoint so gcode_arcs takes its 2*pi branch.
-            ("gcode_macro CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
+            ("gcode_macro _CHAMBER_ORBIT_SWEEP", "default"): "_CHAMBER_ORBIT_CYCLE",
             # M400 before each announcement, or the console races the motion.
-            ("gcode_macro ORBIT_WHINE_SWEEP", "default"): "M400",
-            ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
+            ("gcode_macro _ORBIT_WHINE_SWEEP", "default"): "M400",
+            ("gcode_macro _ORBIT_WHINE_SWEEP", "over-accel"): "over max_accel",
             # Every arc in ONE script: that is what makes the lookahead blend
             # them instead of stopping at each junction.
             ("gcode_macro _CHAMBER_ORBIT_CYCLE", "full"): "G2 X42.0 Y100.0 I-58.0 J0 F141",
@@ -1899,7 +1909,7 @@ def check(path):
                   ("gcode_macro SET_VELOCITY_LIMIT", "scv-only"): "clamped",
                   ("gcode_macro M204", "under"): "clamped",
                   # A step that cannot be held must emit no arc at all.
-                  ("gcode_macro ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
+                  ("gcode_macro _ORBIT_WHINE_SWEEP", "over-accel"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_CYCLE", "inactive"): "G2 ",
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "inactive"): "G3 ",
                   # The clamp must bite: axis_maximum is 200 in the fixture, so
@@ -1908,8 +1918,9 @@ def check(path):
                   ("gcode_macro _CHAMBER_ORBIT_STEP", "wraps"): "G1 ",
                   # On a machine with no tare-tap, forcing the overlay costs a
                   # heat-up and a contact probe on EVERY print.
-                  ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE"],
-                  ("gcode_macro START_PRINT", "tare-tap"): "CAMERA_TUNE",
+                  ("gcode_macro START_PRINT", "tare-tap"): ["CAMERA_TUNE", "has_z_offset_calibrated"],
+                  # 1.4.1-1.4.2 eddy firmware has no flag: nothing to set.
+                  ("gcode_macro START_PRINT", "eddy-only"): ["METHOD=force_overlay", "CAMERA_TUNE", "has_z_offset_calibrated"],
                   # Eddy paths never force the overlay and never take probe_temp,
                   # or any temperature, as a reference: calibrated or not, off.
                   ("gcode_macro START_PRINT", "growth-eddy-off-calibrated"):

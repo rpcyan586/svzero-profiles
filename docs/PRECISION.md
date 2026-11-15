@@ -50,8 +50,10 @@ Why these values:
    include must come after printer.cfg's stepper sections, where INSTALL.md
    puts it.
 2. Copy `optional-macros/svzero-mode-precision.cfg.off` into the pack's
-   `svzero/` directory, unchanged. With the `.off` the printer stays in standard
-   mode.
+   `svzero/` directory, beside the firmware file, unchanged. With the `.off` the
+   printer stays in standard mode. The firmware file includes
+   `svzero-mode-*.cfg` from its own directory, so a mode file anywhere else is
+   never read.
 3. Import the slicer profiles as usual. Precision appears as its own printer:
    `SV Zero Precision 0.4n` (and `0.3n`, `0.25n`, `0.2n`) in PrusaSlicer and
    SuperSlicer, and the separate `SV Zero Precision` printer model in
@@ -66,13 +68,18 @@ it back and restart to leave. The pack's firmware file ends with
 `[include svzero-mode-*.cfg]`, so nothing in printer.cfg changes. `SVZERO_MODE`
 in the console reports the current mode.
 
-**Automatically, with the optional Moonraker component.** Copy
+**Automatically, with the optional Moonraker component.** It needs Install
+step 2 done: it switches modes by renaming that file, `.off` or not. Copy
 `optional-macros/svzero_mode_switch.py` to `~/moonraker/moonraker/components/`,
 add a section to `moonraker.conf`:
 
     [svzero_mode_switch]
 
-and restart Moonraker. When a job sliced for the other mode is started, it is
+and restart Moonraker. If the firmware file is not in `svzero/`, add
+`mode_dir:` to that section with its directory, relative to the config
+directory (`.` for beside `printer.cfg`). `SVZERO_MODE` should then end
+`automatic switching on`; `off` means the component did not load, and
+Moonraker's log says why. When a job sliced for the other mode is started, it is
 refused on its first line, before any heater, and the component then:
 
 - waits for the refused job to end, and requires the printer idle and cold
@@ -96,6 +103,11 @@ Only the mode itself:
 - If the mode file is selected but its microsteps did not take effect -- because
   printer.cfg's own stepper sections come after the pack include -- a precision
   job is refused rather than printed at the wrong resolution.
+
+Without the macro pack nothing refuses. `SVZERO_REQUIRE` is then an unknown
+command, and a precision-sliced job prints at precision speeds on the stock
+16-microstep configuration. That is not precision mode; `SVZERO_MODE` answering
+`machine mode precision` is the check that it is.
 
 ## Limits
 

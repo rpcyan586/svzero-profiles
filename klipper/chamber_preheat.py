@@ -469,7 +469,7 @@ class ChamberPreheat:
             "minimum_rate", 0.02, above=0.0
         )
         self.default_max_boost = config.getfloat(
-            "max_bed_boost", 1000.0, minval=0.0
+            "max_bed_boost", 25.0, minval=0.0
         )
         self.default_coast_rate = config.getfloat(
             "coast_rate", 1.0, above=0.0
@@ -484,7 +484,7 @@ class ChamberPreheat:
         # regressed slope reaches this band from below and holds for the dwell.
         self.ready_slope = config.getfloat("ready_slope", -0.02, maxval=0.0)
         self.settle_dwell = config.getfloat(
-            "settle_dwell", 60.0, minval=5.0
+            "settle_dwell", 30.0, minval=5.0
         )
         # Give up qualifying rather than hang a print forever. Proceeding is
         # recorded and announced; the soak is then no better than stock.
@@ -515,7 +515,9 @@ class ChamberPreheat:
         # Defaults here MUST match chamber_preheat.cfg. A code default that
         # silently disagrees with the shipped config gives anyone who installs
         # the extra without the full file different behaviour from the one
-        # documented; scripts/test-exhaust-adaptive.py pins the pair.
+        # documented; tests/test_exhaust_adaptive.py pins the pair. It caught
+        # settle_dwell, max_bed_boost and max_bed_temp drifted on 2026-11-15;
+        # the cfg's values were the right ones and the code took them.
         #
         # A slope worth scheduling against, distinct from minimum_rate, which
         # only asks whether an ETA can be displayed at all. This is not the
@@ -540,7 +542,7 @@ class ChamberPreheat:
         # A magnitude cap does not survive changing the printing bed target,
         # and this machine will eventually run a 124 C bed with 60 C chamber
         # targets. What limits the boost today is the filament, not the plate.
-        self.max_bed_temp = config.getfloat("max_bed_temp", 100.0, above=0.0)
+        self.max_bed_temp = config.getfloat("max_bed_temp", 120.0, above=0.0)
         # The rise after the opening guess is rate limited rather than a jump
         # to the ETA-permitted level, so the plate climbs monotonically until
         # the ETA says it must turn around and come back down.
@@ -934,7 +936,7 @@ class ChamberPreheat:
         # between the last one's. It is cheap, and the only motion it adds is a
         # few millimetres of radial hop at the hub.
         self.gcode.run_script_from_command(
-            "_CHAMBER_ORBIT_BEGIN\nCHAMBER_ORBIT_CYCLE")
+            "_CHAMBER_ORBIT_BEGIN\n_CHAMBER_ORBIT_CYCLE")
         now = self.reactor.monotonic()
         deadline = eventtime + seconds
         return now if now >= deadline else self.reactor.pause(deadline)
@@ -1310,6 +1312,15 @@ class ChamberPreheat:
         )
         if initial_boost > max_boost:
             raise gcmd.error("INITIAL_BOOST must not exceed MAX_BOOST")
+        # The orbit is an optional extra with two switches: the flag here and
+        # the include of chamber_orbit.cfg. The flag alone used to start the
+        # wait and then send an unknown command every cycle; refuse it before
+        # anything moves instead.
+        if self.orbit and self.printer.lookup_object(
+                "gcode_macro _CHAMBER_ORBIT_BEGIN", None) is None:
+            raise gcmd.error("[chamber_preheat] orbit: True needs "
+                             "chamber_orbit.cfg included, which defines the "
+                             "_CHAMBER_ORBIT_ macros")
 
         nozzle = self.heaters.lookup_heater("extruder")
         bed = self.heaters.lookup_heater("heater_bed")
