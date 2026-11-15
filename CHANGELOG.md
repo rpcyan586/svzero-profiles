@@ -78,6 +78,8 @@
 
 ### Added: the stock camera's exposure follows the room
 
+<p><img src="docs/images/camera-auto.png" alt="camera_auto over four prints on a Zero's stock camera as a desk lamp came and went: each print's end tries up to three exposures with the part in frame and keeps the sharpest per unit of noise under 2% clipped, and its plate brightness becomes the next start's target. With the lamp aimed in, the next start read 79 and stepped back to 44 against 43; with the lamp off it climbed to the 600 exposure cap. Gain stays at 0, and the camera's own white balance stays on"></p>
+
 - **`camera_auto`, an optional Python extra for the stock camera under stock
   crowsnest.** It uses only what the stock image ships. `_PREFLIGHT` starts it
   in the background, and it corrects the stored exposure for this room's light
