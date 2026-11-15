@@ -1,6 +1,7 @@
 # Slicer downloads
 
-Release `2.1.0` provides **three ZIPs**, one per slicer. Each contains
+Each release provides **three ZIPs**, one per slicer. PrusaSlicer 3 has no
+download yet: its alpha bundle is in Git (see below). Each contains
 ready-to-install profiles, the optional consolidated macro pack, instructions and
 licence notices. Development sources and build tools stay in Git.
 Published `2.0.2-beta.1` ZIPs retain their older layout; follow the README inside
@@ -26,14 +27,15 @@ no individual macro sources or build steps in the download. Fan/camera extras
 and individual-feature configurations remain available from Git.
 
 `RELEASE.json` records the version, source commit and a hash for every packaged
-file. External `SHA256SUMS` covers the three complete ZIPs. Checksums detect
+file. External `SHA256SUMS` covers every complete ZIP. Checksums detect
 changes relative to the record; they do not authenticate a download's origin.
 
 ## Source and development
 
 Clone [the repository](https://github.com/rpcyan586/svzero-profiles) for the
-individual macro sources, profile generators, tests, isolated-directory installer
-and experimental PrusaSlicer 3 output. No separate source ZIP is built.
+individual macro sources, profile generators, tests, isolated-directory
+installer and the PrusaSlicer 3 alpha bundle, `bundles/SVZero_PrusaSlicer3.zip`
+([DEVELOPMENT.md](DEVELOPMENT.md)). No separate source ZIP is built.
 
 Both `tools/build-macros.py` and `tools/build-release.py` remain in Git. Build
 from a clean committed checkout following [DEVELOPMENT.md](DEVELOPMENT.md);

@@ -1,119 +1,619 @@
 kind: printer
-id: k5bpKjxUl743ORquPA/uUQ
+id: 2SU2s4SheOWg3H3J+yYEjA
 values:
-  autoemit_temperature_commands: '1'
-  bed_custom_model: svzero_bed.stl
-  bed_custom_texture: svzero_bed_grid.png
-  bed_shape: 0x0,152.4x0,152.4x152.4,0x152.4
-  before_layer_gcode: TIMELAPSE_TAKE_FRAME\nG92 E0\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num+1}
+  autoemit_temperature_commands: true
+  bed_shape:
+  - '0x0'
+  - 152.4x0
+  - 152.4x152.4
+  - 0x152.4
+  before_layer_gcode: 'TIMELAPSE_TAKE_FRAME
+
+    G92 E0
+
+    SET_PRINT_STATS_INFO CURRENT_LAYER={layer_num+1}'
   between_objects_gcode: ''
-  binary_gcode: '0'
-  cooling_tube_length: '5'
-  cooling_tube_retraction: '91.5'
-  end_gcode: END_PRINT\n
-  extra_loading_move: '-2'
-  extruder_offset: '0x0'
+  binary_gcode: false
+  cooling_tube_length: 5.0
+  cooling_tube_retraction: 91.5
+  end_gcode: 'END_PRINT
+
+    '
+  extra_loading_move: -2.0
+  extruder_offset:
+  - '0x0'
   gcode_flavor: klipper
   machine_limits_usage: time_estimate_only
-  machine_max_acceleration_e: 20000,5000
-  machine_max_acceleration_extruding: 40000,1250
-  machine_max_acceleration_retracting: 20000,1250
-  machine_max_acceleration_travel: 40000,1250
-  machine_max_acceleration_x: 40000,1000
-  machine_max_acceleration_y: 40000,1000
-  machine_max_acceleration_z: 1000,200
-  machine_max_feedrate_e: 50,120
-  machine_max_feedrate_x: 1200,200
-  machine_max_feedrate_y: 1200,200
-  machine_max_feedrate_z: 30,12
-  machine_max_jerk_e: 2.5,2.5
-  machine_max_jerk_x: 9,10
-  machine_max_jerk_y: 9,10
-  machine_max_jerk_z: 0.5,0.4
-  machine_min_extruding_rate: 0,0
-  machine_min_travel_rate: 0,0
-  max_print_height: '152.4'
-  parking_pos_retraction: '92'
-  remaining_times: '1'
-  silent_mode: '0'
-  single_extruder_multi_material: '0'
+  machine_max_acceleration_e:
+  - 20000.0
+  - 5000.0
+  machine_max_acceleration_retracting:
+  - 20000.0
+  - 1250.0
+  machine_max_acceleration_z:
+  - 1000.0
+  - 200.0
+  machine_max_feedrate_e:
+  - 50.0
+  - 120.0
+  machine_max_feedrate_z:
+  - 30.0
+  - 12.0
+  machine_max_jerk_e:
+  - 2.5
+  - 2.5
+  machine_max_jerk_x:
+  - 9.0
+  - 10.0
+  machine_max_jerk_y:
+  - 9.0
+  - 10.0
+  machine_max_jerk_z:
+  - 0.5
+  - 0.4
+  machine_min_extruding_rate:
+  - 0.0
+  - 0.0
+  machine_min_travel_rate:
+  - 0.0
+  - 0.0
+  max_print_height: 152.4
+  parking_pos_retraction: 92.0
+  remaining_times: true
+  extruder_clearance_radius: 65.0
+  extruder_clearance_height: 36.0
+  silent_mode: false
+  single_extruder_multi_material: false
   thumbnails: 32x32,300x300
   thumbnails_format: PNG
-  use_firmware_retraction: '0'
-  use_relative_e_distances: 1
-  use_volumetric_e: '0'
-  variable_layer_height: '1'
-  z_offset: '0'
+  use_firmware_retraction: false
+  use_relative_e_distances: true
+  use_volumetric_e: false
+  variable_layer_height: true
+  z_offset: 0.0
   printer_technology: FFF
   printer_notes: SV Zero (Klipper). Place svzero_bed.stl and svzero_bed.svg where SuperSlicer can find
     them.
-  start_gcode: ';---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.\n;  START_PRINT
-    owns homing, nozzle cleaning, Z calibration and bed mesh.\n;  DO NOT add G28 here. Two of them around
-    START_PRINT gave three homes per\n;  job, one of which ran before the bed was at temperature.\n;  Chamber:
-    M141 is a NONBLOCKING ceiling. M191 blocks until the chamber\n;  reaches a MINIMUM and calls its own
-    G28, which is wrong for PLA where 32C\n;  is a cap. Use M191 deliberately, and only for chamber-sensitive
-    materials.\n;  SVZERO_REQUIRE names the pack version and machine mode this profile\n;  was built for.
-    A different pack version prints one warning; a\n;  different MODE refuses the job here, before any
-    heater.\nSVZERO_REQUIRE VERSION=2.1.2 MODE=standard\n;  _PREFLIGHT is next so a rejected job costs
-    no heating. It is inert\n;  unless the optional spool_guard extra is installed.\n_PREFLIGHT\n;  M140
-    BEFORE the chamber block, and that order is load-bearing. The\n;  M191 macro reads printer.heater_bed.target
-    live and hands it to the\n;  host waiter as BED_TARGET; with no target set yet the waiter is told\n;  0
-    and commands the plate OFF for the whole chamber soak. Orca''s\n;  preamble has always had it this
-    way round.\nM140 S[first_layer_bed_temperature]\n;>>>CHAMBER emitted per slicer by tools/generate.py
-    -- do not hand-edit\n{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}\n;<<<CHAMBER\n;>>>CLEAN_TEMP\n;  The
-    material is NAMED here; the temperature table lives in the macro\n;  pack, in nozzle_brush.cfg''s
-    _BRUSH_CLEAN_TEMPS. Same division as\n;  COOLDOWN_ARM below. Provenance for the curve is\n;  source/filament-clean-temp.json.\n;  Safe
-    to omit: without the pack this is an unknown command and only\n;  warns, and CLEAN_NOZZLE falls back
-    to _BRUSH.retract_temp.\nSET_CLEAN_TEMP MATERIAL=[filament_type]\n;<<<CLEAN_TEMP\n;>>>COOLDOWN generated
-    from source/filament-cooldown.json -- do not hand-edit\n;  Names the material; the RATES live in cooldown.cfg''s\n;  _COOLDOWN_MATERIALS,
-    so one table serves every slicer and the spool\n;  can name the material when no slicer does. Pass
-    FINAL, CHAMBER_RATE\n;  or BED_RATE here only to OVERRIDE the table for an experiment.\n;  Omitting
-    this block is safe: END_PRINT then asks spool_guard what is\n;  loaded, and falls back to the default
-    row if nothing knows.\nCOOLDOWN_ARM MATERIAL=[filament_type]\n;<<<COOLDOWN\n;---Skew compensation.
-    Left ENABLED and UNSET on purpose. SKEW_PROFILE\n;  needs an empty skew_correction section in printer.cfg
-    -- square\n;  brackets are left off that name on purpose, the slicer reads them as a\n;  template
-    variable -- which NEITHER\n;  firmware ships -- checked against Sovol''s own 1.4.x tree, not against\n;  a
-    machine somebody had already modified -- and a profile YOU\n;  measured, saved with SKEW_PROFILE SAVE=<name>
-    and SAVE_CONFIG.\n;  Uncomment the line below with your own name once you have one.\n;  Shipping somebody
-    else''s skew numbers would be worse than shipping\n;  none, and naming a profile that does not exist
-    logs a failed load on\n;  every print -- skew_correction.py answers an unknown name with\n;  respond_info,
-    so it warns forever rather than failing once.\n;SKEW_PROFILE LOAD=your_skew_profile\n;  Stock START_PRINT
-    does not guarantee a settled plate before calibration.\nM190 S[first_layer_bed_temperature]\nSTART_PRINT\n;>>>SCV
-    generated from source/model.json tiers -- do not hand-edit\n;  Square corner velocity is a print-tier
-    setting. The print preset''s\n;  Notes carry it as SVZERO_SCV=<mm/s>mm and this sends it to Klipper.\n;  SET_VELOCITY_LIMIT
-    assigns rather than clamps; END_PRINT and\n;  CANCEL_PRINT restore printer.cfg''s value. A preset
-    without the marker\n;  sends nothing and keeps the printer''s own.\n{if notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT
-    SQUARE_CORNER_VELOCITY=4\n{elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5\n{elsif
-    notes=~/.*SVZERO_SCV=6mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=6\n{elsif notes=~/.*SVZERO_SCV=7mm.*/}SET_VELOCITY_LIMIT
-    SQUARE_CORNER_VELOCITY=7\n{elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}\n;<<<SCV\n;>>>XY_CURRENT
-    generated from source/model.json tiers -- do not hand-edit\n;  X/Y stepper current is a print-tier
-    setting. The print preset''s Notes\n;  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the
-    pack after\n;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack\n;  only lowers
-    it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.\n;  A preset without the marker (Draft)
-    keeps the printer''s own. Without\n;  the pack it is an unknown command, which Klipper reports and
-    steps over.\n{if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4{endif}\n;<<<XY_CURRENT\n;  SVZERO_NOZZLE_GROWTH
-    offsets Z for the nozzle being hotter at the first\n;  layer than when START_PRINT took the Z reference.
-    On as published on\n;  1.3.7, the tare-tap; off on eddy-only 1.4.x, where it applies nothing.\n;  SAVE_VARIABLE
-    VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.\n;  Without the pack it is an unknown command,
-    which Klipper reports and\n;  steps over.\nSVZERO_NOZZLE_GROWTH TEMP=[first_layer_temperature]\nG90\nG1
-    Z5 F600 ; clearance from the freshly calibrated bed before any XY move\nG92 E0\nSET_GCODE_OFFSET Z_ADJUST=-0.00
-    MOVE=1\nM104 S[first_layer_temperature]\nM83\n;---Purge. PURGE_LINE owns placement and motion; the
-    slicer passes the numbers\n;  only it knows. The old inline math is retired: it collapsed algebraically
-    to\n;  nozzle_diameter/2, ignored the filament''s volumetric ceiling (TPU was driven\n;  3.7x over),
-    and skipped the purge entirely when the part sat near an edge.\n;  See notes/kb/purge-lines.md.\nM109
-    S[first_layer_temperature]\nPURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter]
-    NOZZLE=[nozzle_diameter] CLEAR={skirt_distance + skirts * first_layer_extrusion_width + 2}\nSET_PRINT_STATS_INFO
-    TOTAL_LAYER={total_layer_count}'
   printer_model: SV Zero
 variants:
-- condition: printer.model == "SVZERO"
-  id: +oGyv66CHG+S1j/Sx1RAgQ
+- condition: printer.base_model == "SVZERO" and !printer.precision
+  id: H1lMuwPT+gAnDin0FtwBiw
   name: SV Zero
   values:
-    bed_shape:
-    - '0x0'
-    - 152.4x0
-    - 152.4x152.4
-    - 0x152.4
-    max_print_height: 152.4
-    printer_model: SVZERO
+    machine_max_acceleration_extruding:
+    - 40000.0
+    - 1250.0
+    machine_max_acceleration_travel:
+    - 40000.0
+    - 1250.0
+    machine_max_acceleration_x:
+    - 40000.0
+    - 1000.0
+    machine_max_acceleration_y:
+    - 40000.0
+    - 1000.0
+    machine_max_feedrate_x:
+    - 1200.0
+    - 200.0
+    machine_max_feedrate_y:
+    - 1200.0
+    - 200.0
+    start_gcode: ';---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.
+
+      ;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.
+
+      ;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per
+
+      ;  job, one of which ran before the bed was at temperature.
+
+      ;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber
+
+      ;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C
+
+      ;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.
+
+      ;  SVZERO_REQUIRE names the pack version and machine mode this profile
+
+      ;  was built for. A different pack version prints one warning; a
+
+      ;  different MODE refuses the job here, before any heater.
+
+      SVZERO_REQUIRE VERSION=2.1.2 MODE=standard
+
+      ;  _PREFLIGHT is next so a rejected job costs no heating. It is inert
+
+      ;  unless the optional spool_guard extra is installed.
+
+      _PREFLIGHT
+
+      ;  M140 BEFORE the chamber block, and that order is load-bearing. The
+
+      ;  M191 macro reads printer.heater_bed.target live and hands it to the
+
+      ;  host waiter as BED_TARGET; with no target set yet the waiter is told
+
+      ;  0 and commands the plate OFF for the whole chamber soak. Orca''s
+
+      ;  preamble has always had it this way round.
+
+      M140 S[first_layer_bed_temperature]
+
+      ;>>>CHAMBER emitted per slicer -- do not hand-edit
+
+      ;  M191 blocks until the chamber reaches the material''s minimum;
+
+      ;  M141 then leaves a non-blocking ceiling at its target.
+
+      {if chamber_minimal_temperature[0] > 0}M191 S{chamber_minimal_temperature[0]}
+
+      {endif}{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}
+
+      ;<<<CHAMBER
+
+      ;>>>CLEAN_TEMP
+
+      ;  The material is NAMED here; the temperature table lives in the macro
+
+      ;  pack, in nozzle_brush.cfg''s _BRUSH_CLEAN_TEMPS. Same division as
+
+      ;  COOLDOWN_ARM below. Provenance for the curve is
+
+      ;  source/filament-clean-temp.json.
+
+      ;  Safe to omit: without the pack this is an unknown command and only
+
+      ;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.
+
+      SET_CLEAN_TEMP MATERIAL=[filament_type]
+
+      ;<<<CLEAN_TEMP
+
+      ;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit
+
+      ;  Names the material; the RATES live in cooldown.cfg''s
+
+      ;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool
+
+      ;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE
+
+      ;  or BED_RATE here only to OVERRIDE the table for an experiment.
+
+      ;  Omitting this block is safe: END_PRINT then asks spool_guard what is
+
+      ;  loaded, and falls back to the default row if nothing knows.
+
+      COOLDOWN_ARM MATERIAL=[filament_type]
+
+      ;<<<COOLDOWN
+
+      ;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE
+
+      ;  needs an empty skew_correction section in printer.cfg -- square
+
+      ;  brackets are left off that name on purpose, the slicer reads them as a
+
+      ;  template variable -- which NEITHER
+
+      ;  firmware ships -- checked against Sovol''s own 1.4.x tree, not against
+
+      ;  a machine somebody had already modified -- and a profile YOU
+
+      ;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.
+
+      ;  Uncomment the line below with your own name once you have one.
+
+      ;  Shipping somebody else''s skew numbers would be worse than shipping
+
+      ;  none, and naming a profile that does not exist logs a failed load on
+
+      ;  every print -- skew_correction.py answers an unknown name with
+
+      ;  respond_info, so it warns forever rather than failing once.
+
+      ;SKEW_PROFILE LOAD=your_skew_profile
+
+      ;  Stock START_PRINT does not guarantee a settled plate before calibration.
+
+      M190 S[first_layer_bed_temperature]
+
+      START_PRINT
+
+      ;>>>SCV generated from source/model.json tiers -- do not hand-edit
+
+      ;  Square corner velocity is a print-tier setting. The print preset''s
+
+      ;  Notes carry it as SVZERO_SCV=<mm/s>mm and this sends it to Klipper.
+
+      ;  SET_VELOCITY_LIMIT assigns rather than clamps; END_PRINT and
+
+      ;  CANCEL_PRINT restore printer.cfg''s value. A preset without the marker
+
+      ;  sends nothing and keeps the printer''s own.
+
+      {if notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
+
+      {elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5
+
+      {elsif notes=~/.*SVZERO_SCV=6mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=6
+
+      {elsif notes=~/.*SVZERO_SCV=7mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=7
+
+      {elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}
+
+      ;<<<SCV
+
+      ;>>>XY_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  X/Y stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4
+
+      {elsif notes=~/.*SVZERO_XY_CURRENT=3[.]5A.*/}SVZERO_XY_CURRENT CURRENT=3.5{endif}
+
+      ;<<<XY_CURRENT
+
+      ;>>>Z_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  Z stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_Z_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_Z_CURRENT=0[.]7A.*/}SVZERO_Z_CURRENT CURRENT=0.7
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1A.*/}SVZERO_Z_CURRENT CURRENT=1
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1[.]2A.*/}SVZERO_Z_CURRENT CURRENT=1.2{endif}
+
+      ;<<<Z_CURRENT
+
+      ;  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first
+
+      ;  layer than when START_PRINT took the Z reference. On as published on
+
+      ;  1.3.7, the tare-tap; off on eddy-only 1.4.x, where it applies nothing.
+
+      ;  SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.
+
+      ;  Without the pack it is an unknown command, which Klipper reports and
+
+      ;  steps over.
+
+      SVZERO_NOZZLE_GROWTH TEMP=[first_layer_temperature]
+
+      G90
+
+      G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move
+
+      G92 E0
+
+      SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1
+
+      M104 S[first_layer_temperature]
+
+      M83
+
+      ;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers
+
+      ;  only it knows. The old inline math is retired: it collapsed algebraically to
+
+      ;  nozzle_diameter/2, ignored the filament''s volumetric ceiling (TPU was driven
+
+      ;  3.7x over), and skipped the purge entirely when the part sat near an edge.
+
+      ;  See notes/kb/purge-lines.md.
+
+      M109 S[first_layer_temperature]
+
+      PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter]
+      CLEAR={skirt_distance + skirts * first_layer_extrusion_width[initial_tool] + 2}
+
+      SET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}'
+  variants:
+  - condition: tool.nozzle_diameter == 0.2
+    id: v5Cte3cEN/eeV9ceuZWQ0g
+    values:
+      default_print: 0.15mm (Standard)
+  - condition: tool.nozzle_diameter == 0.25
+    id: 5BjeqTM8uspSpBqo1t20ew
+    values:
+      default_print: 0.18mm (Standard)
+  - condition: tool.nozzle_diameter == 0.3
+    id: yfRePbLOpUVYqnu4n+UM8A
+    values:
+      default_print: 0.22mm (Standard)
+  - condition: tool.nozzle_diameter == 0.4
+    id: oAu3DAaDzRU7ejEIxv91bQ
+    values:
+      default_print: 0.20mm (Standard)
+  - condition: tool.nozzle_diameter == 0.5
+    id: pm9LEV5Sh1o3Iu2Izh/mbA
+    values:
+      default_print: 0.25mm (Standard)
+  - condition: tool.nozzle_diameter == 0.6
+    id: DyhUKsNPwyNcmKHlIetFDw
+    values:
+      default_print: 0.3mm (Standard)
+  - condition: tool.nozzle_diameter == 0.8
+    id: WcwoQRPHT7IEhPHBg72IZQ
+    values:
+      default_print: 0.4mm (Standard)
+  - condition: tool.nozzle_diameter == 1
+    id: vja1yXy8VcgsfyD9UwKYMw
+    values:
+      default_print: 0.6mm (Standard)
+  - condition: tool.nozzle_diameter == 1.2
+    id: PNIXwvZGWf8XSsBq6F9ocQ
+    values:
+      default_print: 0.5mm (Standard)
+  - condition: tool.nozzle_diameter == 1.4
+    id: oPg6dDNgovSlSboX74vTJg
+    values:
+      default_print: 0.7mm (Standard)
+- condition: printer.base_model == "SVZERO" and printer.precision
+  id: IN/9GwLUHmDS0VzrR2puCg
+  name: SV Zero Precision
+  values:
+    start_gcode: ';---SV Zero startup. See notes/incidents/2026-08-17-zero2-startup-crash.
+
+      ;  START_PRINT owns homing, nozzle cleaning, Z calibration and bed mesh.
+
+      ;  DO NOT add G28 here. Two of them around START_PRINT gave three homes per
+
+      ;  job, one of which ran before the bed was at temperature.
+
+      ;  Chamber: M141 is a NONBLOCKING ceiling. M191 blocks until the chamber
+
+      ;  reaches a MINIMUM and calls its own G28, which is wrong for PLA where 32C
+
+      ;  is a cap. Use M191 deliberately, and only for chamber-sensitive materials.
+
+      ;  SVZERO_REQUIRE names the pack version and machine mode this profile
+
+      ;  was built for. A different pack version prints one warning; a
+
+      ;  different MODE refuses the job here, before any heater.
+
+      SVZERO_REQUIRE VERSION=2.1.2 MODE=precision
+
+      ;  _PREFLIGHT is next so a rejected job costs no heating. It is inert
+
+      ;  unless the optional spool_guard extra is installed.
+
+      _PREFLIGHT
+
+      ;  M140 BEFORE the chamber block, and that order is load-bearing. The
+
+      ;  M191 macro reads printer.heater_bed.target live and hands it to the
+
+      ;  host waiter as BED_TARGET; with no target set yet the waiter is told
+
+      ;  0 and commands the plate OFF for the whole chamber soak. Orca''s
+
+      ;  preamble has always had it this way round.
+
+      M140 S[first_layer_bed_temperature]
+
+      ;>>>CHAMBER emitted per slicer -- do not hand-edit
+
+      ;  M191 blocks until the chamber reaches the material''s minimum;
+
+      ;  M141 then leaves a non-blocking ceiling at its target.
+
+      {if chamber_minimal_temperature[0] > 0}M191 S{chamber_minimal_temperature[0]}
+
+      {endif}{if chamber_temperature[0] > 0}M141 S{chamber_temperature[0]}{else}M141 S32{endif}
+
+      ;<<<CHAMBER
+
+      ;>>>CLEAN_TEMP
+
+      ;  The material is NAMED here; the temperature table lives in the macro
+
+      ;  pack, in nozzle_brush.cfg''s _BRUSH_CLEAN_TEMPS. Same division as
+
+      ;  COOLDOWN_ARM below. Provenance for the curve is
+
+      ;  source/filament-clean-temp.json.
+
+      ;  Safe to omit: without the pack this is an unknown command and only
+
+      ;  warns, and CLEAN_NOZZLE falls back to _BRUSH.retract_temp.
+
+      SET_CLEAN_TEMP MATERIAL=[filament_type]
+
+      ;<<<CLEAN_TEMP
+
+      ;>>>COOLDOWN generated from source/filament-cooldown.json -- do not hand-edit
+
+      ;  Names the material; the RATES live in cooldown.cfg''s
+
+      ;  _COOLDOWN_MATERIALS, so one table serves every slicer and the spool
+
+      ;  can name the material when no slicer does. Pass FINAL, CHAMBER_RATE
+
+      ;  or BED_RATE here only to OVERRIDE the table for an experiment.
+
+      ;  Omitting this block is safe: END_PRINT then asks spool_guard what is
+
+      ;  loaded, and falls back to the default row if nothing knows.
+
+      COOLDOWN_ARM MATERIAL=[filament_type]
+
+      ;<<<COOLDOWN
+
+      ;---Skew compensation. Left ENABLED and UNSET on purpose. SKEW_PROFILE
+
+      ;  needs an empty skew_correction section in printer.cfg -- square
+
+      ;  brackets are left off that name on purpose, the slicer reads them as a
+
+      ;  template variable -- which NEITHER
+
+      ;  firmware ships -- checked against Sovol''s own 1.4.x tree, not against
+
+      ;  a machine somebody had already modified -- and a profile YOU
+
+      ;  measured, saved with SKEW_PROFILE SAVE=<name> and SAVE_CONFIG.
+
+      ;  Uncomment the line below with your own name once you have one.
+
+      ;  Shipping somebody else''s skew numbers would be worse than shipping
+
+      ;  none, and naming a profile that does not exist logs a failed load on
+
+      ;  every print -- skew_correction.py answers an unknown name with
+
+      ;  respond_info, so it warns forever rather than failing once.
+
+      ;SKEW_PROFILE LOAD=your_skew_profile
+
+      ;  Stock START_PRINT does not guarantee a settled plate before calibration.
+
+      M190 S[first_layer_bed_temperature]
+
+      START_PRINT
+
+      ;>>>SCV generated from source/model.json tiers -- do not hand-edit
+
+      ;  Square corner velocity is a print-tier setting. The print preset''s
+
+      ;  Notes carry it as SVZERO_SCV=<mm/s>mm and this sends it to Klipper.
+
+      ;  SET_VELOCITY_LIMIT assigns rather than clamps; END_PRINT and
+
+      ;  CANCEL_PRINT restore printer.cfg''s value. A preset without the marker
+
+      ;  sends nothing and keeps the printer''s own.
+
+      {if notes=~/.*SVZERO_SCV=4mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=4
+
+      {elsif notes=~/.*SVZERO_SCV=5mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=5
+
+      {elsif notes=~/.*SVZERO_SCV=6mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=6
+
+      {elsif notes=~/.*SVZERO_SCV=7mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=7
+
+      {elsif notes=~/.*SVZERO_SCV=9mm.*/}SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=9{endif}
+
+      ;<<<SCV
+
+      ;>>>XY_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  X/Y stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_XY_CURRENT=2[.]4A.*/}SVZERO_XY_CURRENT CURRENT=2.4
+
+      {elsif notes=~/.*SVZERO_XY_CURRENT=3[.]5A.*/}SVZERO_XY_CURRENT CURRENT=3.5{endif}
+
+      ;<<<XY_CURRENT
+
+      ;>>>Z_CURRENT generated from source/model.json tiers -- do not hand-edit
+
+      ;  Z stepper current is a print-tier setting. The print preset''s Notes
+
+      ;  carry it as SVZERO_Z_CURRENT=<A>A and this hands it to the pack after
+
+      ;  START_PRINT, so homing and probing keep printer.cfg''s current. The pack
+
+      ;  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg''s.
+
+      ;  A preset without the marker keeps the printer''s own. Without the pack
+
+      ;  it is an unknown command, which Klipper reports and steps over.
+
+      {if notes=~/.*SVZERO_Z_CURRENT=0[.]7A.*/}SVZERO_Z_CURRENT CURRENT=0.7
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1A.*/}SVZERO_Z_CURRENT CURRENT=1
+
+      {elsif notes=~/.*SVZERO_Z_CURRENT=1[.]2A.*/}SVZERO_Z_CURRENT CURRENT=1.2{endif}
+
+      ;<<<Z_CURRENT
+
+      ;  SVZERO_NOZZLE_GROWTH offsets Z for the nozzle being hotter at the first
+
+      ;  layer than when START_PRINT took the Z reference. On as published on
+
+      ;  1.3.7, the tare-tap; off on eddy-only 1.4.x, where it applies nothing.
+
+      ;  SAVE_VARIABLE VARIABLE=nozzle_growth_mm_per_c VALUE=0 turns it off.
+
+      ;  Without the pack it is an unknown command, which Klipper reports and
+
+      ;  steps over.
+
+      SVZERO_NOZZLE_GROWTH TEMP=[first_layer_temperature]
+
+      G90
+
+      G1 Z5 F600 ; clearance from the freshly calibrated bed before any XY move
+
+      G92 E0
+
+      SET_GCODE_OFFSET Z_ADJUST=-0.00 MOVE=1
+
+      M104 S[first_layer_temperature]
+
+      M83
+
+      ;---Purge. PURGE_LINE owns placement and motion; the slicer passes the numbers
+
+      ;  only it knows. The old inline math is retired: it collapsed algebraically to
+
+      ;  nozzle_diameter/2, ignored the filament''s volumetric ceiling (TPU was driven
+
+      ;  3.7x over), and skipped the purge entirely when the part sat near an edge.
+
+      ;  See notes/kb/purge-lines.md.
+
+      M109 S[first_layer_temperature]
+
+      PURGE_LINE VOL_MAX=[filament_max_volumetric_speed] FIL_D=[filament_diameter] NOZZLE=[nozzle_diameter]
+      CLEAR={skirt_distance + skirts * first_layer_extrusion_width[initial_tool] + 2}
+
+      SET_PRINT_STATS_INFO TOTAL_LAYER={total_layer_count}'
+    machine_max_feedrate_x:
+    - 300.0
+    - 200.0
+    machine_max_feedrate_y:
+    - 300.0
+    - 200.0
+    machine_max_acceleration_extruding:
+    - 4000.0
+    - 1250.0
+    machine_max_acceleration_travel:
+    - 4000.0
+    - 1250.0
+    machine_max_acceleration_x:
+    - 4000.0
+    - 1000.0
+    machine_max_acceleration_y:
+    - 4000.0
+    - 1000.0

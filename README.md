@@ -13,7 +13,8 @@
 Each ZIP includes its installation guide and the optional printer macro pack.
 
 Profiles for **OrcaSlicer, PrusaSlicer and SuperSlicer** on the
-Sovol Zero. One source generates the profiles for all three slicers.
+Sovol Zero, and an alpha bundle for PrusaSlicer 3 in Git, not yet a download.
+One source generates them all.
 
 Automated checks and slicing have passed;
 physical testing of the latest stock-firmware fallback is still pending.
@@ -58,13 +59,18 @@ From a **Git checkout**:
 1. Read [INSTALL.md](INSTALL.md) for the firmware requirements.
 2. **PrusaSlicer / SuperSlicer:** import the corresponding INI from `bundles/`
    using File → Import → Import Config Bundle.
-3. **OrcaSlicer:** with Orca closed, copy `bundles/orca-vendor/SVZero.json` and
+3. **PrusaSlicer 3 (alpha12 or later):** add `bundles/SVZero_PrusaSlicer3.zip`,
+   unextracted, with **Add ZIP** under *Local sources* in **Preset sources &
+   updates**.
+4. **OrcaSlicer:** with Orca closed, copy `bundles/orca-vendor/SVZero.json` and
    `bundles/orca-vendor/SVZero/` together into its configuration directory's
    `system/` directory. **Help → Show Configuration Folder** in Orca opens that
    directory; on Windows it is `%APPDATA%\OrcaSlicer`, and [INSTALL.md](INSTALL.md)
    lists the others. Enable SV Zero in printer selection and select the
    physically installed nozzle. Keep the entire vendor folder together.
-4. Select a print and filament preset, configure your own printer connection,
+   Orca 2.5.0 and later reread the profiles only when their version rises, so
+   before reinstalling the same version, delete `system/SVZero.opc`.
+5. Select a print and filament preset, configure your own printer connection,
    and inspect the first-layer preview. Old projects can retain old settings;
    explicitly reselect the new presets and re-slice.
 

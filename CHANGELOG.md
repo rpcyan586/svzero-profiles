@@ -100,6 +100,115 @@
 - Opt-in through its own include. Machines whose crowsnest camera is
   `/dev/null` are left alone. See INSTALL.md, "Camera exposure".
 
+### Added: a PrusaSlicer 3 bundle in Git (alpha), not yet a download
+
+- **`bundles/SVZero_PrusaSlicer3.zip`, for PrusaSlicer 3.0.0-alpha12 and
+  later, from a Git checkout.** It is not one of this release's downloads. It is the PrusaSlicer 2 download's presets in PrusaSlicer 3's
+  format, all ten nozzles and both machine modes, with Precision as its own
+  printer as in PrusaSlicer 2. PrusaSlicer 3 does not yet list third-party
+  printers, so the bundle is a ZIP added under *Local sources* in **Preset
+  sources & updates**, not extracted.
+- Installed and sliced from the command line on alpha12 and alpha13. Against
+  PrusaSlicer 2.9.7 on the test objects, Precision included, the start G-code
+  and acceleration limits match and speeds and line widths agree within 1%,
+  with one exception: at 0.08 mm Precision PrusaSlicer 3 extrudes the 20 mm
+  cube's outer wall about 7% thinner, for a reason not yet found. The feature
+  cube's outer wall is the same in both. Not yet printed, the menu route has
+  not been tried by hand, and the bed preview is not included yet.
+
+### Changed: OrcaSlicer 2.5.0
+
+OrcaSlicer 2.5.0's command line resolves the vendor's base files, as its GUI
+does, where 2.4.2's used Orca's own defaults for anything the pack did not
+set. These changes follow from that and from what 2.5.0 adds.
+
+- **Support lines are 112.5% of the nozzle, in all three downloads and the
+  PrusaSlicer 3 bundle**, the same
+  as sparse and solid infill and as Sovol's own 0.4 process (0.45). Unset,
+  Orca 2.5.0 took the base file's fixed 0.42 on every nozzle and refused the
+  1.0, 1.2 and 1.4 slices ("Line width too small"). PrusaSlicer and
+  SuperSlicer chose their own width before.
+- **Orca decelerates as hard as it accelerates.** `accel_to_decel_factor` is
+  100% where it was Orca's default 50%, so each acceleration change sends
+  `MINIMUM_CRUISE_RATIO=0` (2.5.0) or `ACCEL_TO_DECEL` equal to the
+  acceleration (2.4.2), which Sovol's Klipper reads the same way. PrusaSlicer
+  and SuperSlicer send neither, so their prints use `printer.cfg`'s ratio.
+  END_PRINT and CANCEL_PRINT now restore that ratio with the square corner
+  velocity, so the next job doesn't inherit Orca's.
+- **Support settings are stated, in all three downloads and the PrusaSlicer 3
+  bundle.** Orca had been
+  printing Sovol's base values in its GUI all along (top gap 0.15 mm, XY gap
+  0.5 mm, two interface layers, 40 mm/s). Now every slicer gets top gap 0.2 mm,
+  XY gap 50% of the outer wall width, three solid interface layers, a
+  rectilinear base at 2.5 mm and 60% of the default speed.
+- **Overhangs up to 45° from vertical print without support.** The threshold
+  is 44 in all four: each slicer measures it from the horizontal and adds 1°.
+  PrusaSlicer and SuperSlicer chose automatically before; Orca used 40.
+- **Orca prints one skirt layer and detects overhanging walls**, as the other
+  slicers do. Sovol's base gave it two skirt layers and no bridge speed on a
+  fully overhanging wall. Retraction on layer change is pinned to the pack's
+  value rather than Sovol's.
+- **Overhang and bridge cooling follow the material, in every slicer.**
+  Overhangs and bridges get the material's overhang fan speed: ABS 30%, PC
+  20%, PETG and PCTG 70%, PLA and TPU 100%. Orca already did; PrusaSlicer,
+  which prints detected overhangs as bridges, gave ABS 100% on both, so each
+  material's bridge fan speed now equals it. Orca's per-material trigger
+  (25% unsupported for ABS and PC, 50% for PLA and TPU, 95% for PETG and
+  PCTG) is now the pack's own, not Sovol's.
+- **The part fan may stop on slow layers for ABS and PC.** "Keep fan always
+  on" (`fan_always_on`, Orca's `reduce_fan_stop_start_freq`) is off for ABS
+  and PC and on for the rest, in all four. Sovol's Orca bases had it on for
+  every material; PrusaSlicer's own tooltip calls it harmful for ABS.
+- **By-object clearances are Sovol's, in all four:** 65 mm around the nozzle
+  and 36 mm up to the gantry, the values every Sovol Klipper printer in
+  OrcaSlicer inherits. PrusaSlicer and SuperSlicer used their 20 mm defaults.
+- **Inward wipe on Fine and Precision** (Orca 2.5.0): the wipe after an outer
+  wall ends over the inner wall instead of on the outer surface, by half the
+  outer wall's width.
+- **High-precision G-code on the 0.2, 0.25 and 0.3 nozzles and every
+  Precision preset.** Orca 2.5.0 writes X, Y and Z to 4 decimals and E to 6
+  there. 2.4.2 ignores the setting.
+- **The printers open on SV Zero PLA - Brass.** Their default filament was
+  Sovol's "SOVOL ZERO PLA - Brass", which this vendor does not contain. Both
+  printer models now list the ten filaments as defaults, so adding the
+  printer ticks them; the list was empty.
+- **Orca 2.5.0 keeps a parsed copy of the vendor**, `system/SVZero.opc`, and
+  rereads the profiles only when their version rises. `install-presets.py`
+  deletes it, and the READMEs say to before reinstalling the same version.
+  The generator writes the Orca vendor version from the PrusaSlicer one.
+- `slice-harness.py` runs Orca with `--strict` where it exists, so a
+  non-critical slicing warning fails the slice, and counts a value Orca
+  replaced as refused.
+
+### Changed: stepper currents per tier, Z included
+
+- **Z current is set per print tier**, like X/Y's: 1.0 A on Fine to
+  Strength, 1.2 A on Draft, 0.7 A on Precision (operator, 2026-11-08). Stock
+  asks 1.5 A, which the Z driver can't deliver: on its 0.150 Ω sense
+  resistor a TMC2209 gives at most 1.331 A, and that is what both stock
+  firmwares have run. The new `SVZERO_Z_CURRENT` only lowers it, after
+  `START_PRINT`, so Z homing, the tare-tap and the mesh keep `printer.cfg`'s
+  current; `END_PRINT` and `CANCEL_PRINT` restore it.
+- **Draft states its X/Y current**, stock's 3.5 A, instead of sending none.
+- **Precision's X/Y current is 1.8 A**, was 1.4 (45% of the motors' 4.0 A
+  rating).
+- Not yet measured: that these currents hold each tier's accelerations and
+  Z moves without lost steps.
+
+### Checked: shrinkage compensation enlarges parts, in every slicer that can be asked
+
+- **The shipped shrinkage values are unchanged and correct.** A 20 mm PLA
+  cube comes out 20.060 mm in the G-code for 0.3%, and every other filament
+  within 0.001 mm of its own figure, in PrusaSlicer 3, SuperSlicer and
+  OrcaSlicer 2.5.0. `tools/slice-harness.py --shrinkage` now measures this,
+  at the shipped values and at an exaggerated 5%, and fails if a part comes
+  out smaller.
+- PrusaSlicer 2.9's command line applies no shrinkage at all, and nor did
+  OrcaSlicer's before 2.5.0, whatever the profile says; their GUIs do
+  (PrusaSlicer 2.9.7: 20.060 mm at 0.3%). PrusaSlicer 2.9 is covered by the
+  slicer that reads the same setting, and a new test holds every download's
+  values to the same figure.
+
 ### Fixed: a chamber dip mid-print stopped the exhaust loop
 
 - **The chamber loop no longer turns itself off while the bed or a chamber

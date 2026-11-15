@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build three deterministic slicer downloads from a clean Git checkout.
+"""Build one deterministic download per slicer from a clean Git checkout.
 
 Downloads contain ready-to-install profiles and optional consolidated macros.
 Development sources and builders stay in Git. No network operations are performed.

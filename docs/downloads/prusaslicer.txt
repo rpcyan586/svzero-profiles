@@ -5,8 +5,8 @@ from this directory. This single file contains the printer, print and filament
 presets; there are no individual preset files to copy. If needed, select the
 bed preview model/texture under `assets/` in the printer's bed-shape settings.
 
-This bundle targets PrusaSlicer 2.x. Experimental PrusaSlicer 3 output remains
-in the Git repository.
+This bundle targets PrusaSlicer 2.x. PrusaSlicer 3 has no download yet; an alpha
+bundle is in the Git repository.
 
 Select the nozzle actually installed, choose print and filament presets, then
 configure your own printer connection. Re-select presets in saved projects and

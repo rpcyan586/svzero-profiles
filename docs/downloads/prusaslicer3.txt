@@ -1,0 +1,47 @@
+# SV Zero — PrusaSlicer 3 download (alpha)
+
+For PrusaSlicer **3.0.0-alpha12 or later**. PrusaSlicer 3 is an alpha and does
+not yet list third-party printers itself, so this download is a *local preset
+source*: a ZIP that PrusaSlicer installs as it is. **Do not unzip
+`SVZero_PrusaSlicer3.zip`.**
+
+1. Open **Preset sources & updates**, choose **Add ZIP** under *Local sources*
+   and select `SVZero_PrusaSlicer3.zip` from this directory.
+2. Add the printer: **SV Zero**, or **SV Zero Precision** if you run the
+   optional precision mode. Pick the nozzle actually installed when the
+   printer is added; SV Zero offers 0.2–1.4 mm and SV Zero Precision 0.2–0.4 mm.
+3. Choose a print and a filament preset, then configure your own printer
+   connection.
+
+The presets are the same as the PrusaSlicer 2 download's, converted to
+PrusaSlicer 3's format: the same start G-code, speeds, temperatures, chamber
+settings and shrinkage compensation. To update, add the newer ZIP the same way.
+
+Profiles alone support stock Sovol Zero 1.3.7 and 1.4.x start/end macros.
+Keep the fallback skirt: the stock firmware warns about missing optional pack
+commands and continues, and the skirt provides priming without the purge macro.
+
+**Without the macro pack the nozzle runs 5–9 °C below the profile's
+number.** The temperatures are set for the pack's PT1000 reading of the
+hotend. Stock firmware keeps Sovol's reading, which runs the nozzle cold:
+PLA - Brass set to 204 °C reaches about 199, and ABS set to 261 about 253.
+Install the macro pack, or raise the nozzle and first-layer temperatures by
+that much.
+
+**Optional printer macros:** follow [INSTALL.md](INSTALL.md). Copy only the
+consolidated config for your firmware from `optional-macros/` and add one include.
+The Python enhancements are optional. Install the macro pack only once if using
+several slicers.
+
+**Alpha limitations.** This bundle has been installed and sliced from
+PrusaSlicer 3's command line on alpha12 and alpha13; the menu route above is
+taken from alpha13's own source and has not been tried by hand yet. The bed
+preview model is not included yet. PrusaSlicer 3 alphas change between
+releases, and a later alpha may need a newer bundle. Offline checks and slicing
+do not establish physical print quality or nozzle suitability.
+
+See [validation and limitations](https://github.com/rpcyan586/svzero-profiles/blob/main/docs/VALIDATION.md)
+and [licences](NOTICE). `RELEASE.json` records the version, source commit and
+per-file hashes; the release's `SHA256SUMS` covers the complete ZIPs.
+For development, clone [the Git repository](https://github.com/rpcyan586/svzero-profiles),
+which retains the individual macro sources, builders and isolated-directory installer.

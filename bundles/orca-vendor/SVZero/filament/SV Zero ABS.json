@@ -86,6 +86,9 @@
   "overhang_fan_speed": [
     "30"
   ],
+  "reduce_fan_stop_start_freq": [
+    "0"
+  ],
   "pressure_advance": [
     "0"
   ],
@@ -109,6 +112,9 @@
   ],
   "activate_air_filtration": [
     "0"
+  ],
+  "overhang_fan_threshold": [
+    "25%"
   ],
   "compatible_printers": [
     "SV Zero 0.2 nozzle",

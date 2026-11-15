@@ -724,70 +724,105 @@ def scv_block(values):
     ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<SCV"])
 
 
+# Driver current per print tier, carried like the SCV (2026-10-14; Z added
+# 2026-11-08). The print preset's Notes name it, a start G-code block after
+# START_PRINT hands it to the pack's SVZERO_<AXIS>_CURRENT, and END_PRINT and
+# CANCEL_PRINT restore the configured run_current. XY is stepper_x and
+# stepper_y together; Z is stepper_z. See model.json _xy_current_note and
+# _z_current_note.
+CURRENT_AXES = (("XY", "xy_current", "X/Y"), ("Z", "z_current", "Z"))
+
+
+def tier_current(model, axis):
+    """{tier: driver current in A} for every tier that sets one on this axis."""
+    key = dict((a, k) for a, k, _ in CURRENT_AXES)[axis]
+    return {t: v[key] for t, v in model["tiers"].items()
+            if isinstance(v, dict) and v.get(key) is not None}
+
+
 def tier_xy_current(model):
-    """{tier: X/Y driver current in A} for every tier that lowers it (2026-10-14)."""
-    return {t: v["xy_current"] for t, v in model["tiers"].items()
-            if isinstance(v, dict) and v.get("xy_current") is not None}
+    return tier_current(model, "XY")
+
+
+def current_marker(axis, v):
+    return "SVZERO_%s_CURRENT=%gA" % (axis, v)
 
 
 def xy_current_marker(v):
-    return "SVZERO_XY_CURRENT=%gA" % v
+    return current_marker("XY", v)
 
 
-def xy_current_block(values, newline):
-    """The start G-code block that hands a tier's X/Y current to the pack.
+def current_block(axis, values, newline):
+    """The start G-code block that hands a tier's current on one axis to the pack.
 
     Same carrier as the SCV, the print preset's Notes, which OrcaSlicer also
     resolves in machine_start_gcode (measured 2026-10-14, Orca 2.4.2). The `A`
     suffix keeps =2.4A from matching =12.4A. `newline` is the escaped one for
     the SuperSlicer source and a real one for Orca JSON.
     """
+    label = dict((a, l) for a, _, l in CURRENT_AXES)[axis]
     branches = []
     for i, v in enumerate(sorted(set(values))):
-        pat = re.escape(xy_current_marker(v)).replace("\\.", "[.]")
-        branches.append("{%s notes=~/.*%s.*/}SVZERO_XY_CURRENT CURRENT=%g"
-                        % ("if" if i == 0 else "elsif", pat, v))
+        pat = re.escape(current_marker(axis, v)).replace("\\.", "[.]")
+        branches.append("{%s notes=~/.*%s.*/}SVZERO_%s_CURRENT CURRENT=%g"
+                        % ("if" if i == 0 else "elsif", pat, axis, v))
     return newline.join([
-        ";>>>XY_CURRENT generated from source/model.json tiers -- do not hand-edit",
-        ";  X/Y stepper current is a print-tier setting. The print preset's Notes",
-        ";  carry it as SVZERO_XY_CURRENT=<A>A and this hands it to the pack after",
+        ";>>>%s_CURRENT generated from source/model.json tiers -- do not hand-edit" % axis,
+        ";  %s stepper current is a print-tier setting. The print preset's Notes" % label,
+        ";  carry it as SVZERO_%s_CURRENT=<A>A and this hands it to the pack after" % axis,
         ";  START_PRINT, so homing and probing keep printer.cfg's current. The pack",
         ";  only lowers it, and END_PRINT and CANCEL_PRINT restore printer.cfg's.",
-        ";  A preset without the marker (Draft) keeps the printer's own. Without",
-        ";  the pack it is an unknown command, which Klipper reports and steps over.",
-    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<XY_CURRENT"])
+        ";  A preset without the marker keeps the printer's own. Without the pack",
+        ";  it is an unknown command, which Klipper reports and steps over.",
+    ] + branches[:-1] + [branches[-1] + "{endif}", ";<<<%s_CURRENT" % axis])
 
 
-def apply_xy_current(model, ss):
-    """X/Y driver current, in every PrusaSlicer/SuperSlicer start G-code.
+def xy_current_block(values, newline):
+    return current_block("XY", values, newline)
 
-    apply_scv writes the marker into each tier's Notes, beside its SCV; this puts
-    the block that reads it right after the SCV block. Orca's start G-code gets
-    the same block through @@XY_CURRENT@@ in start_gcode.py. See model.json
-    _xy_current_note.
+
+def orca_current_blocks(model):
+    """@@XY_CURRENT@@ and @@Z_CURRENT@@ for the Orca start G-code."""
+    return {"@@%s_CURRENT@@" % axis: current_block(axis, tier_current(model, axis).values(), "\n")
+            for axis, _, _ in CURRENT_AXES}
+
+
+def apply_currents(model, ss):
+    """Driver currents, in every PrusaSlicer/SuperSlicer start G-code.
+
+    apply_scv writes the markers into each tier's Notes, beside its SCV; this
+    puts the XY block right after the SCV block and the Z block after that.
+    Orca's start G-code gets the same blocks through @@XY_CURRENT@@ and
+    @@Z_CURRENT@@ in start_gcode.py.
     """
-    cur = tier_xy_current(model)
-    if not cur:
-        return 0
-    lost = sorted(set(cur) - set(tier_scv(model)))
-    if lost:
-        raise SystemExit("tiers with an X/Y current but no SCV, so no Notes to carry it: %s" % lost)
-    block = xy_current_block(cur.values(), "\\n")
     changed = 0
-    for name, sec in ss.items():
-        if not name.startswith("printer:"):
+    after = ";<<<SCV"
+    for axis, _, _ in CURRENT_AXES:
+        cur = tier_current(model, axis)
+        if not cur:
             continue
-        g = sec.get("start_gcode")
-        if not g:
-            continue
-        if ";>>>XY_CURRENT" in g:
-            new = re.sub(r";>>>XY_CURRENT.*?;<<<XY_CURRENT", lambda m: block, g)
-        elif ";<<<SCV" in g:
-            new = g.replace(";<<<SCV", ";<<<SCV\\n" + block, 1)
-        else:
-            raise SystemExit("%s: no SCV block to follow with the X/Y current block" % name)
-        if new != g:
-            sec["start_gcode"] = new; changed += 1
+        lost = sorted(set(cur) - set(tier_scv(model)))
+        if lost:
+            raise SystemExit("tiers with a %s current but no SCV, so no Notes to carry it: %s"
+                             % (axis, lost))
+        block = current_block(axis, cur.values(), "\\n")
+        mark = ";>>>%s_CURRENT" % axis
+        for name, sec in ss.items():
+            if not name.startswith("printer:"):
+                continue
+            g = sec.get("start_gcode")
+            if not g:
+                continue
+            if mark in g:
+                new = re.sub(r";>>>%s_CURRENT.*?;<<<%s_CURRENT" % (axis, axis), lambda m: block, g)
+            elif after in g:
+                new = g.replace(after, after + "\\n" + block, 1)
+            else:
+                raise SystemExit("%s: no %s block to follow with the %s current block"
+                                 % (name, after, axis))
+            if new != g:
+                sec["start_gcode"] = new; changed += 1
+        after = ";<<<%s_CURRENT" % axis
     return changed
 
 
@@ -804,21 +839,24 @@ def apply_scv(model, ss):
     if not scv:
         return 0
     changed = 0
-    cur = tier_xy_current(model)
     for tier, v in scv.items():
         sec = ss.get("print:*SV Zero - %s*" % tier)
         if sec is None:
             continue
         # One line: the start G-code matches it with .*, which a newline would stop.
-        if tier in cur:
-            note = ("Square corner velocity for this tier: %g mm/s (%s). X/Y stepper current: "
-                    "%g A (%s). The start G-code sends both to Klipper at print start; edit "
-                    "these values, not the G-code."
-                    % (v, scv_marker(v), cur[tier], xy_current_marker(cur[tier])))
+        parts = ["Square corner velocity for this tier: %g mm/s (%s)." % (v, scv_marker(v))]
+        for axis, _, label in CURRENT_AXES:
+            cur = tier_current(model, axis)
+            if tier in cur:
+                parts.append("%s stepper current: %g A (%s)."
+                             % (label, cur[tier], current_marker(axis, cur[tier])))
+        if len(parts) > 1:
+            parts.append("The start G-code sends these to Klipper at print start; edit "
+                         "these values, not the G-code.")
         else:
-            note = ("Square corner velocity for this tier: %g mm/s (%s). The start G-code "
-                    "sends it to Klipper at print start; edit this value, not the G-code."
-                    % (v, scv_marker(v)))
+            parts.append("The start G-code sends it to Klipper at print start; edit this "
+                         "value, not the G-code.")
+        note = " ".join(parts)
         if sec.get("notes") != note:
             sec["notes"] = note; changed += 1
     block = scv_block(scv.values())
@@ -942,7 +980,7 @@ def derive(model, ss, keymap):
         "speedbenchy": emit_speedbenchy_tier(model, ss, keymap),
         "speed": apply_speed_model(model, ss),
         "scv": apply_scv(model, ss),
-        "xy_current": apply_xy_current(model, ss),
+        "currents": apply_currents(model, ss),
         "accel": apply_accel_model(model, ss),
         "flow": apply_flow_model(model, ss),
         "small": apply_small_nozzle_rules(model, ss),
@@ -1173,6 +1211,17 @@ def apply_flow_model(model, ss):
 PS_TARGET = "2.9.6"          # overwritten from model.json in main()
 PS_CONFIG_VERSION = "2.1.2"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
+
+
+def orca_vendor_version(version):
+    """2.1.2 -> 02.01.02.00, Orca's four two-digit parts.
+
+    Orca 2.5.0 serves a vendor from its system/<vendor>.opc cache while the
+    cached version is at least the one in the vendor JSON, so a release that
+    keeps the number is never reread. Every distributed change bumps it.
+    """
+    parts = [int(p) for p in version.split(".")]
+    return ".".join("%02d" % p for p in (parts + [0, 0, 0, 0])[:4])
 
 
 # Keys SuperSlicer has and PrusaSlicer rejects. PrusaSlicer does not merely warn:
@@ -1699,6 +1748,22 @@ def emit_ps_presets(ss, out_dir):
             if old.endswith(".ini"):
                 os.remove(os.path.join(sub, old))
     written = 0
+    for kind, preset, kv in ps_preset_values(ss, kinds):
+        path = os.path.join(out_dir, kind, "%s.ini" % preset)
+        with open(path, "w", encoding="utf-8") as fh:
+            for k, v in kv.items():
+                fh.write("%s = %s\n" % (k, ini_value(v, k)))
+        written += 1
+    return written
+
+
+def ps_preset_values(ss, kinds=("print", "filament", "printer")):
+    """(kind, preset, values) for every flattened PrusaSlicer preset, as written.
+
+    The single place the PrusaSlicer translations run. emit_ps_presets writes
+    these as INI and emit_ps3 retypes the same values for PrusaSlicer 3, so the
+    two cannot drift apart.
+    """
     for name in ss:
         if ":" not in name:
             continue
@@ -1735,13 +1800,8 @@ def emit_ps_presets(ss, out_dir):
         # with neither pressure advance nor shrinkage.
         kv = collections.OrderedDict(
             (k, v) for k, v in kv.items() if k in PS_KNOWN)
-        path = os.path.join(out_dir, kind, "%s.ini" % preset)
-        with open(path, "w", encoding="utf-8") as fh:
-            for k, v in ini_writable(kv).items():
-                if k not in SS_ONLY:
-                    fh.write("%s = %s\n" % (k, ini_value(v, k)))
-        written += 1
-    return written
+        yield kind, preset, collections.OrderedDict(
+            (k, v) for k, v in ini_writable(kv).items() if k not in SS_ONLY)
 
 
 def emit_ss_presets(model, ss, out_dir):
@@ -2199,6 +2259,9 @@ def orca_absolutise(doc, flat, nozzle):
             doc[k] = computed_motion(pct / 100.0 * speed)
         elif k == "bridge_flow":
             doc[k] = "%g" % (pct / 100.0)
+        elif k == "support_object_xy_distance" and doc.get("outer_wall_line_width"):
+            # PrusaSlicer's percentage is of the external perimeter width.
+            doc[k] = "%g" % round(pct / 100.0 * float(doc["outer_wall_line_width"]), 4)
         else:
             continue
         n += 1
@@ -2237,6 +2300,10 @@ def widths_to_mm(doc, nozzle):
     # fdm_process_common would silently reintroduce someone else's nozzle.
     doc.setdefault("line_width", "%g" % float(nozzle))
     return n
+
+
+ORCA_HIGH_PRECISION_MAX_NOZZLE = 0.3
+ORCA_WIPE_INWARD_TIERS = ("Fine",)
 
 
 def emit_orca(model, ss, keymap, out_dir):
@@ -2338,6 +2405,17 @@ def emit_orca(model, ss, keymap, out_dir):
         # Orca-only decisions last, so they cannot be overwritten by a
         # translated value and so they appear on every process preset.
         doc.update(forced_process)
+        # Orca 2.5.0 writes XYZ to 4 decimals and E to 6 with this on. Rounding
+        # matters most where each move extrudes least: the small nozzles and
+        # every Precision tier (operator, 2026-11-08). Older Orca drops the key.
+        if float(noz) <= ORCA_HIGH_PRECISION_MAX_NOZZLE or mode_of(model, tier)[0]:
+            doc["high_precision_gcode"] = "1"
+        # Orca 2.5.0 can end the outer-wall wipe over the inner wall instead of
+        # on the fresh outer surface. Its marks show most below 0.1 mm layers,
+        # so Fine and every Precision tier (operator, 2026-11-08); distance is
+        # Orca's default, half the outer wall. Older Orca drops the key.
+        if tier in ORCA_WIPE_INWARD_TIERS or mode_of(model, tier)[0]:
+            doc["wipe_inward"] = "1"
         # Organic supports read a separate Orca option from normal trees.
         # Keep Orca's 3 mm default on existing nozzles, but carry the larger
         # branches needed above 1 mm; the normal-tree key alone is ignored.
@@ -2395,6 +2473,9 @@ def emit_orca(model, ss, keymap, out_dir):
             # profile is built around; this only stops it depending on an unset
             # default lining up with our layer G-code by luck.
             mach["use_relative_e_distances"] = "1"
+            rlc = flatten(ss, "printer:SV Zero %sn" % noz).get("retract_layer_change")
+            if rlc is not None:
+                mach["retract_when_changing_layer"] = [str(rlc)]
             # Must match the emitted process filename exactly. "%s" % 0.2 gives
             # "0.2" while the file is "0.20mm" — a dangling reference, and Orca
             # treats a machine preset pointing at a non-existent process as
@@ -2407,7 +2488,7 @@ def emit_orca(model, ss, keymap, out_dir):
             # Ours, not Sovol's. This pointed at "SOVOL ZERO PLA - Brass" while
             # our own filament presets existed, so Orca had no reason to open on
             # one of them.
-            mach["default_filament_profile"] = ["SV Zero PLA - Brass"]
+            mach["default_filament_profile"] = [ORCA_DEFAULT_FILAMENT]
             mach["printable_area"] = ["0x0", "152.4x0", "152.4x152.4", "0x152.4"]
             mach["printable_height"] = "152.4"
             # host_type stays either way: it says which API Moonraker speaks,
@@ -2514,6 +2595,7 @@ def cooldown_lines(data):
 # a macro cannot be previewed. Everything from the conditional to the endif goes.
 
 ORCA_FILAMENT_ID = "GFL99"
+ORCA_DEFAULT_FILAMENT = "SV Zero PLA - Brass"
 ORCA_FILAMENT_STRUCTURAL = ("type", "filament_id", "setting_id", "name", "from",
                             "instantiation", "inherits")
 ORCA_FILAMENT_PLAIN = ("compatible_printers_condition", "compatible_prints_condition")
@@ -2631,6 +2713,9 @@ def emit_orca_filament(model, ss, keymap, out_dir):
             doc["filament_shrinkage_compensation_z"] = kv[SHRINK_Z]
         doc.update(forced)
         doc.pop("_why", None)
+        for k, by_type in fs.get("_by_type", {}).items():
+            if not k.startswith("_") and ftype in by_type:
+                doc[k] = by_type[ftype]
         # The PLA-only chamber override that used to sit here is GONE. It existed
         # because activate_chamber_temp_control was forced off for everything,
         # which left PLA as the single regulated material and every other one on
@@ -2728,6 +2813,14 @@ def emit_orca_vendor(model, ss, out_dir):
                 if old_file.endswith(".json"):
                     os.remove(os.path.join(d, old_file))
 
+    # Orca makes these visible when a user adds the printer and has no
+    # filament of ours installed yet (PresetBundle::load_installed_filaments).
+    # Sovol's base carries none for us, so the list was empty and a new user
+    # started with no SV Zero filament ticked.
+    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
+    materials = sorted(json.load(open(os.path.join(fsrc, f), encoding="utf-8"))["name"]
+                       for f in os.listdir(fsrc) if f.endswith(".json")) if os.path.isdir(fsrc) else []
+
     # the machine_model — this is the piece that was missing
     mm = collections.OrderedDict([
         ("type", "machine_model"), ("name", "SV Zero"), ("model_id", "SV-ZERO"),
@@ -2742,7 +2835,7 @@ def emit_orca_vendor(model, ss, out_dir):
         # vendor/SVZero/. Model only, no texture: see the machine preset loop.
         ("bed_model", "svzero_bed.stl" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.stl")) else ""),
         ("bed_texture", "svzero_bed.png" if os.path.exists(os.path.join(ROOT, "assets", "svzero_bed.png")) else ""),
-        ("default_materials", base.get("default_materials", "")),
+        ("default_materials", ";".join(materials)),
     ])
     json.dump(mm, open(os.path.join(vend, "machine", "SV Zero.json"), "w",
                        encoding="utf-8"), indent=2)
@@ -2770,7 +2863,6 @@ def emit_orca_vendor(model, ss, out_dir):
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(vend, asset))
 
-    fsrc = os.path.join(ROOT, "bundles", "orca-filament")
     leaves = [json.load(open(os.path.join(fsrc, f), encoding="utf-8"))
               for f in sorted(os.listdir(fsrc)) if f.endswith(".json")] if os.path.isdir(fsrc) else []
     leaf_temps = collections.defaultdict(list)
@@ -2838,6 +2930,17 @@ def emit_orca_vendor(model, ss, out_dir):
         lift = ss.get("printer:SV Zero %sn" % noz, {}).get("retract_lift")
         if lift:
             m["z_hop"] = [str(lift)]
+        # Same split for retract-on-layer-change. Unpinned, Orca took Sovol's
+        # fdm_machine_common value, which matched only by chance.
+        rlc = flatten(ss, "printer:SV Zero %sn" % noz).get("retract_layer_change")
+        if rlc is not None:
+            m["retract_when_changing_layer"] = [str(rlc)]
+        # By-object clearances, the same split. The lid height stays Sovol's.
+        printer = flatten(ss, "printer:SV Zero %sn" % noz)
+        for ps_key, orca_key in (("extruder_clearance_radius", "extruder_clearance_radius"),
+                                 ("extruder_clearance_height", "extruder_clearance_height_to_rod")):
+            if printer.get(ps_key) is not None:
+                m[orca_key] = str(printer[ps_key])
         # Repeat this on each concrete preset as well as the inherited root.
         # Explicit --load-settings slicing does not resolve the vendor root,
         # and the one-filament constraint must survive that supported path.
@@ -2868,8 +2971,9 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n" + after.split(ORCA_PURGE_END, 1)[1].lstrip("\n")
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
-                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+            for slot, block in orca_current_blocks(model).items():
+                preamble = preamble.replace(slot, block)
             m["machine_start_gcode"] = preamble + tail
         elif g.startswith(ORCA_START_HEADER.split("\n")[0]):
             # Re-generating our own output. Find the PURGE_LINE command and
@@ -2883,9 +2987,14 @@ def emit_orca_vendor(model, ss, out_dir):
                 tail = "\n"
             preamble = ORCA_START_PREAMBLE.replace(
                 "@@CLEAN_TEMP@@", "\n".join(clean_temp_lines(load("filament-clean-temp.json")))).replace(
-                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json")))).replace(
-                "@@XY_CURRENT@@", xy_current_block(tier_xy_current(model).values(), "\n"))
+                "@@COOLDOWN@@", "\n".join(cooldown_lines(load("filament-cooldown.json"))))
+            for slot, block in orca_current_blocks(model).items():
+                preamble = preamble.replace(slot, block)
             m["machine_start_gcode"] = preamble + tail
+        # Sovol's base names its own "SOVOL ZERO PLA - Brass", which is not in
+        # this vendor, so Orca opened on no filament of ours. Same pin as the
+        # user-preset emitter above.
+        m["default_filament_profile"] = [ORCA_DEFAULT_FILAMENT]
         m["host_type"] = hosts.get("orcaslicer_host_type", "octoprint")
         # Same rule as the user-preset emitter: the vendor bundle is the thing
         # strangers install, so it must never carry an address.
@@ -2982,7 +3091,7 @@ def emit_orca_vendor(model, ss, out_dir):
         process_list.append({"name": doc["name"], "sub_path": "process/" + f})
 
     idx = collections.OrderedDict([
-        ("name", "SVZero"), ("version", "02.01.02.00"), ("force_update", "0"),
+        ("name", "SVZero"), ("version", orca_vendor_version(PS_CONFIG_VERSION)), ("force_update", "0"),
         ("description", "SV Zero profile pack — generated"),
         ("machine_model_list", [{"name": "SV Zero", "sub_path": "machine/SV Zero.json"}]
          + mode_models),
@@ -3185,65 +3294,35 @@ def main():
         nm, npz = emit_orca_vendor(model, ss, os.path.join(ROOT, "bundles", "orca-vendor"))
         print("  wrote Orca vendor bundle: %d machines, %d processes" % (nm, npz))
 
-    if args.check and problems:
-        sys.exit(1)
-
-
     if "ps3" in emit:
         # PrusaSlicer 3.0. Separate module because it shares an option
-        # vocabulary with PS2 and essentially nothing else -- see
-        # notes/kb/prusaslicer3-profiles.md and the header of emit_ps3.py.
+        # vocabulary with PS2 and essentially nothing else -- see the header of
+        # emit_ps3.py. Its input is the flattened PrusaSlicer 2 presets, built
+        # here exactly as --emit ps-presets builds them, as INI text.
         import emit_ps3
-        ovr = load("nozzle-overrides.json")["by_nozzle_and_tier"]
-        # The per-nozzle values are exactly what forced 19 separate process
-        # presets out of PS2: extrusion widths that must not inherit across
-        # nozzles. In PS3 they are variants on tool.nozzle_diameter instead.
-        per_nozzle = {}
-        for noz, tiers in ovr.items():
-            first = next(iter(tiers.values()))
-            per_nozzle[noz.rstrip("n")] = {
-                k: v for k, v in first.items() if k != "z_hop"}
-        # The historical override table predates added nozzle sizes. Resolve
-        # their widths from the current master instead of omitting the variant.
-        for noz in model["machine"]["nozzles"]:
-            if noz not in per_nozzle:
-                flat = flatten(ss, next(name for name in ss
-                    if name.startswith("print:SV Zero %sn - " % noz)))
-                per_nozzle[noz] = {
-                    key: "%g" % (float(str(flat[key]).lstrip("!").rstrip("%"))
-                                 * float(noz) / 100)
-                    if str(flat[key]).endswith("%") else flat[key]
-                    for key in ovr["0.4n"][next(iter(ovr["0.4n"]))]
-                    if key != "z_hop"}
-        common = dict(ss.get("print:*SV Zero General*", {}))
-        common.pop("inherits", None)
-        # The printer preset's values come from the same PS2 printer section the
-        # other emitters use, so start/end G-code and the machine limits stay in
-        # one place. gcode_flavor is pinned here for the same reason it is
-        # pinned in the Orca emitters: PS3's default is `reprap`, and inheriting
-        # a default that happens to work is how the relative-E tangle started.
-        printer_vals = {}
-        for sec, kv in ss.items():
-            if sec.startswith("printer:") and "SV Zero" in sec:
-                printer_vals = {k: v for k, v in kv.items() if k != "inherits"}
-                break
-        printer_vals["gcode_flavor"] = "klipper"
-        printer_vals["printer_technology"] = "FFF"
-        printer_vals["use_relative_e_distances"] = 1
-        out = os.path.join(ROOT, "bundles", "ps3")
-        os.makedirs(out, exist_ok=True)
-        nfiles, problems, dropped = emit_ps3.emit(
-            model, out, PS_VENDOR_VERSION if "PS_VENDOR_VERSION" in globals()
-            else "1.0.0",
-            per_nozzle, common, printer_vals,
-            ["1.0.0 Initial SV Zero bundle for PrusaSlicer 3"])
-        for p in problems:
-            print("  ps3 SCHEMA: %s" % p)
-        if dropped:
-            print("  ps3: %d key(s) not in PS3's schema, dropped: %s"
-                  % (len(dropped), ", ".join(dropped)))
-        print("  wrote PrusaSlicer 3 bundle: %d file(s), %d schema problem(s)"
-              % (nfiles, len(problems)))
+        pub_pp, _ = strip_hidden(model, ss)
+        pub_pp = collections.OrderedDict(
+            (k, collections.OrderedDict(v)) for k, v in pub_pp.items())
+        inject_chamber(pub_pp, "ps")
+        presets = {"printer": {}, "print": {}, "filament": {}}
+        for kind, preset, kv in ps_preset_values(pub_pp):
+            presets[kind][preset] = {k: ini_value(v, k) for k, v in kv.items()}
+        version = open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip()
+        nfiles, ps3_problems, report = emit_ps3.emit(
+            model, os.path.join(ROOT, "bundles", "ps3"), version, presets,
+            ["%s SV Zero profile pack %s" % (version, version)],
+            os.path.join(ROOT, "bundles", "SVZero_PrusaSlicer3.zip"))
+        for category, keys in report.items():
+            if not category.startswith("PROBLEM"):
+                print("  ps3 %s: %s" % (category, ", ".join(keys)))
+        for p in ps3_problems:
+            print("  ps3 PROBLEM: %s" % p)
+        print("  wrote PrusaSlicer 3 bundle and local source zip: %d file(s), %d problem(s)"
+              % (nfiles, len(ps3_problems)))
+        problems += ps3_problems
+
+    if args.check and problems:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,8 @@ it has its own printer profile in each slicer.
 | | Standard | Precision |
 |---|---|---|
 | X/Y microsteps | 16 | 64, interpolation off |
-| X/Y current | 2.4 A on Fine to Strength, set per job; Draft runs printer.cfg's 3.5 A | 1.4 A |
+| X/Y current | 2.4 A on Fine to Strength, 3.5 A on Draft, set per job | 1.8 A |
+| Z current | 1.0 A on Fine to Strength, 1.2 A on Draft, set per job | 0.7 A, set per job |
 | X/Y chopper | Klipper's defaults | TBL 3, TOFF 3, HSTRT 7, HEND 3, TPFD 5 |
 | Velocity / acceleration ceiling | printer.cfg's | 300 mm/s, 4000 mm/s², enforced |
 | Layers | Fine to Draft tiers | 0.4 nozzle: 0.04, 0.06, 0.08, 0.10, 0.12 mm over a 0.20 first layer. 0.3: 0.04, 0.06, 0.08 over 0.24. 0.25: 0.04, 0.06 over 0.20. 0.2: 0.04, 0.06 over 0.16 |
@@ -34,11 +35,14 @@ Why these values:
   the console when it does.
 - **The chopper settings** are corgi108's published recipe for the Zero's
   TMC5160 drivers, with TPFD at 5 as he later suggested for plain Klipper.
-- **1.4 A** is lower than corgi108's 2.4 A, which the standard tiers now run
-  (operator, 2026-10-14). Lower current is a noise and heat choice:
-  dissipation goes with the square of the current. The precision tiers ask for
-  2000 mm/s² at most; that 1.4 A holds them without lost steps is not yet
-  measured on a Zero.
+- **1.8 A** is lower than corgi108's 2.4 A, which the standard tiers run
+  (operator, 2026-11-08; 1.4 A from 2026-10-14). Lower current is a noise and
+  heat choice: dissipation goes with the square of the current. 1.8 A is 45%
+  of the motors' 4.0 A rating. The precision tiers ask for 2000 mm/s² at most;
+  that 1.8 A holds them without lost steps is not yet measured on a Zero.
+- **Z runs 0.7 A** on the precision tiers, set per job after `START_PRINT`
+  like the standard tiers' 1.0 A, so homing and the tare-tap keep
+  `printer.cfg`'s current.
 
 ## Install
 

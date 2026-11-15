@@ -60,8 +60,7 @@ def start_gcodes():
                         walk(value)
             for doc in yaml.safe_load_all(text):
                 walk(doc)
-            # Stored with the INI's escaped newlines, like the source.
-            values = [v.replace("\\n", "\n") for v in values]
+            # Real text: emit_ps3 decodes the INI's escaped newlines.
         else:
             continue
         values = [v for v in values if "START_PRINT" in v]

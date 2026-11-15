@@ -37,7 +37,9 @@ class ReleaseBundles(unittest.TestCase):
         cls.version = cls.files["VERSION"].decode().strip()
 
     def test_only_three_slicer_downloads_without_development_inputs(self):
-        self.assertEqual(set(self.products), {"orcaslicer", "prusaslicer", "superslicer"})
+        # PrusaSlicer 3's bundle is in Git, not yet a download (operator, 2026-11-15).
+        self.assertEqual(set(self.products),
+                         {"orcaslicer", "prusaslicer", "superslicer"})
         with self.assertRaisesRegex(ValueError, "source is available from Git"):
             B.products(self.files, self.manifest, ["source"])
         for kind, files in self.products.items():
@@ -106,6 +108,17 @@ class ReleaseBundles(unittest.TestCase):
                         self.assertEqual(actual, expected)
                         self.assertNotIn("assets/svzero_bed.stl", files)
                         self.assertIn("SVZero/svzero_bed.CREDITS.md", actual)
+                    elif kind == "prusaslicer3":
+                        # Installed as it is: a local preset source, not files
+                        # to copy, and versioned as this release.
+                        source = work / "SVZero_PrusaSlicer3.zip"
+                        self.assertEqual(source.read_bytes(), self.files["bundles/SVZero_PrusaSlicer3.zip"])
+                        self.assertFalse(any(n.endswith((".ini", ".yaml")) for n in files))
+                        with zipfile.ZipFile(source) as z:
+                            names = set(z.namelist())
+                            self.assertLessEqual({"manifest.json", "vendor_indices.zip",
+                                                  "SVZero/%s/manifest.json" % self.version,
+                                                  "SVZero/%s/vendor.yaml" % self.version}, names)
                     else:
                         slicer = "PrusaSlicer" if kind == "prusaslicer" else "SuperSlicer"
                         filename = "SVZero_" + slicer + ".ini"
@@ -120,7 +133,7 @@ class ReleaseBundles(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "Git clone"):
                         B.inventory(work)
 
-    def test_clean_checkout_builds_only_three_reproducible_archives(self):
+    def test_clean_checkout_builds_only_four_reproducible_archives(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp) / "clone"
             work.mkdir()

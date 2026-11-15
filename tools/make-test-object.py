@@ -48,11 +48,14 @@ OUT = "svzero-featurecube.stl"
 #                slowdown_below_layer_time, so the cooling path runs -- which is
 #                the one value the (8M) merge deliberately did NOT take from the
 #                SV08 MAX, and therefore the one worth exercising.
-SHAPES = ("featurecube", "overhang", "tower", "smallpins")
+#   cube20       a plain 20 mm cube, the shrinkage polarity reference: its
+#                outer wall's span is all slice-harness.py --shrinkage reads.
+SHAPES = ("featurecube", "overhang", "tower", "smallpins", "cube20")
 STL_NAME = {"featurecube": OUT,
             "overhang": "svzero-overhang.stl",
             "tower": "svzero-tower.stl",
-            "smallpins": "svzero-smallpins.stl"}
+            "smallpins": "svzero-smallpins.stl",
+            "cube20": "svzero-cube20.stl"}
 
 
 def box(x0, y0, z0, x1, y1, z1, inward=False):
@@ -188,6 +191,8 @@ def main():
                 s, s, h, w, w, args.void_z0, args.void_z1)
         if shape == "overhang":
             return overhang(), "L, 18 mm cantilever at z8 -- forces support"
+        if shape == "cube20":
+            return box(0, 0, 0, 20.0, 20.0, 20.0), "20x20x20 mm cube -- shrinkage polarity"
         if shape == "smallpins":
             return smallpins(), ("pins r=1.0/1.5/2.5/4.0/8.0 x 4 mm -- straddles "
                                  "the 6.5 mm small-perimeter threshold")

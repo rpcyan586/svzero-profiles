@@ -1,7 +1,7 @@
 kind: vendor
 id: SVZero
 name: SV Zero FFF
-version: 1.0.0
+version: 2.1.2
 features:
   printer:
     supports_high_flow_nozzle:
@@ -19,26 +19,29 @@ features:
     chamber_temperature_control:
       default: true
       user_editable: false
+    precision:
+      default: false
+      user_editable: false
     supports_02_nozzle:
-      default: true
+      default: false
     supports_025_nozzle:
-      default: true
+      default: false
     supports_03_nozzle:
-      default: true
+      default: false
     supports_04_nozzle:
-      default: true
+      default: false
     supports_05_nozzle:
-      default: true
+      default: false
     supports_06_nozzle:
-      default: true
+      default: false
     supports_08_nozzle:
-      default: true
-    supports_10_nozzle:
-      default: true
+      default: false
+    supports_1_nozzle:
+      default: false
     supports_12_nozzle:
-      default: true
+      default: false
     supports_14_nozzle:
-      default: true
+      default: false
   tool:
     nozzle_diameter:
       default: 0.4
@@ -78,11 +81,31 @@ features:
     default: true
   supports_08_nozzle:
     default: true
-  supports_10_nozzle:
+  supports_1_nozzle:
     default: true
   supports_12_nozzle:
     default: true
   supports_14_nozzle:
+    default: true
+---
+kind: printer
+technology: FFF
+id: svzero-precision
+name: SV Zero Precision
+model:
+  base_model: SVZERO
+  model: SVZEROPRECISION
+tool_count: 1
+features:
+  supports_02_nozzle:
+    default: true
+  supports_025_nozzle:
+    default: true
+  supports_03_nozzle:
+    default: true
+  supports_04_nozzle:
+    default: true
+  precision:
     default: true
 ---
 kind: tool
@@ -150,9 +173,9 @@ features:
 ---
 kind: tool
 technology: FFF
-id: '1.0'
-name: '1.0'
-condition: printer.supports_10_nozzle
+id: '1'
+name: '1'
+condition: printer.supports_1_nozzle
 features:
   nozzle_diameter:
     default: 1.0
@@ -195,7 +218,17 @@ id: svzero
 name: SV Zero
 printer: svzero
 legacy_printer_model:
-- SVZERO
+- SV Zero
+tools:
+- tool: '0.4'
+sheet: golden_pei
+---
+kind: printer_config
+id: svzero-precision
+name: SV Zero Precision
+printer: svzero-precision
+legacy_printer_model:
+- SV Zero
 tools:
 - tool: '0.4'
 sheet: golden_pei

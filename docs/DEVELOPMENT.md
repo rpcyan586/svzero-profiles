@@ -29,7 +29,13 @@ Pinned public Orca inputs and their checksums live under
 Zero filaments under `OrcaSlicer/`, each with its own `provenance.json`.
 Schema attribution is in
 [source/ps3/PROVENANCE.md](../source/ps3/PROVENANCE.md).
-PrusaSlicer 3 output remains experimental and is not in the user download.
+`bundles/SVZero_PrusaSlicer3.zip` is the PrusaSlicer 3 bundle as a local preset
+source, which is how PrusaSlicer 3.0.0-alpha12 and later load a third-party
+vendor until Prusa's preset server carries them. It is in Git only for now, not
+a release download. To try it, open **Preset sources & updates**, choose **Add ZIP**
+under *Local sources*, then add *SV Zero* or *SV Zero Precision* as a printer. From a shell,
+`--preset-update-add-local bundles/SVZero_PrusaSlicer3.zip` followed by
+`--preset-update` does the same; that route is the tested one.
 
 Macro sources stay separate under `klipper/config/`. `tools/build-macros.py`
 expands each firmware's explicit include tree into one config under
@@ -42,7 +48,7 @@ Bed preview assets live under `assets/`; installers copy them into the slicer's
 data directory and Orca generation includes them in its vendor folder. Release
 source-to-download path mappings are maintained in `tools/release-files.json`.
 After committing a clean tree, `python tools/build-release.py --output PATH`
-builds only the three slicer ZIPs and `SHA256SUMS`. Sources, builders and the
+builds only the four slicer ZIPs and `SHA256SUMS`. Sources, builders and the
 isolated-directory installer remain in the Git checkout; downloads use manual
 INI import or Orca vendor copying. See [DOWNLOADS.md](DOWNLOADS.md).
 
@@ -55,6 +61,21 @@ if it is not installed under `~/opt/superslicer-*/superslicer`:
 ```sh
 python tools/slice-harness.py --matrix --workdir "$HOME/svzero-slice-check" --keep
 ```
+
+PrusaSlicer 3 is opt-in: `--slicers ps,ps3` also slices `bundles/ps3` with the
+flathub-beta build, 3.0.0-alpha12 or later. The harness installs the bundle into
+a fresh data directory with one extra, test-only printer config per nozzle,
+because the command line cannot choose a nozzle the way the Add Printer wizard
+does. To test a build installed beside your own, point `FLATPAK_USER_DIR` at
+that installation.
+
+`--shrinkage` checks the direction and size of shrinkage compensation on a
+20 mm cube: at an exaggerated 5% and at every shipped filament's value, the
+outer wall must measure 20 × 100 / (100 − s) mm, larger than 20. Only
+PrusaSlicer 3 and SuperSlicer apply compensation from the command line; the
+PrusaSlicer 2.9 and Orca command lines apply none, so they are reported as
+unmeasured and covered by the slicer that reads the same notation.
+`tests/test_shrinkage.py` holds every artefact to that same value offline.
 
 The harness currently expects these Linux installations. It is not a portable
 installer for slicer binaries. See [VALIDATION.md](VALIDATION.md) for tested

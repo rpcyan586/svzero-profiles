@@ -1,6 +1,6 @@
 {
   "_why": "OrcaSlicer descends from Bambu Studio; PrusaSlicer and SuperSlicer share a lineage. Measured against the real files, Orca and SuperSlicer share only 13 exact parameter names out of ~90, while SuperSlicer and PrusaSlicer share all 90. So generating PS from SS is close to a copy, and generating Orca needs this table. The tier anchors in source/tier-anchors.json are in ORCA names because they came from a forum table comparing two Orca profiles; this is what lets them drive PS/SS output too.",
-  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer \u2014 a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
+  "_confidence": "Entries under `mapped` are ones I am confident about. Entries under `unmapped_orca` exist in the anchor table but have no clean PS/SS equivalent, or the equivalent lives at a different scope (filament/printer rather than process). Do not guess these into `mapped` without checking against a real exported profile from each slicer — a wrong mapping is worse than a missing one, because it silently writes a plausible value into the wrong setting.",
   "_scope_note": "Some Orca process keys correspond to PS/SS settings that are NOT process-level. retraction and z-hop are printer-level in PS/SS; pressure advance and volumetric caps are filament-level. Those are listed in `scope_differs` and must be emitted into the right section, not the print preset.",
   "mapped": {
     "layer_height": "layer_height",
@@ -423,6 +423,7 @@
       "default_fan_speed": "fan_min_speed",
       "max_fan_speed": "fan_max_speed",
       "overhangs_fan_speed": "overhang_fan_speed",
+      "fan_always_on": "reduce_fan_stop_start_freq",
       "full_fan_speed_layer": "full_fan_speed_layer",
       "fan_below_layer_time": "fan_cooling_layer_time",
       "slowdown_below_layer_time": "slow_down_layer_time",
@@ -463,6 +464,18 @@
       "_why": "Not translations -- decisions. activate_air_filtration drives the exhaust fan at a fixed duty for the whole print, and on this machine the chamber PI loop owns that fan (notes/kb/mods/exhaust-fan-pid.md). A slicer-issued duty would fight it, so it is forced off regardless of what Sovol ships. activate_chamber_temp_control WAS forced off here and is not any more: it moved to the material bases in presets.json on 2026-09-04, where each material also carries its own chamber_minimal_temperature. Forcing it off meant every material except PLA emitted BARE M191 and took the macro's 22 C minimum and 32 C target fallback -- so ABS shipped a 60 C ceiling in its preset that never reached the printer. The PLA-only override in emit_orca_filament that worked around this is gone with it. An unchecked profile still emits bare M191; an enabled one emits M191 at Orca's exact Minimal followed by M141 at its Target. The generated start contains the ordered M191 itself, which makes Orca suppress its automatic pre-start duplicate. See notes/incidents/2026-08-17-zero2-startup-crash.",
       "activate_air_filtration": "0"
     },
+    "_by_type": {
+      "_why": "Orca-only values that differ by material, keyed by filament_type, 2026-11-08. overhang_fan_threshold is the share of a line's width that must hang unsupported before Orca forces overhang_fan_speed; it has no PrusaSlicer or SuperSlicer counterpart, and until now it came silently from Sovol's fdm_filament_* bases. These are those bases' values, now the pack's own. fan_always_on resolved from _ambiguous the same day: Orca labels reduce_fan_stop_start_freq 'Keep fan always on' and runs fan_min_speed instead of 0 with it (CoolingBuffer.cpp:770), which is PrusaSlicer's fan_always_on.",
+      "overhang_fan_threshold": {
+        "ABS": "25%",
+        "PC": "25%",
+        "PETG": "95%",
+        "PCTG": "95%",
+        "PLA": "50%",
+        "PLA Silk": "50%",
+        "TPU": "50%"
+      }
+    },
     "_unmapped": {
       "bridge_fan_speed": "No filament-scope equivalent in Orca. Its nearest relative, internal_bridge_fan_speed, is process scope, so mapping it here would write into the wrong preset type. Dropped deliberately.",
       "compatible_printers": "Handled structurally, not by name: Orca wants a JSON list of machine preset names, which the emitter builds."
@@ -472,7 +485,7 @@
       "PLA": "fdm_filament_pla",
       "PLA Silk": "fdm_filament_pla",
       "PETG": "fdm_filament_pet",
-  "PCTG": "fdm_filament_pet",
+      "PCTG": "fdm_filament_pet",
       "ABS": "fdm_filament_abs",
       "TPU": "fdm_filament_tpu",
       "PC": "fdm_filament_pc",
@@ -487,7 +500,10 @@
     "seam_slope_type": "all",
     "_seam_slope_type": "Contour and hole (Orca's label for `all`), 2026-10-18; was `external` (Contour). Matches PrusaSlicer scarf_seam_placement = everywhere in presets.json.",
     "_skirt_start_angle": "Front-right, requested 2026-09-13 to shorten travel from the purge. Orca accepts -180..180 degrees; -45 is equivalent to 315. Dormant when skirt_loops is zero. This sets skirt entry, not model seam placement.",
-    "skirt_start_angle": "-45"
+    "skirt_start_angle": "-45",
+    "_accel_to_decel": "Decelerate as hard as the move accelerates, 2026-11-08, operator's call. Orca enables accel_to_decel by default at 50%, and since 2.5.0 sends it as SET_VELOCITY_LIMIT ... ACCEL_TO_DECEL=a*f MINIMUM_CRUISE_RATIO=1-f with every acceleration change. 100% sends MINIMUM_CRUISE_RATIO=0, which Sovol's Klipper accepts (toolhead.py, minval 0). PrusaSlicer and SuperSlicer send neither, so their prints run at printer.cfg's minimum_cruise_ratio.",
+    "accel_to_decel_enable": "1",
+    "accel_to_decel_factor": "100%"
   },
   "_mapping_provenance_2026_09_07": "Sixteen mappings added by DIFFING our keymap against the published PrusaSlicer/SuperSlicer -> OrcaSlicer converters: theophile/SuperSlicer_to_Orca_scripts (328 pairs) and bwees/orca_prusa (211). Their tables and ours DISAGREED ON NOTHING -- every key we already mapped, we mapped the same way -- but they cover keys we simply never reached, because ours grew one bug at a time. The consequences were real: support_material_style=organic never reached Orca, so it used its own `default` support style while PS/SS used organic; top/bottom_fill_pattern=monotonic never reached it either; and skirts=0 did not, so Orca printed a skirt the other two did not. See notes/kb/multi-slicer-prior-art.md.",
   "_expanded_2026_09_07": "Grown from 71 to 280 pairs. Sourced by majority vote across three published PrusaSlicer/SuperSlicer -> OrcaSlicer converters (theophile 328 pairs, bwees 211, robertoSreis 22), then filtered on BOTH sides: the PS/SS name must be a real option in ps-known-options.json or ss-known-options.json, and the Orca name must appear in OrcaSlicer's own shipped profiles -- 887 distinct keys harvested from 8,827 files in the installed 2.4.2. The second filter is not optional: the Perl table interleaves conversion-TYPE markers with key names, so an unfiltered import would have added `array`, `single` and `nearest` as Orca options. Pairs where the sources disagree outright are in _ambiguous and deliberately NOT added.\\n\\nMost of these the Zero does not set today. They are here so the NEXT setting added to the master reaches Orca instead of being silently dropped -- which is how support_material_style=organic went missing for months.",
@@ -497,7 +513,6 @@
       "infill_first",
       "external_perimeters_first",
       "bridge_fan_speed",
-      "fan_always_on",
       "filament_colour",
       "filament_retract_lift",
       "filament_wipe",

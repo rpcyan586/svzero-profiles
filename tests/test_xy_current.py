@@ -37,10 +37,11 @@ def ini_values(path):
 
 class XyCurrentTest(unittest.TestCase):
     def test_the_operator_values(self):
-        # Fine to Strength at 2.4 A, Draft at printer.cfg's, Precision's from its
-        # mode file (operator, 2026-10-14).
-        self.assertEqual(CURRENT, {"Fine": 2.4, "Optimal": 2.4, "Standard": 2.4, "Strength": 2.4})
-        self.assertEqual(MODEL["modes"]["precision"]["xy_current"], 1.4)
+        # Fine to Strength at 2.4 A (2026-10-14), Draft at stock's 3.5 and
+        # Precision's 1.8 from its mode file (operator, 2026-11-08).
+        self.assertEqual(CURRENT, {"Fine": 2.4, "Optimal": 2.4, "Standard": 2.4, "Strength": 2.4,
+                                   "Draft": 3.5})
+        self.assertEqual(MODEL["modes"]["precision"]["xy_current"], 1.8)
 
     def test_the_mode_file_sets_the_precision_current(self):
         text = (ROOT / "klipper/modes/svzero-mode-precision.cfg").read_text(encoding="utf-8")

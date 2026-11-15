@@ -21,7 +21,8 @@ and use the same ZIPs and SHA256SUMS on both platforms.
    2.1.2 releases did.
 4. Commit the reviewed tree. Run `python tools/build-release.py`. The script
    requires a clean tracked tree and produces deterministic archives plus
-   checksums in `dist/`: exactly three ZIPs, one per slicer.
+   checksums in `dist/`: exactly three ZIPs, one per slicer. PrusaSlicer 3's
+   bundle stays in Git until it is released as a download.
    Each includes only installation files and the optional consolidated macro
    pack. Builders and individual sources stay in Git; no source ZIP is built.
    Use a fresh output directory (`--output PATH`) and review file lists and
@@ -38,6 +39,9 @@ links to that release. Use its explicit tag URL so the README names the version 
 the next release; keep already-published tags and download files unchanged.
 
 Versions are three numbers, `MAJOR.MINOR.PATCH`, with no prerelease suffix.
-Release `2.1.2` maps to PS vendor `2.1.2` and Orca vendor `02.01.02.00`.
+Release `2.1.2` maps to PS vendor `2.1.2` and Orca vendor `02.01.02.00`; the
+generator writes Orca's from `PS_CONFIG_VERSION`.
 Advance vendor versions for each distributed update so loaders see the change.
+Orca 2.5.0 serves its `system/SVZero.opc` cache until the version rises, so an
+unchanged number keeps users on the old presets.
 The workflow has read-only repository permissions and no publishing credentials.
