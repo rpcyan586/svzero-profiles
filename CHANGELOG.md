@@ -78,6 +78,8 @@
 
 ### Added: the stock camera's exposure follows the room
 
+<p><img src="docs/images/camera-auto.png" alt="camera_auto on a Zero's stock camera: under the stock LED bar no fixed white balance from 2800 to 6500 K is neutral, red to green stays 0.20 to 0.54, while the camera's own white balance reads 1.00 and 1.00; as a desk lamp came and went the start phase cut exposure from 600 to 338 and back, holding the plate's brightness near the last print's 39 to 44"></p>
+
 - **`camera_auto`, an optional Python extra for the stock camera under stock
   crowsnest.** It uses only what the stock image ships. `_PREFLIGHT` starts it
   in the background, and it corrects the stored exposure for this room's light

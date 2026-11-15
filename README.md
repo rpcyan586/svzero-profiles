@@ -36,6 +36,7 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 <img src="docs/images/exhaust.png" width="49%" alt="The PI-controlled exhaust against the stock rule, with the noise curve on the same fan axis">
 <img src="docs/images/cooldown.png" width="49%" alt="The controlled cooldown against the bed switched off, as stock does">
 <img src="docs/images/fan-strength.png" width="49%" alt="How much each fan pulls from the plate, behind the cooldown fan weighting">
+<img src="docs/images/camera-auto.png" width="49%" alt="camera_auto on a Zero's stock camera: under the stock LED bar no fixed white balance from 2800 to 6500 K is neutral, red to green stays 0.20 to 0.54, while the camera's own white balance reads 1.00 and 1.00; as a desk lamp came and went the start phase cut exposure from 600 to 338 and back, holding the plate's brightness near the last print's 39 to 44">
 </p>
 
 ## Try the profiles
