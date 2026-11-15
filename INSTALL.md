@@ -30,9 +30,46 @@ Macro pack preset to maintain.
 The macro pack changes printer behavior, not MCU firmware. None of these
 steps require a firmware flash, OTA or Klipper update.
 
+**What each part needs.** Every printer-side part builds on the macro pack in
+section 2. Only the rows that name Python need section 3.
+
+| To use | You need | You do not need |
+|---|---|---|
+| The slicer profiles | Section 1 | Anything on the printer |
+| The macro pack | Section 2: one firmware file, its include, and on 1.4.x the exhaust-fan edit | Python, precision mode |
+| Precision mode | The macro pack, the mode file beside it, a Klipper restart after each rename, and the precision printer in the slicer: section 4 | Python, the Moonraker component |
+| Automatic mode switching | Everything precision mode needs, plus the Moonraker component in section 4 | Python |
+| Adaptive preheat, the Spoolman check | The macro pack, plus section 3 | Precision mode |
+
+A job sliced with a precision printer is a precision print only when the
+printer is in precision mode. Without the macro pack nothing checks:
+`SVZERO_REQUIRE` is an unknown command, and the job prints at precision speeds
+on the stock 16-microstep configuration. With the pack in standard mode the job
+is refused before heating.
+
+**Check what is active** by typing `SVZERO_MODE` in the console after each
+restart:
+
+| Reply | Means |
+|---|---|
+| `Unknown command:"SVZERO_MODE"` | The macro pack is not loaded: check its include in `printer.cfg` |
+| `machine mode standard, automatic switching off` | The pack is loaded, in standard mode, with no Moonraker component |
+| `machine mode precision, …` | Precision mode is active |
+| `…, automatic switching on` | The Moonraker component is loaded and has seen Klipper start |
+
+The Python helpers have loaded when `HELP` lists `CHAMBER_PREHEAT_WAIT` and
+`SPOOL_GUARD`.
+
 ## 1. Import the slicer profiles
 
-- **OrcaSlicer:** install the generated vendor bundle under `bundles/orca-vendor`.
+- **OrcaSlicer:** with Orca closed, copy `bundles/orca-vendor/SVZero.json` and
+  `bundles/orca-vendor/SVZero/` into the `system/` folder of Orca's
+  configuration directory. **Help → Show Configuration Folder** in Orca opens
+  that directory. It is `%APPDATA%\OrcaSlicer` on Windows
+  (`C:\Users\<you>\AppData\Roaming\OrcaSlicer`, hidden in File Explorer),
+  `~/Library/Application Support/OrcaSlicer` on macOS and `~/.config/OrcaSlicer`
+  on Linux (`~/.var/app/com.orcaslicer.OrcaSlicer/config/OrcaSlicer` for the
+  Flatpak).
 - **PrusaSlicer / SuperSlicer:** File → Import → Import Config Bundle, choosing
   the corresponding generated INI under `bundles/`.
 - Select the nozzle that is physically installed. The pack covers
@@ -362,13 +399,20 @@ old line, and restart while idle.
 
 ## 4. Optional precision mode
 
-Needs the macro pack. Copy `optional-macros/svzero-mode-precision.cfg.off` into
-the pack's `svzero/` directory unchanged; the printer stays in standard mode.
-Rename it to `svzero-mode-precision.cfg` and restart Klipper to enter precision
-mode, and rename it back to leave. Slice with the `SV Zero Precision` printer.
-For automatic switching, install `svzero_mode_switch.py` as a Moonraker
-component. What changes, what refuses and the limits are in
-[docs/PRECISION.md](docs/PRECISION.md).
+Needs the macro pack from section 2; it does not need Python. Copy
+`klipper/modes/svzero-mode-precision.cfg` into the pack's `svzero/` directory,
+beside the firmware file, as `svzero-mode-precision.cfg.off`; the printer stays
+in standard mode. The firmware file includes `svzero-mode-*.cfg` from its own
+directory, so a mode file anywhere else is never read. Rename it without the
+`.off` and restart Klipper to enter precision mode; rename it back and restart
+to leave. A rename without a restart changes nothing. Slice with the
+`SV Zero Precision` printer.
+
+Automatic switching needs that file in place, `.off` or not, because the
+Moonraker component switches modes by renaming it. Install
+`moonraker/svzero_mode_switch.py` as a Moonraker component; `SVZERO_MODE` then
+ends `automatic switching on`. Install steps, what changes, what refuses and the
+limits are in [docs/PRECISION.md](docs/PRECISION.md).
 
 ## Updating and rebuilding the macro bundle
 

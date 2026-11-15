@@ -25,6 +25,8 @@ that much.
 consolidated config for your firmware from `optional-macros/` and add one include.
 The Python enhancements are optional. You do not need to build anything or copy
 individual macro sources. Install the macro pack only once if using several slicers.
+Precision mode and automatic mode switching both need the macro pack first;
+INSTALL.md lists what each part needs and how to check it is active.
 
 Offline checks and slicing do not establish physical
 print quality or nozzle suitability. Stock-startup physical commissioning and

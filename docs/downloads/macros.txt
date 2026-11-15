@@ -4,6 +4,38 @@
 Install the macro pack once, even if you use multiple slicers. No MCU flash,
 OTA or Klipper update is part of this installation.
 
+## What each part needs
+
+Every printer-side part builds on the macro pack in section 1. Only adaptive
+preheat and the Spoolman check need the Python helpers in section 2.
+
+| To use | You need | You do not need |
+|---|---|---|
+| The slicer profiles | The import in this download's README | Anything on the printer |
+| The macro pack | Section 1: one firmware file, its include, and on 1.4.x the exhaust-fan edit | Python, precision mode |
+| Precision mode | The macro pack, the mode file beside it, a Klipper restart after each rename, and the precision printer in the slicer: section 3 | Python, the Moonraker component |
+| Automatic mode switching | Everything precision mode needs, plus the Moonraker component in section 3 | Python |
+| Adaptive preheat and the Spoolman check | The macro pack, plus section 2 | Precision mode |
+
+A job sliced with a precision printer is a precision print only when the
+printer is in precision mode. Without the macro pack nothing checks:
+`SVZERO_REQUIRE` is an unknown command, and the job prints at precision speeds
+on the stock 16-microstep configuration. With the pack in standard mode the job
+is refused before heating.
+
+**Check what is active** by typing `SVZERO_MODE` in the console after each
+restart:
+
+| Reply | Means |
+|---|---|
+| `Unknown command:"SVZERO_MODE"` | The macro pack is not loaded: check its include in `printer.cfg` |
+| `machine mode standard, automatic switching off` | The pack is loaded, in standard mode, with no Moonraker component |
+| `machine mode precision, …` | Precision mode is active |
+| `…, automatic switching on` | The Moonraker component is loaded and has seen Klipper start |
+
+The Python helpers have loaded when `HELP` lists `CHAMBER_PREHEAT_WAIT` and
+`SPOOL_GUARD`.
+
 ## 1. Install one native config
 
 Back up `printer.cfg` and any files you will replace. From `optional-macros/`,
@@ -95,17 +127,36 @@ also covers separately configured fan/camera features.
 
 ## 3. Optional precision mode
 
-Copy `svzero-mode-precision.cfg.off` into the same `svzero/` directory,
-unchanged: the printer stays in standard mode. Rename it to
-`svzero-mode-precision.cfg` and restart Klipper while idle to enter precision
-mode (0.4 nozzle, 64 microsteps, a 300 mm/s ceiling); rename it back to leave.
-Slice with the `SV Zero Precision` printer. A job sliced for the other mode is
-refused before heating and names the file to rename.
+Needs the macro pack from section 1. It does not need section 2.
 
-For automatic switching, copy `svzero_mode_switch.py` to
-`~/moonraker/moonraker/components/`, add `[svzero_mode_switch]` to
-`moonraker.conf` and restart Moonraker. A refused job then switches the printer
-once it is idle and cold, and starts again.
+1. Copy `svzero-mode-precision.cfg.off` into `~/printer_data/config/svzero/`,
+   beside the firmware file, unchanged. The `.off` keeps the printer in
+   standard mode. The firmware file includes `svzero-mode-*.cfg` from its own
+   directory, so a mode file anywhere else is never read.
+2. Add the precision printer in the slicer: `SV Zero Precision` in
+   OrcaSlicer's printer selection, beside `SV Zero`, or
+   `SV Zero Precision 0.4n` (and `0.3n`, `0.25n`, `0.2n`) in PrusaSlicer and
+   SuperSlicer. It covers the 0.4, 0.3, 0.25 and 0.2 nozzles.
+3. To enter precision mode, rename the file to `svzero-mode-precision.cfg` and
+   restart Klipper while idle. To leave, rename it back and restart. A rename
+   without a restart changes nothing; `SVZERO_MODE` says which mode is active.
+
+A job sliced for the other mode is refused before heating, and the message
+names the file to rename.
+
+**Automatic switching** does that rename and restart for you. It needs step 1
+done: the component switches modes by renaming that file, `.off` or not.
+
+1. Copy `svzero_mode_switch.py` to `~/moonraker/moonraker/components/`.
+2. Add a line `[svzero_mode_switch]` to `moonraker.conf`. If your firmware file
+   is not in `svzero/`, add `mode_dir:` under it with that directory, relative
+   to the config directory (`.` for beside `printer.cfg`).
+3. Restart Moonraker. `SVZERO_MODE` should now end `automatic switching on`.
+
+From then on a job sliced for the other mode is refused, the printer switches
+once it is idle and cold, and the same job starts again.
+`SVZERO_MODE MODE=precision` or `MODE=standard` switches with no job. The log is
+`svzero_mode_switch.log`, beside Moonraker's.
 
 ## Updates and rollback
 
