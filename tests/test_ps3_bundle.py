@@ -165,6 +165,13 @@ class Ps3BundleTests(unittest.TestCase):
                                  (ROOT / "bundles/ps3/SVZero.idx").read_bytes())
             self.assertEqual(json.loads(z.read("manifest.json"))["id"], "svzero-fff")
 
+    def test_local_source_zip_is_stored(self):
+        # Deflate's bytes differ between zlib builds; stored members rebuild alike.
+        with zipfile.ZipFile(ROOT / "bundles/SVZero_PrusaSlicer3.zip") as z:
+            self.assertEqual({i.compress_type for i in z.infolist()}, {zipfile.ZIP_STORED})
+            with zipfile.ZipFile(io.BytesIO(z.read("vendor_indices.zip"))) as idx:
+                self.assertEqual({i.compress_type for i in idx.infolist()}, {zipfile.ZIP_STORED})
+
 
 class ConversionTests(unittest.TestCase):
     def test_values_take_their_schema_type(self):

@@ -633,15 +633,21 @@ VENDOR_KINDS = {
 # --- the local source zip --------------------------------------------------------
 
 def _zip_bytes(members):
-    """A deterministic zip: sorted names, fixed timestamps, fixed attributes."""
+    """A deterministic zip: sorted names, fixed timestamps, fixed attributes.
+
+    Stored, not deflated: deflate's bytes depend on the zlib build, and
+    Fedora's zlib-ng and CI's stock zlib 1.3.1 deflate the same members
+    differently, so a deflated archive committed from one fails the
+    rebuild check on the other.
+    """
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_STORED) as z:
         for name, data in sorted(members.items()):
             info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
             info.create_system = 3
             info.external_attr = 0o100644 << 16
-            info.compress_type = zipfile.ZIP_DEFLATED
-            z.writestr(info, data, compresslevel=9)
+            info.compress_type = zipfile.ZIP_STORED
+            z.writestr(info, data)
     return buf.getvalue()
 
 
