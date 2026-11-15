@@ -59,7 +59,9 @@ From a **Git checkout**:
    using File → Import → Import Config Bundle.
 3. **OrcaSlicer:** with Orca closed, copy `bundles/orca-vendor/SVZero.json` and
    `bundles/orca-vendor/SVZero/` together into its configuration directory's
-   `system/` directory. Enable SV Zero in printer selection and select the
+   `system/` directory. **Help → Show Configuration Folder** in Orca opens that
+   directory; on Windows it is `%APPDATA%\OrcaSlicer`, and [INSTALL.md](INSTALL.md)
+   lists the others. Enable SV Zero in printer selection and select the
    physically installed nozzle. Keep the entire vendor folder together.
 4. Select a print and filament preset, configure your own printer connection,
    and inspect the first-layer preview. Old projects can retain old settings;

@@ -94,6 +94,22 @@
 - **Not yet printed.** The visible effect on corners and curves still needs
   an A/B print.
 
+### Changed: the install guides say where Orca's files go and what each part needs
+
+- **Orca's configuration directory is named.** The guides said to copy into
+  "Orca's configuration directory" without saying where that is. They now give
+  **Help → Show Configuration Folder** and the path on each system:
+  `%APPDATA%\OrcaSlicer` on Windows, which File Explorer hides.
+- **What each part needs, in one table.** Precision mode needs the macro pack
+  and the mode file beside it; automatic switching needs precision mode
+  installed as well; neither needs Python.
+- **`SVZERO_MODE` is the check.** Its reply says whether the pack is loaded,
+  which mode is active and whether automatic switching is on. A
+  precision-sliced job without the macro pack prints on the stock 16-microstep
+  configuration with nothing refusing it, so a good print is not that check.
+- **The Git INSTALL.md pointed at `optional-macros/`**, which exists only in the
+  downloads. It now names `klipper/modes/` and `moonraker/`.
+
 ## 2.1.2
 
 ### Fixed: PrusaSlicer and SuperSlicer never ran the filament start G-code
