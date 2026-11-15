@@ -15,6 +15,10 @@ and use the same ZIPs and SHA256SUMS on both platforms.
    first public upload; a passing software test is not a licensing decision.
 3. Review the exact repository and downloadable contents for personal settings,
    credentials, private quotations, missing attribution and broken citations.
+   Run the maintainer's publication gate over its whole manifest, not only over
+   a list of changed files: only the full run checks the published defaults it
+   tracks against this tree. A file-list run skips that check, as the 2.1.0 to
+   2.1.2 releases did.
 4. Commit the reviewed tree. Run `python tools/build-release.py`. The script
    requires a clean tracked tree and produces deterministic archives plus
    checksums in `dist/`: exactly three ZIPs, one per slicer.
