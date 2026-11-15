@@ -93,6 +93,16 @@
   too where one is fitted. A print that ends with a cooldown ramp is
   unaffected: the ramp stops the loop itself.
 
+### Fixed: the preheat helper's defaults match the config it ships with
+
+- **`chamber_preheat.py` now defaults to what `chamber_preheat.cfg` sets**:
+  `settle_dwell` 30, `max_bed_boost` 25 and `max_bed_temp` 120. Its own
+  defaults had stayed at 60, 1000 and 100, against the rule in its own
+  comment that the two must match. The pack's `svzero-python.cfg` carries all
+  three values, so prints with the pack installed are unchanged.
+- **`tests/test_exhaust_adaptive.py` pins them**, with the rest of the
+  exhaust's adaptive-floor model, ported from the maintainer's own tests.
+
 ### Changed: square corner velocity raised at the fine end
 
 - **Precision 4, Fine 5, Optimal 6, Standard 7** (were 1, 3, 4 and 5).
