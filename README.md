@@ -30,6 +30,8 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 
 <p><img src="docs/images/nozzle-growth.png" alt="A hot nozzle reaches about 0.14 mm further down at ABS's 271 C first layer than at the 150 C tap, in real degrees: eight tap pairs beside the sensor on one Zero, the published rate of 1.15 um per degree against Sovol stock, which taps at 130 C (127 real) and has no temperature term, so at 271 C it sits 0.15 to 0.17 mm closer, the first-layer lift for each material, and four printed single-layer squares, where the lifts for k 0.70 and 1.05 came out over-squished and the lift for 1.37 came out flat"></p>
 
+<p><img src="docs/images/hotend-pt1000.png" alt="Sovol's stock hotend table against Klipper's PT1000 on the Zero's 10 kOhm pull-up: set 200 C and the nozzle reaches 195, set 300 and it reaches 290, with atomique13's thermocouple readings and pi.r's reading inside the block beside the curve. Below, each filament's 2.1.2 temperature, its 2.2.0 temperature, and what stock firmware reaches at the 2.2.0 number; PCTG keeps 260"></p>
+
 <p>
 <img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">
 <img src="docs/images/bed-boost.png" width="49%" alt="Bed boost against none from a 27 C box: 13.3 minutes to the chamber soak against 25.6">
