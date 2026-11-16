@@ -37,6 +37,8 @@
 
 ### Changed: the hotend reads as a PT1000, and the profiles move with it
 
+<p><img src="docs/images/hotend-pt1000.png" alt="Sovol's stock hotend table against Klipper's PT1000 on the Zero's 10 kOhm pull-up: set 200 C and the nozzle reaches 195, set 300 and it reaches 290, with atomique13's thermocouple readings and pi.r's reading inside the block beside the curve. Below, each filament's 2.1.2 temperature, its 2.2.0 temperature, and what stock firmware reaches at the 2.2.0 number; PCTG keeps 260"></p>
+
 - **Klipper's own PT1000 conversion replaces Sovol's sensor table.** Sovol's
   three-point table on an 11 500 Ω pull-up ran the nozzle 5.1 °C cold at a
   200 °C set point, 7.8 at 250 and 9.8 at 300. The part is a catalogue PT1000
