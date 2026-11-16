@@ -1,5 +1,65 @@
 # Validation and known limitations
 
+## Candidate 2.2.0
+
+The offline suite passes **316 tests**, with macro rendering on Jinja 2.11.3
+and a clean deterministic rebuild. PS vendor `2.2.0`, Orca `02.02.00.00`.
+Profile behaviour changes: nozzle temperatures rebased to the PT1000 reading,
+the settings OrcaSlicer 2.5.0 reads from the vendor's base files now stated for
+every slicer, a per-tier Z current, and a higher square corner velocity at the
+fine end. The macro pack reads the hotend as a PT1000, sets Sovol's mesh flag on
+1.4.6+, adds `camera_auto`, and keeps the chamber loop running while anything
+heats the chamber (see the [changelog](../CHANGELOG.md)).
+
+- **Sliced.** The full matrix produced G-code in SuperSlicer 2.7.62,
+  PrusaSlicer 2.9.7 and OrcaSlicer 2.5.1, with no refused key. It covers 30
+  slices, every nozzle, tier, filament and test object at least once. Every
+  row matched the baseline, which was re-recorded in this cycle under
+  OrcaSlicer 2.5.1.
+- **Shrinkage enlarges parts.** A 20 mm PLA cube comes out 20.060 mm in the
+  G-code at 0.3% in PrusaSlicer 3, SuperSlicer and OrcaSlicer 2.5.0, and every
+  other filament within 0.001 mm of its own figure.
+- **The PT1000 reading on both Zeros.** Klipper reports `PT1000`, 10000 and
+  344, with Sovol's pin and PID unchanged and no config warnings. At room
+  temperature the 1.4.7 Zero's extruder read 24.0 °C against bed 23.8 and
+  chamber 24.7, where Sovol's curve read 22.5.
+- **A whole print on a 1.3.7 Zero on the PT1000 reading.** An ABS temperature
+  tower at Standard printed to completion on 2026-11-08, on this release's
+  1.3.7 macros less two additions that do nothing on that machine: the 1.4.6+
+  mesh flag and the `camera_auto` hooks. `END_PRINT` put X and Y back at
+  3.50 A and Z at 1.33 A, and the cooldown took over. The tower's first layer
+  was set at 280 °C, 2.1.2's ABS value, so the rebased temperatures themselves
+  have not printed.
+- **Called live on that Zero.** `SVZERO_Z_CURRENT CURRENT=1.0` took the Z
+  driver from 1.331 to 0.998 A. The mesh-flag lines, deployed there, render
+  and skip, since 1.3.7 has no such flag. Both rendered under its own
+  klippy-env (Jinja 2.11.3, Python 3.9.2) first.
+- **On a 1.4.7 Zero, without motion.** Its loaded `BED_MESH_CALIBRATE` wrapper
+  is Sovol's shipped one, and the flag reads False at runtime. Rendered in
+  Klipper's environment, the wrapper homes X and Y and forces a calibration
+  when the flag is False, and only meshes when it is True.
+- **`camera_auto` live on that Zero's stock camera** under stock crowsnest: a
+  start, end and start cycle in 4.8, 7.7 and 2.5 s; a desk lamp moved in and
+  out between phases; the stored controls applied again after a crowsnest
+  restart; 14–24% of one core during the end phase.
+- **Not run on a printer:**
+  - A print at the rebased temperatures. Nothing hot has been checked against a
+    reference thermometer here; the evidence is pi.r's measurement inside a
+    Zero's block, torch's on an SV08 MAX, and room temperature.
+  - Any print on 1.4.x with this release, the mesh flag included. The
+    maintainer's 1.4.7 Zero cannot move.
+  - `camera_auto` in a print: its `_PREFLIGHT` and `END_PRINT` hooks, and the
+    end phase's clip limit on a real part. The stored line with automatic
+    white balance has not been through a restart.
+  - The per-tier Z current inside a print, Precision at 1.8 A, and whether the
+    currents hold each tier's accelerations without lost steps.
+  - The raised square corner velocity, which needs an A/B print.
+  - OrcaSlicer 2.5.0's stated support, overhang and fan settings, and its
+    inward wipe.
+  - The chamber loop staying on through a mid-print dip.
+  - PrusaSlicer 3's menu install by hand. Its bundle is in Git, not a
+    download.
+
 ## Candidate 2.1.2
 
 The offline suite passes **218 tests**, with macro rendering on Jinja 2.11.3

@@ -1,7 +1,7 @@
 kind: vendor
 id: SVZero
 name: SV Zero FFF
-version: 2.1.2
+version: 2.2.0
 features:
   printer:
     supports_high_flow_nozzle:

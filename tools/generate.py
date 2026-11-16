@@ -1209,7 +1209,7 @@ def apply_flow_model(model, ss):
 
 
 PS_TARGET = "2.9.6"          # overwritten from model.json in main()
-PS_CONFIG_VERSION = "2.1.2"  # vendor bundle version; must match the .idx entry
+PS_CONFIG_VERSION = "2.2.0"  # vendor bundle version; must match the .idx entry
 PS_MIN_VERSION = "2.6.0"     # .idx gate -- above the installed PS, the vendor is ignored
 
 

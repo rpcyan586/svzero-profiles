@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.0
 
 ### Fixed: on 1.4.6 and later, every print re-homed X and Y before the mesh
 
