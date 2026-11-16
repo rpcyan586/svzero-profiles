@@ -118,7 +118,7 @@ variants:
 
       ;  different MODE refuses the job here, before any heater.
 
-      SVZERO_REQUIRE VERSION=2.1.2 MODE=standard
+      SVZERO_REQUIRE VERSION=2.2.0 MODE=standard
 
       ;  _PREFLIGHT is next so a rejected job costs no heating. It is inert
 
@@ -391,7 +391,7 @@ variants:
 
       ;  different MODE refuses the job here, before any heater.
 
-      SVZERO_REQUIRE VERSION=2.1.2 MODE=precision
+      SVZERO_REQUIRE VERSION=2.2.0 MODE=precision
 
       ;  _PREFLIGHT is next so a rejected job costs no heating. It is inert
 
