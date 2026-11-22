@@ -340,8 +340,8 @@ ships: `v4l2-ctl`, `ffmpeg`, crowsnest's snapshot and NumPy in klippy-env.
 3. Check what it measures. Open `http://<printer>:8080/?action=snapshot`: the
    frame is upside down, as the camera is. `roi` in `camera_auto.cfg` is a crop
    of that frame, as fractions. It is not the plate, which moves with the bed's
-   Z. The default keeps the central 80%; crop further to drop the room seen
-   through the door and lid in your view.
+   Z. The default keeps the central 80%; crop further to drop anything outside
+   the machine that is still in your view.
 
 What it does, once installed:
 
@@ -354,6 +354,28 @@ What it does, once installed:
   band, and writes it into `crowsnest.conf`'s `v4l2ctl` line. Crowsnest applies
   that on every start, so a restart begins there too. The original file is
   kept once as `crowsnest.conf.camera-auto-orig`.
+- **It sets the stream to 672×456**, written into `crowsnest.conf`'s
+  `resolution` at the next start or end where it differs. Crowsnest picks it up
+  the next time it starts: restart crowsnest from Mainsail's power menu, under
+  services, or reboot. camera_auto never restarts it, so a print's stream is
+  not cut. The camera does the scaling and cropping itself and crowsnest passes
+  it through, so it costs no CPU.
+
+<p><img src="docs/images/camera-framing.png" alt="The stock camera's native 1280 by 720 frame on a Zero, with what each size keeps: 800 by 480, what stock gets, loses about 40 px on each side; 672 by 456, the default, keeps the whole plate and drops most of the room seen through the door and of the front-right leadscrew; 640 by 480 is 4:3 and cuts into the plate's rear-right corner"></p>
+
+To pick another size, uncomment `resolution:` in `camera_auto.cfg` and set it
+to one of the camera's own:
+
+| `resolution` | What it keeps | Frame |
+|---|---|---|
+| `672x456` | the default: the whole plate, without most of the room seen through the door or of the front-right leadscrew | 34–44 KB |
+| `1280x720` | native, the whole sensor: barely sharper, less noisy once a viewer shrinks it | 100–170 KB |
+| `800x480` | what a stock image gets: Sovol asks for 720×540, which the camera does not offer | 39–46 KB |
+| `640x480` | 4:3, a quarter less width: cuts the plate's rear-right corner while the bed is high | about 34 KB |
+| `keep` | leaves crowsnest's resolution as it is | |
+
+Then restart the Klipper service while idle, run `CAMERA_AUTO PHASE=start` (or
+print once), and restart crowsnest. The file's comments give the measurements.
 
 It moves, heats and lights nothing, and runs no G-code.
 

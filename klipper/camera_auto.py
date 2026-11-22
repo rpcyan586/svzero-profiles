@@ -41,6 +41,19 @@ gains at once, so its result cannot be frozen (2026-10-31). Each phase reports
 the interior's colour, R/G and B/G over the crop's mid-tones, as the check that
 it is still grey. white_balance_temperature pins a manual value instead.
 
+RESOLUTION is persisted with the controls: crowsnest's [cam] resolution is set
+to `resolution`, 672x456 unless configured otherwise, and takes effect the
+next time crowsnest starts. camera_auto never restarts it, so a print's stream
+is not cut. Every size is the camera's own MJPEG, which crowsnest's ustreamer
+passes through (-m MJPEG --encoder=HW): 2-3% of a core with one viewer. The
+smaller sizes scale the full sensor height down and crop the sides in the
+camera: 672x456 keeps the plate and drops most of the room seen through the
+door and of the leadscrew (camera_auto.cfg has the measured framing). Stock
+asks for 720x540, which the camera does not offer, and lands on 800x480. A
+reference brightness belongs to one framing, so each reference records its
+frame size, and a start that sees another size meters afresh rather than chase
+the old one.
+
 Crowsnest must own the camera. When its [cam] device is /dev/null or missing,
 as on a go2rtc machine, every command reports that and does nothing.
 """
@@ -174,8 +187,8 @@ def merge_v4l2ctl(existing, managed):
     return ",".join("%s=%s" % kv for kv in keep + ordered)
 
 
-def rewrite_crowsnest(text, cam, value):
-    """crowsnest.conf with [cam <cam>]'s v4l2ctl set to `value`, every other
+def rewrite_crowsnest(text, cam, value, key="v4l2ctl"):
+    """crowsnest.conf with [cam <cam>]'s `key` set to `value`, every other
     line untouched. Adds the line after the section's device: when absent.
     Returns (new_text, old_value); raises ValueError without the section."""
     lines = text.split("\n")
@@ -185,14 +198,45 @@ def rewrite_crowsnest(text, cam, value):
         raise ValueError("no %s in crowsnest.conf" % header)
     end = next((i for i in range(start + 1, len(lines)) if lines[i].strip().startswith("[")), len(lines))
     for i in range(start + 1, end):
-        key = lines[i].split(":", 1)[0].strip()
-        if key == "v4l2ctl":
+        if lines[i].split(":", 1)[0].strip() == key:
             old = lines[i].split(":", 1)[1].split("#", 1)[0].strip()
-            lines[i] = "v4l2ctl: %s" % value
+            lines[i] = "%s: %s" % (key, value)
             return "\n".join(lines), old
     at = next((i + 1 for i in range(start + 1, end) if lines[i].split(":", 1)[0].strip() == "device"), end)
-    lines.insert(at, "v4l2ctl: %s" % value)
+    lines.insert(at, "%s: %s" % (key, value))
     return "\n".join(lines), ""
+
+
+def parse_resolution(value):
+    """camera_auto's resolution option: "WxH", or None for keep / empty."""
+    v = (value or "").strip().lower()
+    if v in ("", "keep"):
+        return None
+    w, sep, h = v.partition("x")
+    if not (sep and w.isdigit() and h.isdigit() and 16 <= int(w) <= 4096 and 16 <= int(h) <= 4096):
+        raise ValueError("resolution must be WIDTHxHEIGHT, such as 672x456, or keep")
+    return "%dx%d" % (int(w), int(h))
+
+
+def jpeg_size(data):
+    """(width, height) from a JPEG's start-of-frame marker, or None."""
+    i = 2
+    while i + 9 < len(data) and data[i] == 0xFF:
+        marker = data[i + 1]
+        if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+            return (data[i + 7] << 8 | data[i + 8], data[i + 5] << 8 | data[i + 6])
+        if marker == 0xDA:
+            return None
+        i += 2 + (data[i + 2] << 8 | data[i + 3])
+    return None
+
+
+def reframed(stored, current):
+    """"WxH -> WxH" when a reference was taken at another frame size, else None.
+    A reference without a recorded size predates the check and is kept."""
+    if not stored or not current or tuple(stored) == tuple(current):
+        return None
+    return "%dx%d -> %dx%d" % (stored[0], stored[1], current[0], current[1])
 
 
 def crowsnest_param(text, cam, name):
@@ -223,6 +267,11 @@ class CameraAuto:
         self.state_path = os.path.expanduser(config.get(
             "state_file", os.path.join(home, "printer_data/config/camera_auto_state.json")))
         self.cam = config.get("cam", "1")
+        try:
+            self.resolution = parse_resolution(config.get("resolution", "672x456"))
+        except ValueError as e:
+            raise config.error("camera_auto %s" % e)
+        self.frame_size = None
         self.device_cfg = config.get("device", "")
         self.snapshot_url = config.get("snapshot_url", "http://127.0.0.1:8080/?action=snapshot")
         self.roi = self._box(config, "roi", "0.10,0.10,0.90,0.90")
@@ -330,11 +379,17 @@ class CameraAuto:
     def _start(self, device, exposure, state, cancel, started):
         ref = state.get("reference") or {}
         reference = ref.get("median")
+        moved = None
         steps = []
         for _ in range(3):
             if cancel.is_set() or time.monotonic() - started > self.budget:
                 break
             s = self._measure(device, exposure)
+            if reference and not steps:
+                # A reference from another frame size measured another framing.
+                moved = reframed(ref.get("frame"), self.frame_size)
+                if moved:
+                    reference = None
             new, ratio, goal = start_exposure(exposure, s["median"], reference, self.target,
                                               self.max_step, self.lo, self.hi, self.response)
             steps.append(dict(exposure=exposure, median=s["median"], clip=s["clip"], ratio=ratio, next=new,
@@ -344,17 +399,31 @@ class CameraAuto:
             exposure = new
         self._set(device, exposure_time_absolute=exposure)
         state.update(exposure=exposure)
+        resized = None
         if not reference:
-            # First run: this becomes the baseline until an end phase replaces it.
-            state["reference"] = dict(median=self.target, exposure=exposure, source="first-start")
-            self._persist(exposure)
+            # First run, or a new frame size: this is the baseline until an end
+            # phase replaces it.
+            state["reference"] = dict(median=self.target, exposure=exposure,
+                                      source="reframed" if moved else "first-start",
+                                      frame=list(self.frame_size) if self.frame_size else None)
+            resized = self._persist(exposure)
+        elif self._resolution_pending():
+            # An existing reference stands; only the stream size is new.
+            resized = self._persist()
         self._save_state(state)
         last = steps[-1] if steps else {}
         colour = colour_note(last.get("rg"), last.get("bg"), self.colour_tolerance)
-        self._say("start: exposure %d (reference median %s, steps %s), %s" % (
-            exposure, reference if reference else "none, target %g" % self.target,
-            " ".join("%d:%.0f" % (st["exposure"], st["median"]) for st in steps), colour))
-        return dict(status="started", exposure=exposure, reference=reference, steps=steps, colour=colour)
+        if reference:
+            basis = reference
+        elif moved:
+            basis = "reset by the frame size %s, target %g" % (moved, self.target)
+        else:
+            basis = "none, target %g" % self.target
+        self._say("start: exposure %d (reference median %s, steps %s), %s%s" % (
+            exposure, basis, " ".join("%d:%.0f" % (st["exposure"], st["median"]) for st in steps),
+            colour, self._resolution_note(resized)))
+        return dict(status="started", exposure=exposure, reference=reference, steps=steps, colour=colour,
+                    reframed=moved, resolution_was=resized)
 
     def _end(self, device, exposure, state, cancel, started):
         samples = []
@@ -375,13 +444,21 @@ class CameraAuto:
         colour = colour_note(best.get("rg"), best.get("bg"), self.colour_tolerance)
         state.update(exposure=exposure, reference=dict(
             median=best["median"], exposure=exposure, source="end-of-print",
+            frame=list(self.frame_size) if self.frame_size else None,
             at=time.strftime("%Y-%m-%dT%H:%M:%S")))
         self._save_state(state)
-        self._persist(exposure)
-        self._say("end: kept exposure %d (%s; tried %s); reference median %.0f, %s; written to crowsnest.conf"
+        resized = self._persist(exposure)
+        self._say("end: kept exposure %d (%s; tried %s); reference median %.0f, %s; written to crowsnest.conf%s"
                   % (exposure, how, " ".join("%d:%.0f/%.3f" % (s["exposure"], s["median"], s["clip"])
-                                             for s in samples), best["median"], colour))
-        return dict(status=how, exposure=exposure, samples=samples, colour=colour)
+                                             for s in samples), best["median"], colour,
+                     self._resolution_note(resized)))
+        return dict(status=how, exposure=exposure, samples=samples, colour=colour, resolution_was=resized)
+
+    def _resolution_note(self, was):
+        if was is None:
+            return ""
+        return ("; crowsnest resolution %s -> %s, from crowsnest's next start"
+                % (was or "unset", self.resolution))
 
     def _white_balance(self):
         """The white-balance controls: the camera's automatic, or a pinned value."""
@@ -428,6 +505,7 @@ class CameraAuto:
     def _frame(self):
         with urllib.request.urlopen(self.snapshot_url, timeout=4) as r:
             jpeg = r.read()
+        self.frame_size = jpeg_size(jpeg) or self.frame_size
         h = self.width * 3 // 4
         raw = subprocess.run(["nice", "-n", "19", "ffmpeg", "-v", "error", "-i", "pipe:0",
                               "-vf", "scale=%d:%d" % (self.width, h), "-frames:v", "1",
@@ -456,19 +534,40 @@ class CameraAuto:
             json.dump(state, f, indent=1, sort_keys=True)
         os.replace(tmp, self.state_path)
 
-    def _persist(self, exposure):
-        """Write the chosen controls into crowsnest.conf, atomically, once a
-        backup of the original exists. Crowsnest applies v4l2ctl each time its
-        stream starts (libs/v4l2_control.sh), so a restart starts here."""
-        managed = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
-                       brightness=self.brightness, exposure_time_absolute=exposure,
-                       **self._white_balance())
+    def _resolution_pending(self):
+        """True when crowsnest.conf's resolution is not the configured one."""
+        if not self.resolution:
+            return False
+        try:
+            with open(self.conf_path) as f:
+                return crowsnest_param(f.read(), self.cam, "resolution") != self.resolution
+        except OSError:
+            return False
+
+    def _persist(self, exposure=None):
+        """Write the chosen controls (unless exposure is None), and the
+        resolution unless it is `keep`, into crowsnest.conf, atomically, once a
+        backup of the original exists. Crowsnest applies both each time its
+        stream starts (libs/v4l2_control.sh, libs/ustreamer.sh), so a restart
+        starts here. Returns the resolution it replaced when it changed it (""
+        when the line was absent), else None."""
         with open(self.conf_path) as f:
             text = f.read()
-        old = crowsnest_param(text, self.cam, "v4l2ctl") or ""
-        new_text, _ = rewrite_crowsnest(text, self.cam, merge_v4l2ctl(old, managed))
+        new_text = text
+        if exposure is not None:
+            managed = dict(auto_exposure=1, exposure_dynamic_framerate=0, gain=self.gain,
+                           brightness=self.brightness, exposure_time_absolute=exposure,
+                           **self._white_balance())
+            old = crowsnest_param(text, self.cam, "v4l2ctl") or ""
+            new_text, _ = rewrite_crowsnest(text, self.cam, merge_v4l2ctl(old, managed))
+        resized = None
+        if self.resolution:
+            old_res = crowsnest_param(text, self.cam, "resolution")
+            if old_res != self.resolution:
+                new_text, _ = rewrite_crowsnest(new_text, self.cam, self.resolution, key="resolution")
+                resized = old_res or ""
         if new_text == text:
-            return
+            return None
         backup = self.conf_path + ".camera-auto-orig"
         if not os.path.exists(backup):
             with open(backup, "w") as f:
@@ -477,6 +576,7 @@ class CameraAuto:
         with open(tmp, "w") as f:
             f.write(new_text)
         os.replace(tmp, self.conf_path)
+        return resized
 
 
 def load_config(config):
