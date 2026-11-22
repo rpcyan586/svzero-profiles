@@ -361,7 +361,7 @@ What it does, once installed:
   not cut. The camera does the scaling and cropping itself and crowsnest passes
   it through, so it costs no CPU.
 
-<p><img src="docs/images/camera-framing.png" alt="The stock camera's native 1280 by 720 frame on a Zero, with what each size keeps: 800 by 480, what stock gets, loses about 40 px on each side; 672 by 456, the default, keeps the whole plate and drops most of the room seen through the door and of the front-right leadscrew; 640 by 480 is 4:3 and cuts into the plate's rear-right corner"></p>
+<p><img src="docs/images/camera-framing.png" alt="The stock camera's native 1280 by 720 frame on a Zero, with what each size keeps, and the paths of the build area's front-left and rear-right corners as the bed drops from the first layer to Z 100: 672 by 456, the default, keeps both corners at every height, the rear-right within about 20 px of its edge at the first layer, and drops most of the room seen through the door; 800 by 480, what stock gets, loses about 40 px on each side; 640 by 480 is 4:3 and loses the rear-right corner until the bed is about 50 mm down"></p>
 
 To pick another size, uncomment `resolution:` in `camera_auto.cfg` and set it
 to one of the camera's own:
@@ -371,7 +371,7 @@ to one of the camera's own:
 | `672x456` | the default: the whole plate, without most of the room seen through the door or of the front-right leadscrew | 34–44 KB |
 | `1280x720` | native, the whole sensor: barely sharper, less noisy once a viewer shrinks it | 100–170 KB |
 | `800x480` | what a stock image gets: Sovol asks for 720×540, which the camera does not offer | 39–46 KB |
-| `640x480` | 4:3, a quarter less width: cuts the plate's rear-right corner while the bed is high | about 34 KB |
+| `640x480` | 4:3, a quarter less width: loses the build area's rear-right corner until the bed is about 50 mm down | about 34 KB |
 | `keep` | leaves crowsnest's resolution as it is | |
 
 Then restart the Klipper service while idle, run `CAMERA_AUTO PHASE=start` (or

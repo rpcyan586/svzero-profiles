@@ -6,7 +6,8 @@
 
 - **The stock camera now streams at 672×456,** a size the camera makes itself:
   it scales the full sensor height down by 1.58 and crops the sides. That keeps
-  the whole plate and drops most of the room seen through the door and of the
+  the whole plate, with both build-area corners near the sides in frame at
+  every bed height, and drops most of the room seen through the door and of the
   front-right leadscrew. Stock asks crowsnest for 720×540, which the camera
   does not offer, and lands on 800×480.
 - **It costs nothing extra.** Crowsnest passes the camera's MJPEG through:
