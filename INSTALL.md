@@ -333,6 +333,8 @@ The native macro path then takes over.
 For the stock camera under stock crowsnest. It uses only what the stock image
 ships: `v4l2-ctl`, `ffmpeg`, crowsnest's snapshot and NumPy in klippy-env.
 
+<p><img src="docs/images/camera-before-after.png" alt="A Zero's stock camera with a yellow Voron cube on the plate and the toolhead at five places. Under the camera's own auto exposure the cube's face is 71 to 76% white at every position. Under camera_auto, at the exposure its last end chose by judging the part, it is 1 to 62% white and the cube's logo reads. At the front right the toolhead covers the lens: stock brightens the frame and the cube stays white, while under camera_auto the frame goes dark and the cube reads best"></p>
+
 1. Copy `camera_auto.py` into `~/klipper/klippy/extras/` and `camera_auto.cfg`
    into `~/printer_data/config/svzero/`.
 2. Add `[include svzero/camera_auto.cfg]` after the pack's includes and restart
