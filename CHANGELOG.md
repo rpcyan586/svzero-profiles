@@ -80,6 +80,8 @@
 
 ### Added: the stock camera's exposure follows the room
 
+<p><img src="docs/images/camera-before-after.png" alt="A Zero's stock camera with a yellow Voron cube on the plate and the toolhead at five places. Under the camera's own auto exposure the cube's face is 71 to 76% white at every position. Under camera_auto, at the exposure its last end chose by judging the part, it is 1 to 62% white and the cube's logo reads. At the front right the toolhead covers the lens: stock brightens the frame and the cube stays white, while under camera_auto the frame goes dark and the cube reads best"></p>
+
 <p><img src="docs/images/camera-auto.png" alt="camera_auto over four prints on a Zero's stock camera as a desk lamp came and went: each print's end tries up to three exposures with the part in frame and keeps the sharpest per unit of noise under 2% clipped, and its plate brightness becomes the next start's target. With the lamp aimed in, the next start read 79 and stepped back to 44 against 43; with the lamp off it climbed to the 600 exposure cap. Gain stays at 0, and the camera's own white balance stays on"></p>
 
 - **`camera_auto`, an optional Python extra for the stock camera under stock

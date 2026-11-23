@@ -32,6 +32,8 @@ are starting points, not evidence that a nozzle fits or has been flow-calibrated
 
 <p><img src="docs/images/hotend-pt1000.png" alt="Sovol's stock hotend table against Klipper's PT1000 on the Zero's 10 kOhm pull-up: set 200 C and the nozzle reaches 195, set 300 and it reaches 290, with atomique13's thermocouple readings and pi.r's reading inside the block beside the curve. Below, each filament's 2.1.2 temperature, its 2.2.0 temperature, and what stock firmware reaches at the 2.2.0 number; PCTG keeps 260"></p>
 
+<p><img src="docs/images/camera-before-after.png" alt="A Zero's stock camera with a yellow Voron cube on the plate and the toolhead at five places. Under the camera's own auto exposure the cube's face is 71 to 76% white at every position. Under camera_auto, at the exposure its last end chose by judging the part, it is 1 to 62% white and the cube's logo reads. At the front right the toolhead covers the lens: stock brightens the frame and the cube stays white, while under camera_auto the frame goes dark and the cube reads best"></p>
+
 <p>
 <img src="docs/images/presets.png" width="49%" alt="Every print preset by nozzle and tier, 56 across 10 nozzles, with precision on 0.2 to 0.4">
 <img src="docs/images/bed-boost.png" width="49%" alt="Bed boost against none from a 27 C box: 13.3 minutes to the chamber soak against 25.6">
