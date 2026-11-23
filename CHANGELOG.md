@@ -7,9 +7,9 @@
 - **The stock camera now streams at 672×456,** a size the camera makes itself:
   it scales the full sensor height down by 1.58 and crops the sides. That keeps
   the whole plate, with both build-area corners near the sides in frame at
-  every bed height, and drops most of the room seen through the door and of the
-  front-right leadscrew. Stock asks crowsnest for 720×540, which the camera
-  does not offer, and lands on 800×480.
+  every bed height, and drops most of the room seen through the door. Its right
+  edge runs along the front-right leadscrew. Stock asks crowsnest for 720×540,
+  which the camera does not offer, and lands on 800×480.
 - **It costs nothing extra.** Crowsnest passes the camera's MJPEG through:
   ustreamer used 2.1% of a core with one viewer at 672×456, 2.2% at 800×480 and
   2.9% at native 1280×720. Frames are 34–44 KB against 39–46 KB for 800×480.
@@ -19,8 +19,9 @@
   start or print's end where it differs. Crowsnest uses it from its next start,
   so no print's stream is cut. `resolution:` in `camera_auto.cfg` picks
   `1280x720`, `800x480` or `640x480` instead, or `keep` to leave crowsnest's
-  alone. INSTALL.md section 3 has the table and the
-  framing figure.
+  alone. `640x480` clears the leadscrew area, where Obico is prone to false
+  positives, but loses the build area's rear-right corner until the bed is
+  about 50 mm down. INSTALL.md section 3 has the table and the framing figure.
 - **A reference brightness now records its frame size.** A start that sees a
   different size meters toward `target_median` afresh rather than chase a
   brightness taken from another framing.

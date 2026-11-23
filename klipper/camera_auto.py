@@ -48,7 +48,10 @@ is not cut. Every size is the camera's own MJPEG, which crowsnest's ustreamer
 passes through (-m MJPEG --encoder=HW): 2-3% of a core with one viewer. The
 smaller sizes scale the full sensor height down and crop the sides in the
 camera: 672x456 keeps the plate and drops most of the room seen through the
-door and of the leadscrew (camera_auto.cfg has the measured framing). Stock
+door, its right edge running along the front-right leadscrew; 640x480 clears
+that leadscrew's area, where Obico is prone to false positives, at the cost of
+the build area's rear-right corner over the first 50 mm (camera_auto.cfg has
+the measured framing). Stock
 asks for 720x540, which the camera does not offer, and lands on 800x480. A
 reference brightness belongs to one framing, so each reference records its
 frame size, and a start that sees another size meters afresh rather than chase
