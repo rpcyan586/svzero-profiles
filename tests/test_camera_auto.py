@@ -3,8 +3,9 @@
 
 The extra itself runs on a printer; what is tested here is everything that
 decides: the start phase's bounded correction, the end phase's pick, the
-dark-plate trap, the colour check, and the one line of crowsnest.conf
-it may change. Frame statistics need NumPy and are skipped without it.
+dark-plate trap, the colour check, and the two lines of crowsnest.conf
+it may change, v4l2ctl and resolution. Frame statistics need NumPy and are
+skipped without it.
 """
 import importlib.util
 from pathlib import Path
@@ -157,6 +158,149 @@ class CrowsnestTests(unittest.TestCase):
     def test_a_missing_section_is_refused(self):
         with self.assertRaises(ValueError):
             C.rewrite_crowsnest(CONF, "9", "gain=0")
+
+    def test_resolution_replaces_stocks_720x540_in_its_own_section_only(self):
+        new, old = C.rewrite_crowsnest(CONF, "1", "672x456", key="resolution")
+        self.assertEqual(old, "720x540")
+        self.assertEqual(C.crowsnest_param(new, "1", "resolution"), "672x456")
+        self.assertIsNone(C.crowsnest_param(new, "2", "resolution"))
+        changed = [(a, b) for a, b in zip(CONF.split("\n"), new.split("\n")) if a != b]
+        self.assertEqual(len(changed), 1)
+
+    def test_resolution_is_added_after_device_when_absent(self):
+        new, old = C.rewrite_crowsnest(CONF, "2", "672x456", key="resolution")
+        self.assertEqual(old, "")
+        lines = new.split("\n")
+        self.assertEqual(lines[lines.index("resolution: 672x456") - 1], "device: /dev/null")
+
+
+class ResolutionTests(unittest.TestCase):
+    def test_the_option(self):
+        self.assertEqual(C.parse_resolution("672x456"), "672x456")
+        self.assertEqual(C.parse_resolution(" 1280X720 "), "1280x720")
+        self.assertIsNone(C.parse_resolution("keep"))
+        self.assertIsNone(C.parse_resolution(""))
+        for bad in ("672", "672x", "x456", "672*456", "big", "8x8"):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                C.parse_resolution(bad)
+
+    def test_frame_size_from_the_jpeg_header(self):
+        # SOI, a DQT segment, then SOF0: precision 8, height 456, width 672.
+        dqt = b"\xff\xdb\x00\x43\x00" + bytes(64)
+        sof = b"\xff\xc0\x00\x11\x08\x01\xc8\x02\xa0\x03" + bytes(9)
+        self.assertEqual(C.jpeg_size(b"\xff\xd8" + dqt + sof + b"\xff\xda"), (672, 456))
+        self.assertIsNone(C.jpeg_size(b"\xff\xd8" + dqt + b"\xff\xda\x00\x02"))
+        self.assertIsNone(C.jpeg_size(b"not a jpeg"))
+
+    def test_a_reference_from_another_frame_size_is_dropped(self):
+        self.assertEqual(C.reframed([800, 480], (672, 456)), "800x480 -> 672x456")
+        self.assertIsNone(C.reframed([672, 456], (672, 456)))
+        # References written before the check carry no size; they stand.
+        self.assertIsNone(C.reframed(None, (672, 456)))
+        self.assertIsNone(C.reframed([800, 480], None))
+
+
+class _Config:
+    """Just enough of Klipper's config object to build CameraAuto."""
+    class error(Exception):
+        pass
+
+    def __init__(self, tmp, **options):
+        self.options = dict(crowsnest_conf=str(tmp / "crowsnest.conf"),
+                            state_file=str(tmp / "camera_auto_state.json"), **options)
+        self.said = []
+        gcode = type("G", (), {"register_command": lambda *a, **k: None,
+                               "respond_info": lambda s, m: self.said.append(m)})()
+        reactor = type("R", (), {"register_async_callback": lambda s, cb: cb(0)})()
+        self.printer = type("P", (), {"get_reactor": lambda s: reactor,
+                                      "lookup_object": lambda s, name: gcode})()
+
+    def get_printer(self):
+        return self.printer
+
+    def get(self, name, default=None):
+        return self.options.get(name, default)
+
+    def getint(self, name, default=None, **kw):
+        return int(self.options.get(name, default))
+
+    def getfloat(self, name, default=None, **kw):
+        return float(self.options.get(name, default))
+
+
+class PersistTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / "crowsnest.conf").write_text(CONF, encoding="utf-8")
+
+    def camera(self, **options):
+        cfg = _Config(self.tmp, **options)
+        cam = C.CameraAuto(cfg)
+        cam.settle = 0
+        cam._set = lambda device, **controls: None
+        cam.said = cfg.said
+        return cam
+
+    def conf(self):
+        return (self.tmp / "crowsnest.conf").read_text(encoding="utf-8")
+
+    def test_writes_the_default_resolution_once_with_a_backup(self):
+        cam = self.camera()
+        self.assertEqual(cam._persist(150), "720x540")
+        self.assertEqual(C.crowsnest_param(self.conf(), "1", "resolution"), "672x456")
+        self.assertIn("exposure_time_absolute=150", C.crowsnest_param(self.conf(), "1", "v4l2ctl"))
+        self.assertEqual((self.tmp / "crowsnest.conf.camera-auto-orig").read_text(encoding="utf-8"), CONF)
+        self.assertIsNone(cam._persist(150))   # nothing left to change
+
+    def test_keep_leaves_crowsnests_resolution_alone(self):
+        cam = self.camera(resolution="keep")
+        self.assertIsNone(cam._persist(150))
+        self.assertEqual(C.crowsnest_param(self.conf(), "1", "resolution"), "720x540")
+
+    def test_a_bad_value_is_a_config_error(self):
+        with self.assertRaises(_Config.error):
+            self.camera(resolution="big")
+
+    @unittest.skipUnless(C.np is not None, "NumPy is not installed")
+    def test_start_says_what_it_wrote_and_end_records_the_frame(self):
+        cam = self.camera()
+        cam.frame_size = (800, 480)
+        stats = dict(median=60.0, clip=0.0, dark=0.0, sharp=1.0, rg=1.0, bg=1.0, lum=C.np.zeros((4, 4)))
+        cam._measure = lambda device, exposure: dict(stats)
+        cam._capture_stats = lambda: dict(stats)
+        state = {}
+        cam._start("/dev/video0", 120, state, C.threading.Event(), C.time.monotonic())
+        self.assertIn("crowsnest resolution 720x540 -> 672x456", cam.said[-1])
+        cam._end("/dev/video0", 120, state, C.threading.Event(), C.time.monotonic())
+        self.assertEqual(state["reference"]["frame"], [800, 480])
+        self.assertNotIn("crowsnest resolution", cam.said[-1])   # already written
+
+    def test_a_start_with_a_reference_writes_only_a_new_resolution(self):
+        cam = self.camera()
+        cam.frame_size = (800, 480)
+        cam._measure = lambda device, exposure: dict(median=45.0, clip=0.0, dark=0.0, sharp=1.0,
+                                                     rg=1.0, bg=1.0, lum=None)
+        state = dict(exposure=120, reference=dict(median=45.0, exposure=120, frame=[800, 480]))
+        out = cam._start("/dev/video0", 120, state, C.threading.Event(), C.time.monotonic())
+        self.assertEqual(out["resolution_was"], "720x540")
+        self.assertEqual(C.crowsnest_param(self.conf(), "1", "resolution"), "672x456")
+        self.assertIsNone(C.crowsnest_param(self.conf(), "1", "v4l2ctl"))   # the exposure is the end's to write
+        self.assertEqual(state["reference"]["median"], 45.0)
+        out = cam._start("/dev/video0", 120, state, C.threading.Event(), C.time.monotonic())
+        self.assertIsNone(out["resolution_was"])
+
+    def test_a_new_frame_size_resets_the_reference(self):
+        cam = self.camera()
+        cam.frame_size = (672, 456)
+        cam._measure = lambda device, exposure: dict(median=30.0, clip=0.0, dark=0.0, sharp=1.0,
+                                                     rg=1.0, bg=1.0, lum=None)
+        state = dict(exposure=120, reference=dict(median=45.0, exposure=120, frame=[800, 480]))
+        out = cam._start("/dev/video0", 120, state, C.threading.Event(), C.time.monotonic())
+        self.assertEqual(out["reframed"], "800x480 -> 672x456")
+        self.assertEqual(state["reference"]["source"], "reframed")
+        self.assertEqual(state["reference"]["frame"], [672, 456])
+        self.assertIn("reset by the frame size 800x480 -> 672x456, target 60", cam.said[-1])
 
 
 class ConfigDefaultsTests(unittest.TestCase):
